@@ -30,14 +30,15 @@ export default function TaxView() {
     <div className="p-4 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-white">Tax Liability — {state.taxYear}</h1>
-        <div className="flex items-center gap-2">
-          <button onClick={exportCSV} className="bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-sm px-3 py-1.5 rounded-lg transition-colors">
-            Export CSV
-          </button>
-        </div>
+        <button
+          onClick={exportCSV}
+          className="bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-sm px-3 py-1.5 rounded-lg transition-colors"
+        >
+          Export CSV
+        </button>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-3 mb-4">
         <label className="text-sm text-zinc-400">Tax Bracket:</label>
         <select
           value={bracket}
@@ -46,11 +47,11 @@ export default function TaxView() {
         >
           {BRACKETS.map(b => <option key={b} value={b}>{b}%</option>)}
         </select>
-        <span className="text-xs text-zinc-500">Used to estimate federal tax on bank bonuses</span>
+        <span className="text-xs text-zinc-500">federal estimate on bank bonuses</span>
       </div>
 
       <div className="bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden mb-4">
-        <div className="grid grid-cols-4 text-xs font-medium text-zinc-400 bg-zinc-800 px-4 py-2">
+        <div className="grid grid-cols-4 text-xs font-medium text-zinc-400 bg-zinc-800 px-4 py-2.5">
           <span>Player</span>
           <span className="text-right">Bank Bonuses</span>
           <span className="text-right">CC Bonuses</span>
@@ -60,7 +61,9 @@ export default function TaxView() {
           <div key={row.playerId} className="grid grid-cols-4 px-4 py-3 border-t border-zinc-800 text-sm">
             <span className="text-zinc-300 font-medium">{row.playerName}</span>
             <span className="text-right text-white">{fmt$(row.bankBonuses)}</span>
-            <span className="text-right text-zinc-500 text-xs">$0.00 <span className="text-zinc-600">(rebate)</span></span>
+            <span className="text-right text-zinc-500 text-xs">
+              $0.00 <span className="text-zinc-600">(rebate)</span>
+            </span>
             <span className="text-right text-amber-400">{fmt$(row.bankBonuses)}</span>
           </div>
         ))}
@@ -74,18 +77,31 @@ export default function TaxView() {
 
       <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 mb-4 flex items-center justify-between">
         <div>
-          <div className="text-sm text-zinc-400">Estimated Federal Tax on Bank Bonuses</div>
-          <div className="text-xs text-zinc-500">{bracket}% bracket × {fmt$(summary.totals.bankBonuses)} taxable income</div>
+          <div className="text-sm text-zinc-300 font-medium">Estimated Federal Tax on Bank Bonuses</div>
+          <div className="text-xs text-zinc-500 mt-0.5">
+            {bracket}% bracket × {fmt$(summary.totals.bankBonuses)} taxable
+          </div>
         </div>
         <div className="text-2xl font-bold text-red-400">{fmt$(householdTax)}</div>
       </div>
 
-      <div className="bg-zinc-800 rounded-xl p-4 text-xs text-zinc-400 space-y-1.5">
-        <div className="font-medium text-zinc-300 mb-2">IRS Tax Treatment Reference</div>
-        <div>✓ <strong className="text-zinc-300">Credit card sign-up bonuses</strong> — Non-taxable. IRS treats as purchase rebates (cost-basis reduction). No 1099 issued.</div>
-        <div>⚠ <strong className="text-zinc-300">Bank account bonuses</strong> — Taxable as ordinary interest income. Banks issue 1099-INT for any amount ≥ $10.</div>
-        <div>⚠ <strong className="text-zinc-300">Referral bonuses</strong> — Taxable as ordinary income regardless of source (card or bank).</div>
-        <div className="pt-1 text-zinc-500">This tool provides estimates only. Consult a tax professional for advice specific to your situation.</div>
+      <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4 text-xs text-zinc-400 space-y-2">
+        <div className="font-medium text-zinc-300 mb-1">IRS Tax Treatment Reference</div>
+        <div>
+          <strong className="text-zinc-300">✓ Credit card sign-up bonuses</strong> — Non-taxable.
+          IRS treats as purchase rebates (cost-basis reduction). No 1099 issued.
+        </div>
+        <div>
+          <strong className="text-zinc-300">⚠ Bank account bonuses</strong> — Taxable as ordinary
+          interest income. Banks issue 1099-INT for amounts ≥ $10.
+        </div>
+        <div>
+          <strong className="text-zinc-300">⚠ Referral bonuses</strong> — Taxable as ordinary income
+          regardless of source.
+        </div>
+        <div className="text-zinc-500 pt-1 border-t border-zinc-700">
+          This tool provides estimates only. Consult a tax professional for advice specific to your situation.
+        </div>
       </div>
     </div>
   )
