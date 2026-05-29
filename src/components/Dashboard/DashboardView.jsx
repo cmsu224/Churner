@@ -3,6 +3,7 @@ import { generateActionItems } from '../../engines/actionItems'
 import ActionQueue from './ActionQueue'
 import PlayerSummaryCard from './PlayerSummaryCard'
 import SpendProgress from './SpendProgress'
+import CreditAgeSection from './CreditAgeSection'
 import { fmt$ } from '../../utils/format'
 import { CheckCircle } from 'lucide-react'
 
@@ -81,6 +82,9 @@ export default function DashboardView() {
           </div>
         </section>
       )}
+
+      {/* Credit Age & Keep-Alive */}
+      <CreditAgeSection />
 
       {/* Player Summary */}
       <section>

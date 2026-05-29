@@ -1,5 +1,6 @@
 import { getSpendDeadlineInfo, getAnnualFeeInfo, getReeligibilityInfo } from './lifecycle'
 import { getClawbackStatus } from './clawbackShield'
+import { getKeepAliveCards } from './creditAge'
 import { fmt$ } from '../utils/format'
 
 function pName(players, playerId) {
@@ -211,6 +212,36 @@ export function generateActionItems(state) {
         title: `Hold open ${shield.daysRemaining}d more: ${n}`,
         detail: `Bonus received! Keep this account open${(acct.minimumBalance ?? 0) > 0 ? ' and above ' + fmt$(acct.minimumBalance) : ''} for ${shield.daysRemaining} more days to clear the 181-day clawback window. Closing early risks losing the bonus. ${pn}'s account.`,
         dueDate: shield.safeDate, action: 'Keep account open' })
+    }
+  }
+
+  // ── KEEP-ALIVE: usage tracking on every open card ──────────────────────────
+  for (const player of players) {
+    const playerCards = (state.creditCards ?? []).filter(c => c.playerId === player.id)
+    const keepAlive = getKeepAliveCards(playerCards)
+    for (const { card, age, daysSinceUsed, usageStatus, isOldest } of keepAlive) {
+      const n = cardLabel(card)
+      const pn = player.name
+      const ageStr = age ? ` (${age.label} old)` : ''
+      const oldestNote = isOldest
+        ? ` This is one of ${pn}'s 3 oldest cards, so keeping it open matters most for credit history.`
+        : ''
+      if (usageStatus === 'critical') {
+        items.push({ id: `keepalive-crit-${card.id}`, type: 'critical', category: 'keepalive', cardId: card.id, playerId: player.id,
+          title: `Use to keep alive: ${n}${ageStr}`,
+          detail: `Hasn't been used in ${daysSinceUsed} days. Issuers close cards after ~12 months of inactivity — losing it can shorten your credit history and ding your score. Put a small recurring charge on it (e.g. a streaming subscription) with AutoPay.${oldestNote} ${pn}'s card.`,
+          dueDate: null, action: 'Make a small charge now' })
+      } else if (usageStatus === 'warning') {
+        items.push({ id: `keepalive-warn-${card.id}`, type: isOldest ? 'warning' : 'info', category: 'keepalive', cardId: card.id, playerId: player.id,
+          title: `Use soon to keep alive: ${n}${ageStr}`,
+          detail: `Last used ${daysSinceUsed} days ago. Use it for a small purchase to reset the inactivity clock.${oldestNote} ${pn}'s card.`,
+          dueDate: null, action: 'Use this card soon' })
+      } else if (usageStatus === 'unknown' && isOldest) {
+        items.push({ id: `keepalive-track-${card.id}`, type: 'info', category: 'keepalive', cardId: card.id, playerId: player.id,
+          title: `Track usage: ${n}${ageStr}`,
+          detail: `One of ${pn}'s 3 oldest cards — important to keep open for your credit history. Set its "Last Used" date so the tracker can warn you before it goes inactive. ${pn}'s card.`,
+          dueDate: null, action: 'Set last-used date' })
+      }
     }
   }
 

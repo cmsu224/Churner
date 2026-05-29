@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, Info, CreditCard, Calendar, Zap, Scissors, Gift, Shield, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, Info, CreditCard, Calendar, Zap, Scissors, Gift, Shield, RefreshCw, Heart, ChevronDown, ChevronUp } from 'lucide-react'
 
 const CATEGORY_ICON = {
   spend: CreditCard,
@@ -9,6 +9,7 @@ const CATEGORY_ICON = {
   bonus: Gift,
   clawback: Shield,
   reeligible: RefreshCw,
+  keepalive: Heart,
 }
 
 const TYPE_STYLES = {
