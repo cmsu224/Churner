@@ -1,7 +1,17 @@
-import { PLAYERS } from '../../data/initialState'
+import { useChurn } from '../../store/ChurnContext'
 
-export default function PlayerBadge({ playerId, showName = true }) {
-  const player = PLAYERS.find(p => p.id === playerId) ?? PLAYERS[0]
+export default function PlayerBadge({ playerId, showName = true, players: playersProp }) {
+  let players = playersProp
+  try {
+    if (!players) {
+      const ctx = useChurn()
+      players = ctx?.state?.players
+    }
+  } catch {
+    players = []
+  }
+  const player = (players ?? []).find(p => p.id === playerId)
+  if (!player) return null
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: player.hex }} />

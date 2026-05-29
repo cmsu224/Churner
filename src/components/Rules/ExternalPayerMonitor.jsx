@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import Modal from '../shared/Modal'
 import PlayerBadge from '../shared/PlayerBadge'
-import { PLAYERS } from '../../data/initialState'
 import { Plus, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react'
 
 const EMPTY_PMT = { cardId: '', payerPlayerId: 'p1', payerAccountLast4: '', usePortal: true, notes: '' }
@@ -90,7 +89,7 @@ export default function ExternalPayerMonitor() {
               <select className={inp} value={form.cardId} onChange={e => set('cardId', e.target.value)}>
                 <option value="">Select card...</option>
                 {seniorCards.map(c => {
-                  const p = PLAYERS.find(pl => pl.id === c.playerId)
+                  const p = (state.players ?? []).find(pl => pl.id === c.playerId)
                   return (
                     <option key={c.id} value={c.id}>
                       {c.cardName} ···{c.last4} ({p?.name ?? c.playerId})

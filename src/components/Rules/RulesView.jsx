@@ -1,4 +1,8 @@
 import Chase524Widget from './Chase524Widget'
+import AmexWidget from './AmexWidget'
+import CitiWidget from './CitiWidget'
+import BofAWidget from './BofAWidget'
+import CapitalOneWidget from './CapitalOneWidget'
 import SeniorIncomeWidget from './SeniorIncomeWidget'
 import ExternalPayerMonitor from './ExternalPayerMonitor'
 
@@ -7,6 +11,10 @@ export default function RulesView() {
     <div className="p-4 max-w-4xl mx-auto space-y-4">
       <h1 className="text-xl font-bold text-white">Rules &amp; Engines</h1>
       <Chase524Widget />
+      <AmexWidget />
+      <CitiWidget />
+      <BofAWidget />
+      <CapitalOneWidget />
       <SeniorIncomeWidget />
       <ExternalPayerMonitor />
 

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/accounts', icon: Landmark, label: 'Accounts' },
   { to: '/rules', icon: BookOpen, label: 'Rules' },
   { to: '/tax', icon: Calculator, label: 'Tax' },
+  { to: '/players', icon: Users, label: 'Players' },
 ]
 
 export function SidebarNav({ collapsed }) {

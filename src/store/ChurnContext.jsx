@@ -7,7 +7,7 @@ const ChurnContext = createContext(null)
 function reducer(state, action) {
   switch (action.type) {
     case 'LOAD_STATE':
-      return { ...INITIAL_STATE, ...action.payload, players: INITIAL_STATE.players }
+      return { ...INITIAL_STATE, ...action.payload }
 
     case 'ADD_CARD':
       return { ...state, creditCards: [...state.creditCards, { ...action.payload, id: crypto.randomUUID() }] }
@@ -22,6 +22,15 @@ function reducer(state, action) {
       return { ...state, bankAccounts: state.bankAccounts.map(a => a.id === action.payload.id ? action.payload : a) }
     case 'DELETE_ACCOUNT':
       return { ...state, bankAccounts: state.bankAccounts.filter(a => a.id !== action.id) }
+
+    case 'ADD_PLAYER':
+      return { ...state, players: [...state.players, { ...action.payload, id: crypto.randomUUID() }] }
+    case 'UPDATE_PLAYER':
+      return { ...state, players: state.players.map(p => p.id === action.payload.id ? action.payload : p) }
+    case 'DELETE_PLAYER': {
+      if (state.players.length <= 1) return state
+      return { ...state, players: state.players.filter(p => p.id !== action.id) }
+    }
 
     case 'UPDATE_SENIOR_INCOME':
       return { ...state, seniorIncome: { ...state.seniorIncome, [action.playerId]: action.payload } }

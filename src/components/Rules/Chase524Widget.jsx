@@ -46,7 +46,7 @@ export default function Chase524Widget() {
               {result.cards.length > 0 ? (
                 <div className="space-y-1">
                   {result.cards.map(card => {
-                    const exp = new Date(card.applicationDate)
+                    const exp = new Date(card.openDate)
                     exp.setMonth(exp.getMonth() + 24)
                     const daysLeft = Math.ceil((exp - new Date()) / 86400000)
                     return (

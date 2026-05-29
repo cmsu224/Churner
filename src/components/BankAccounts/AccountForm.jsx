@@ -6,7 +6,7 @@ const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 const EMPTY = {
   playerId: 'p1', bankName: '', accountType: 'Checking', last4: '',
   openedDate: '', status: 'Opened',
-  requiredDD: '0', ddSourceDescription: '', ddLinkedDate: '',
+  requiredDD: '', ddSourceDescription: '', ddLinkedDate: '',
   bonusAmount: '', bonusReceivedDate: '', isTaxable: true, notes: '',
 }
 
@@ -31,9 +31,6 @@ export default function AccountForm({ initial, onSubmit, onCancel, players }) {
   function validate() {
     const e = {}
     if (!form.bankName.trim()) e.bankName = 'Required'
-    if (!form.last4 || String(form.last4).length !== 4) e.last4 = 'Must be 4 digits'
-    if (!form.openedDate) e.openedDate = 'Required'
-    if (form.bonusAmount === '' || form.bonusAmount === undefined) e.bonusAmount = 'Required'
     return e
   }
 
@@ -47,9 +44,10 @@ export default function AccountForm({ initial, onSubmit, onCancel, players }) {
       : null
     onSubmit({
       ...form,
-      requiredDD: parseFloat(form.requiredDD) || 0,
-      bonusAmount: parseFloat(form.bonusAmount) || 0,
-      last4: String(form.last4).slice(-4),
+      requiredDD: form.requiredDD !== '' ? parseFloat(form.requiredDD) : undefined,
+      bonusAmount: form.bonusAmount !== '' ? parseFloat(form.bonusAmount) : undefined,
+      last4: form.last4 ? String(form.last4).slice(-4) : undefined,
+      openedDate: form.openedDate || null,
       ddLinkedDate: form.ddLinkedDate || null,
       bonusReceivedDate: form.bonusReceivedDate || null,
       safeToCloseDate: safeDate,
@@ -71,7 +69,7 @@ export default function AccountForm({ initial, onSubmit, onCancel, players }) {
         </Field>
       </div>
 
-      <Field label="Bank Name" err={errors.bankName}>
+      <Field label="Bank Name *" err={errors.bankName}>
         <input className={inp} value={form.bankName} onChange={e => set('bankName', e.target.value)} placeholder="e.g. Chase, Wells Fargo" />
       </Field>
 
@@ -81,17 +79,17 @@ export default function AccountForm({ initial, onSubmit, onCancel, players }) {
             {TYPES.map(t => <option key={t}>{t}</option>)}
           </select>
         </Field>
-        <Field label="Last 4 Digits" err={errors.last4}>
-          <input className={inp} value={form.last4} onChange={e => set('last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="5678" maxLength={4} />
+        <Field label="Last 4 Digits">
+          <input className={inp} value={form.last4} onChange={e => set('last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="optional" maxLength={4} />
         </Field>
       </div>
 
-      <Field label="Opened Date" err={errors.openedDate}>
+      <Field label="Opened Date">
         <input type="date" className={inp} value={form.openedDate} onChange={e => set('openedDate', e.target.value)} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Bonus Amount ($)" err={errors.bonusAmount}>
+        <Field label="Bonus Amount ($)">
           <input type="number" min="0" className={inp} value={form.bonusAmount} onChange={e => set('bonusAmount', e.target.value)} placeholder="300" />
         </Field>
         <Field label="Bonus Received Date">
@@ -100,7 +98,7 @@ export default function AccountForm({ initial, onSubmit, onCancel, players }) {
       </div>
 
       <Field label="Required DD Amount ($/month)">
-        <input type="number" min="0" className={inp} value={form.requiredDD} onChange={e => set('requiredDD', e.target.value)} placeholder="500" />
+        <input type="number" min="0" className={inp} value={form.requiredDD} onChange={e => set('requiredDD', e.target.value)} placeholder="500 (optional)" />
       </Field>
 
       <Field label="DD Source">

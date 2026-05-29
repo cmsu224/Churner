@@ -5,7 +5,7 @@ const STATUSES = ['Applied', 'Active Churn', 'Bonus Met', 'Retention Call Due', 
 
 const EMPTY = {
   playerId: 'p1', issuer: '', cardName: '', last4: '',
-  applicationDate: '', approvalDate: '', status: 'Active Churn',
+  openDate: '', status: 'Active Churn',
   spendRequirement: '', spendDeadlineDays: '90', currentSpend: '0',
   bonusValue: '', bonusType: 'cashback', bonusReceived: false, bonusReceivedDate: '',
   annualFee: '0', autoPayEnabled: false, isPrimary: true, notes: '',
@@ -31,12 +31,7 @@ export default function CardForm({ initial, onSubmit, onCancel, players }) {
 
   function validate() {
     const e = {}
-    if (!form.issuer.trim()) e.issuer = 'Required'
     if (!form.cardName.trim()) e.cardName = 'Required'
-    if (!form.last4 || String(form.last4).length !== 4) e.last4 = 'Must be 4 digits'
-    if (!form.applicationDate) e.applicationDate = 'Required'
-    if (form.spendRequirement === '' || form.spendRequirement === undefined) e.spendRequirement = 'Required'
-    if (form.bonusValue === '' || form.bonusValue === undefined) e.bonusValue = 'Required'
     return e
   }
 
@@ -46,13 +41,13 @@ export default function CardForm({ initial, onSubmit, onCancel, players }) {
     if (Object.keys(errs).length) { setErrors(errs); return }
     onSubmit({
       ...form,
-      spendRequirement: parseFloat(form.spendRequirement) || 0,
-      spendDeadlineDays: parseInt(form.spendDeadlineDays) || 90,
+      spendRequirement: form.spendRequirement !== '' ? parseFloat(form.spendRequirement) : undefined,
+      spendDeadlineDays: form.spendDeadlineDays !== '' ? parseInt(form.spendDeadlineDays) : undefined,
       currentSpend: parseFloat(form.currentSpend) || 0,
-      bonusValue: parseFloat(form.bonusValue) || 0,
+      bonusValue: form.bonusValue !== '' ? parseFloat(form.bonusValue) : undefined,
       annualFee: parseFloat(form.annualFee) || 0,
-      last4: String(form.last4).slice(-4),
-      approvalDate: form.approvalDate || null,
+      last4: form.last4 ? String(form.last4).slice(-4) : undefined,
+      openDate: form.openDate || null,
       bonusReceivedDate: form.bonusReceivedDate || null,
     })
   }
@@ -72,30 +67,25 @@ export default function CardForm({ initial, onSubmit, onCancel, players }) {
         </Field>
       </div>
 
-      <Field label="Issuer" err={errors.issuer}>
+      <Field label="Issuer">
         <input list="issuer-list" className={inp} value={form.issuer} onChange={e => set('issuer', e.target.value)} placeholder="e.g. Chase" />
         <datalist id="issuer-list">{ISSUERS.map(i => <option key={i} value={i} />)}</datalist>
       </Field>
 
-      <Field label="Card Name" err={errors.cardName}>
+      <Field label="Card Name *" err={errors.cardName}>
         <input className={inp} value={form.cardName} onChange={e => set('cardName', e.target.value)} placeholder="e.g. Sapphire Preferred" />
       </Field>
 
-      <Field label="Last 4 Digits" err={errors.last4}>
-        <input className={inp} value={form.last4} onChange={e => set('last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="1234" maxLength={4} />
+      <Field label="Last 4 Digits">
+        <input className={inp} value={form.last4} onChange={e => set('last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="1234 (optional)" maxLength={4} />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Application Date" err={errors.applicationDate}>
-          <input type="date" className={inp} value={form.applicationDate} onChange={e => set('applicationDate', e.target.value)} />
-        </Field>
-        <Field label="Approval Date">
-          <input type="date" className={inp} value={form.approvalDate ?? ''} onChange={e => set('approvalDate', e.target.value)} />
-        </Field>
-      </div>
+      <Field label="Open Date">
+        <input type="date" className={inp} value={form.openDate} onChange={e => set('openDate', e.target.value)} />
+      </Field>
 
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Spend Req ($)" err={errors.spendRequirement}>
+        <Field label="Spend Req ($)">
           <input type="number" min="0" className={inp} value={form.spendRequirement} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
         </Field>
         <Field label="Deadline (days)">
@@ -107,7 +97,7 @@ export default function CardForm({ initial, onSubmit, onCancel, players }) {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Bonus Value" err={errors.bonusValue}>
+        <Field label="Bonus Value">
           <input type="number" min="0" className={inp} value={form.bonusValue} onChange={e => set('bonusValue', e.target.value)} placeholder="60000" />
         </Field>
         <Field label="Bonus Type">
