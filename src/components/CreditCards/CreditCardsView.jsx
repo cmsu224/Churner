@@ -21,7 +21,7 @@ export default function CreditCardsView() {
     setNewCard({
       playerId: players[0]?.id ?? 'p1',
       cardName: '', issuer: '', last4: '',
-      openDate: '', status: 'Active Churn',
+      openDate: '', lastUsedDate: '', status: 'Active Churn',
       spendRequirement: '', spendDeadlineDays: '', currentSpend: '',
       bonusValue: '', bonusType: 'cashback', bonusReceived: false, bonusReceivedDate: '',
       annualFee: '', autoPayEnabled: false, isPrimary: true, notes: '',
@@ -45,6 +45,7 @@ export default function CreditCardsView() {
         bonusValue: newCard.bonusValue !== '' && newCard.bonusValue != null ? parseFloat(newCard.bonusValue) : undefined,
         annualFee: parseFloat(newCard.annualFee) || 0,
         openDate: newCard.openDate || null,
+        lastUsedDate: newCard.lastUsedDate || null,
         bonusReceivedDate: newCard.bonusReceivedDate || null,
       }
     })
@@ -132,9 +133,15 @@ export default function CreditCardsView() {
               </div>
             </div>
 
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Open Date</label>
-              <input type="date" className={inp} value={newCard.openDate} onChange={e => setN('openDate', e.target.value)} />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Open Date</label>
+                <input type="date" className={inp} value={newCard.openDate} onChange={e => setN('openDate', e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Last Used</label>
+                <input type="date" className={inp} value={newCard.lastUsedDate} onChange={e => setN('lastUsedDate', e.target.value)} />
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2">

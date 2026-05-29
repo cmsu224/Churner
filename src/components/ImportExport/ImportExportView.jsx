@@ -2,7 +2,9 @@ import { useState, useRef } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import { Download, Upload, Copy, Check, AlertTriangle, ExternalLink } from 'lucide-react'
 
-const AI_PROMPT = `Convert the following credit cards and bank accounts into JSON for my Churner tracking app.
+const AI_PROMPT = `Convert the following into JSON for my Churner tracking app. I'm giving you EITHER a credit report, OR screenshots / a list of my credit cards and bank accounts.
+
+If this is a credit report: extract every open revolving credit card account. Use the "Date Opened" for openDate, the account name for cardName, and the last 4 of the account number if shown. Credit reports usually don't show sign-up bonus details — leave those blank. The "Date of Last Activity" or "Last Reported" date maps to lastUsedDate.
 
 Output ONLY valid JSON in this exact structure — no explanation, no markdown fences:
 {
@@ -12,6 +14,7 @@ Output ONLY valid JSON in this exact structure — no explanation, no markdown f
       "issuer": "Chase",
       "last4": "1234",
       "openDate": "2024-01-15",
+      "lastUsedDate": "2025-05-01",
       "annualFee": 95,
       "spendRequirement": 4000,
       "spendDeadlineDays": 90,
@@ -39,6 +42,7 @@ Output ONLY valid JSON in this exact structure — no explanation, no markdown f
 }
 
 Field reference:
+- openDate / lastUsedDate: format YYYY-MM-DD
 - bonusType: "points", "miles", or "cashback"
 - status (cards): "Applied", "Active Churn", "Bonus Met", "Retention Call Due", "Downgrade/Close Due", "Closed"
 - status (accounts): "Opened", "DD Linked", "Bonus Pending", "Bonus Received", "Cooling Period", "Safe to Close"
@@ -72,6 +76,7 @@ function mergeAiImport(state, aiData, defaultPlayerId) {
     issuer: c.issuer ?? '',
     last4: c.last4 ?? '',
     openDate: c.openDate ?? null,
+    lastUsedDate: c.lastUsedDate ?? null,
     status: c.status ?? 'Active Churn',
     spendRequirement: c.spendRequirement ?? undefined,
     spendDeadlineDays: c.spendDeadlineDays ?? undefined,
@@ -221,11 +226,11 @@ export default function ImportExportView() {
         <div>
           <h2 className="text-base font-semibold text-white mb-1">AI Import Helper</h2>
           <p className="text-xs text-zinc-400 leading-relaxed">
-            The fastest way to get all your cards in. Take a screenshot of your cards/accounts, open{' '}
+            The fastest way to get all your cards in. Take a screenshot of your cards/accounts <strong className="text-zinc-300">or download your credit report (PDF)</strong>, open{' '}
             <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-0.5">
               claude.ai <ExternalLink size={10} />
             </a>
-            {' '}or any AI chat, paste the prompt below + your screenshot/list, then paste the JSON output back here.
+            {' '}or any AI chat, paste the prompt below + your file, then paste the JSON output back here. A credit report is ideal — it has every card's open date, which powers the age tracker.
           </p>
         </div>
 
