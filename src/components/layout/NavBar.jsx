@@ -5,11 +5,11 @@ const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/cards', icon: CreditCard, label: 'Cards' },
   { to: '/accounts', icon: Landmark, label: 'Accounts' },
-  { to: '/rules', icon: BookOpen, label: 'Rules' },
+  { to: '/rules', icon: BookOpen, label: 'Eligibility' },
   { to: '/tax', icon: Calculator, label: 'Tax' },
   { to: '/resources', icon: Link2, label: 'Resources' },
   { to: '/import', icon: ArrowDownUp, label: 'Import' },
-  { to: '/players', icon: Users, label: 'Players' },
+  { to: '/players', icon: Users, label: 'Members' },
 ]
 
 export function SidebarNav({ collapsed }) {

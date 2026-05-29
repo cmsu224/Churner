@@ -4,7 +4,7 @@ import { Download, Upload, Copy, Check, AlertTriangle, ExternalLink } from 'luci
 
 const AI_PROMPT = `Convert the following into JSON for my Churner tracking app. I'm giving you EITHER a credit report, OR screenshots / a list of my credit cards and bank accounts.
 
-If this is a credit report: extract every open revolving credit card account. Use the "Date Opened" for openDate, the account name for cardName, and the last 4 of the account number if shown. Credit reports usually don't show sign-up bonus details — leave those blank. Do NOT populate lastUsedDate from the credit report — "Date of Last Activity" on a credit report reflects payment processing and bureau reporting, not actual purchase activity, so it is misleading for keep-alive tracking. Leave lastUsedDate null.
+If this is a credit report: extract every open revolving credit card account. Use "Date Opened" for openDate, the account name for cardName, and the last 4 digits of the account number for last4. Leave bonus fields blank — credit reports don't include sign-up bonus details.
 
 Output ONLY valid JSON in this exact structure — no explanation, no markdown fences:
 {
@@ -14,7 +14,6 @@ Output ONLY valid JSON in this exact structure — no explanation, no markdown f
       "issuer": "Chase",
       "last4": "1234",
       "openDate": "2024-01-15",
-      "lastUsedDate": null,
       "annualFee": 95,
       "spendRequirement": 4000,
       "spendDeadlineDays": 90,
@@ -42,7 +41,7 @@ Output ONLY valid JSON in this exact structure — no explanation, no markdown f
 }
 
 Field reference:
-- openDate: format YYYY-MM-DD (lastUsedDate should be left null when importing from a credit report)
+- openDate / openedDate: format YYYY-MM-DD
 - bonusType: "points", "miles", or "cashback"
 - status (cards): "Applied", "Active Churn", "Bonus Met", "Retention Call Due", "Downgrade/Close Due", "Closed"
 - status (accounts): "Opened", "DD Linked", "Bonus Pending", "Bonus Received", "Cooling Period", "Safe to Close"

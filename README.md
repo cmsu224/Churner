@@ -61,7 +61,8 @@ The home screen (`/`) is a prioritized command center, not a passive summary:
 - **Action Queue** — the heart of the app. A single ranked list of *everything you need to do*, pulled from every card and account (see [Action Engine](#2-action-engine-the-brain)). If nothing is pending, you get an "all caught up" state instead.
 - **Active Spend Challenges** — live progress bars for every card with an open minimum-spend requirement, showing dollars spent vs. required and days remaining.
 - **Credit Age & Card Usage** — per-player panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#7-credit-age--keep-alive-tracker)).
-- **Player Summary Cards** — a per-player rollup of activity.
+- **Application Eligibility** — compact per-person issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
+- **Individual Summary** — per-person rollup of activity.
 
 ### 2. Action Engine (the brain)
 
@@ -114,13 +115,15 @@ The DD fields drive the multi-tier direct-deposit reminders, the multi-DD progre
 
 Page: `/rules`. Each issuer has a dedicated engine and a dashboard widget, evaluated **per player**:
 
-- **Chase 5/24** (`chase524.js`) — counts personal cards (flagged "Personal") opened in the rolling 24-month window. Status: *safe* (<4), *warning* (exactly 4), *blocked* (≥5). Shows slots remaining.
+- **Chase 5/24** (`chase524.js`) — counts personal cards (flagged "Personal") opened in the rolling 24-month window. Status: *safe* (<4), *warning* (exactly 4), *blocked* (≥5). Shows slots remaining and the date the next slot opens (oldest card in window + 24 months).
 - **Amex** (`amex.js`) — enforces **1 new Amex per 5 days** and **2 new Amex per 90 days**, computes next-eligible dates, and notes Amex's "once per lifetime" bonus language.
 - **Citi** (`citi.js`) — **1 new Citi per 8 days** and **2 new Citi per 65 days**, with next-eligible dates.
 - **Bank of America 2/3/4** (`bofa.js`) — max **2 cards / 2 months**, **3 / 12 months**, **4 / 24 months**, each rule tracked independently with counts.
 - **Capital One** (`capitalone.js`) — **1 personal card per 6 months**, with next-eligible date.
 
-Also on the Rules page: the [Senior Income](#8-senior-income-tracking) widget and the [External Payer Monitor](#9-external-payer-monitor).
+A compact **Application Eligibility** section also appears on the Dashboard showing per-person mini-bars for every issuer window that has at least one card actively counted. Only shows issuers with current activity — if all windows are empty, the section stays hidden.
+
+Also on the Eligibility page: the [Senior Income](#8-senior-income-tracking) widget and the [External Payer Monitor](#9-external-payer-monitor).
 
 ### 6. Card Lifecycle: Annual Fees, Retention & Re-Eligibility
 
@@ -180,7 +183,7 @@ All links open in a new tab.
 Page: `/import`.
 
 - **Export** — downloads your full state as a JSON backup file.
-- **AI Import Helper** — the fastest way to bulk-load. Copy the built-in prompt, open Claude (or any AI chat), paste the prompt **plus a screenshot of your cards/accounts or a downloaded credit-report PDF**, and paste the returned JSON back into the app. The prompt explicitly handles credit reports: it extracts every open revolving account, mapping **"Date Opened" → openDate**, account name → cardName, last 4 → last4. **"Date of Last Activity" is intentionally NOT imported as lastUsedDate** — on a credit report that field reflects payment processing and bureau reporting dates, not actual purchase dates, which would produce misleading keep-alive warnings. Set lastUsedDate manually via the ⚡ Used Today button. A credit report is ideal because it carries every card's open date, which powers the age tracker.
+- **AI Import Helper** — the fastest way to bulk-load. Copy the built-in prompt, open Claude (or any AI chat), paste the prompt **plus a screenshot of your cards/accounts or a downloaded credit-report PDF**, and paste the returned JSON back into the app. The prompt extracts every open revolving account from a credit report, mapping **"Date Opened" → openDate**, account name → cardName, and last 4 digits → last4. The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card. A credit report is ideal because it carries every card's open date, which powers the age tracker.
 - **Import** — paste or file-load JSON, preview what will be added, then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
 
 ### 14. Data Sync (GitHub Gist)

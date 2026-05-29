@@ -4,6 +4,7 @@ import ActionQueue from './ActionQueue'
 import PlayerSummaryCard from './PlayerSummaryCard'
 import SpendProgress from './SpendProgress'
 import CreditAgeSection from './CreditAgeSection'
+import EligibilitySection from './EligibilitySection'
 import { fmt$ } from '../../utils/format'
 import { CheckCircle } from 'lucide-react'
 
@@ -83,12 +84,15 @@ export default function DashboardView() {
         </section>
       )}
 
+      {/* Application Eligibility */}
+      <EligibilitySection />
+
       {/* Credit Age & Keep-Alive */}
       <CreditAgeSection />
 
-      {/* Player Summary */}
+      {/* Individual Summary */}
       <section>
-        <h2 className="text-base font-semibold text-white mb-3">Player Summary</h2>
+        <h2 className="text-base font-semibold text-white mb-3">Individual Summary</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {(state.players ?? []).map(player => (
             <PlayerSummaryCard key={player.id} player={player} />

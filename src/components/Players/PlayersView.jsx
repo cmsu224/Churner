@@ -86,7 +86,7 @@ function PlayerForm({ initial, onSave, onCancel }) {
           disabled={!name.trim()}
           className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
         >
-          {initial ? 'Save Changes' : 'Add Player'}
+          {initial ? 'Save Changes' : 'Add Member'}
         </button>
       </div>
     </div>
@@ -119,14 +119,14 @@ export default function PlayersView() {
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Players</h1>
+        <h1 className="text-xl font-bold text-white">Household Members</h1>
         {!adding && (
           <button
             onClick={() => setAdding(true)}
             className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
           >
             <Plus size={15} />
-            Add Player
+            Add Member
           </button>
         )}
       </div>
@@ -207,8 +207,8 @@ export default function PlayersView() {
 
       {players.length === 0 && !adding && (
         <div className="text-center py-12 text-zinc-500">
-          <p className="text-sm">No players yet.</p>
-          <button onClick={() => setAdding(true)} className="mt-3 text-blue-400 text-sm hover:underline">Add your first player</button>
+          <p className="text-sm">No members yet.</p>
+          <button onClick={() => setAdding(true)} className="mt-3 text-blue-400 text-sm hover:underline">Add your first member</button>
         </div>
       )}
     </div>

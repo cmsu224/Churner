@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import { getAccountAgeStats, getKeepAliveCards } from '../../engines/creditAge'
-import { fmtDate } from '../../utils/format'
+import { getAnnualFeeInfo } from '../../engines/lifecycle'
+import { fmtDate, fmtDateShort } from '../../utils/format'
 import { Clock, AlertTriangle, CheckCircle, HelpCircle, Star, ChevronDown, ChevronUp, Zap } from 'lucide-react'
 
 const USAGE_STYLE = {
@@ -33,6 +34,20 @@ function CardRow({ card, age, daysSinceUsed, usageStatus, isOldest }) {
         <div className="text-xs text-zinc-500">
           {age ? `${age.label} old · opened ${fmtDate(card.openDate)}` : 'No open date set'}
         </div>
+        {(card.annualFee > 0) && (() => {
+          const fi = getAnnualFeeInfo(card)
+          const feeColor = fi && fi.daysUntilFee >= 0 && fi.daysUntilFee <= 30
+            ? 'text-amber-500'
+            : 'text-zinc-600'
+          return (
+            <div className={`text-xs ${feeColor}`}>
+              ${card.annualFee}/yr · fee due {fi ? fmtDateShort(fi.feeDate) : '—'}
+              {fi && fi.daysUntilFee >= 0 && fi.daysUntilFee <= 45 && (
+                <span> ({fi.daysUntilFee}d)</span>
+              )}
+            </div>
+          )
+        })()}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <div className={`text-xs font-medium ${style.color}`}>
