@@ -39,6 +39,7 @@ export default function CardItem({ card, players }) {
         bonusValue: draft.bonusValue !== '' && draft.bonusValue != null ? parseFloat(draft.bonusValue) || 0 : 0,
         annualFee: draft.annualFee !== '' && draft.annualFee != null ? parseFloat(draft.annualFee) || 0 : 0,
         openDate: draft.openDate || null,
+        lastUsedDate: draft.lastUsedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
       }
     })
@@ -147,9 +148,15 @@ export default function CardItem({ card, players }) {
             </div>
           </div>
 
-          <div>
-            <label className="text-xs text-zinc-400 block mb-1">Open Date</label>
-            <input type="date" className={inp} value={draft.openDate?.slice(0, 10) ?? ''} onChange={e => set('openDate', e.target.value)} />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Open Date</label>
+              <input type="date" className={inp} value={draft.openDate?.slice(0, 10) ?? ''} onChange={e => set('openDate', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Last Used</label>
+              <input type="date" className={inp} value={draft.lastUsedDate?.slice(0, 10) ?? ''} onChange={e => set('lastUsedDate', e.target.value)} />
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
