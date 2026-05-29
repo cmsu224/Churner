@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import { getAccountAgeStats, getKeepAliveCards } from '../../engines/creditAge'
 import { fmtDate } from '../../utils/format'
-import { Clock, AlertTriangle, CheckCircle, HelpCircle, Star, ChevronDown, ChevronUp } from 'lucide-react'
+import { Clock, AlertTriangle, CheckCircle, HelpCircle, Star, ChevronDown, ChevronUp, Zap } from 'lucide-react'
 
 const USAGE_STYLE = {
   ok: { icon: CheckCircle, color: 'text-emerald-400', label: 'Active' },
@@ -14,8 +14,14 @@ const USAGE_STYLE = {
 const COLLAPSED_LIMIT = 5
 
 function CardRow({ card, age, daysSinceUsed, usageStatus, isOldest }) {
+  const { dispatch } = useChurn()
   const style = USAGE_STYLE[usageStatus]
   const Icon = style.icon
+
+  function markUsedToday() {
+    dispatch({ type: 'UPDATE_CARD', payload: { ...card, lastUsedDate: new Date().toISOString().slice(0, 10) } })
+  }
+
   return (
     <div className="flex items-center gap-2 bg-zinc-800/60 rounded-lg px-3 py-2">
       <Icon size={13} className={`flex-shrink-0 ${style.color}`} />
@@ -28,12 +34,23 @@ function CardRow({ card, age, daysSinceUsed, usageStatus, isOldest }) {
           {age ? `${age.label} old · opened ${fmtDate(card.openDate)}` : 'No open date set'}
         </div>
       </div>
-      <div className={`text-xs font-medium flex-shrink-0 ${style.color}`}>
-        {usageStatus === 'unknown'
-          ? style.label
-          : daysSinceUsed === 0
-          ? 'Used today'
-          : `${daysSinceUsed}d ago`}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className={`text-xs font-medium ${style.color}`}>
+          {usageStatus === 'unknown'
+            ? style.label
+            : daysSinceUsed === 0
+            ? 'Used today'
+            : `${daysSinceUsed}d ago`}
+        </div>
+        {daysSinceUsed !== 0 && (
+          <button
+            onClick={markUsedToday}
+            title="Mark used today"
+            className="flex items-center gap-0.5 bg-zinc-700 hover:bg-emerald-700 text-zinc-400 hover:text-white text-xs px-1.5 py-0.5 rounded transition-colors"
+          >
+            <Zap size={10} />
+          </button>
+        )}
       </div>
     </div>
   )

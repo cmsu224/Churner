@@ -4,7 +4,7 @@ import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import { getSpendDeadlineInfo, getCardNextStatus } from '../../engines/lifecycle'
 import { fmt$, fmtDate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, AlertCircle, CheckCircle } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, AlertCircle, CheckCircle, Zap } from 'lucide-react'
 
 const STATUSES = ['Applied', 'Active Churn', 'Bonus Met', 'Retention Call Due', 'Downgrade/Close Due', 'Closed']
 const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
@@ -49,6 +49,11 @@ export default function CardItem({ card, players }) {
 
   function set(k, v) { setDraft(d => ({ ...d, [k]: v })) }
 
+  function markUsedToday(e) {
+    e.stopPropagation()
+    dispatch({ type: 'UPDATE_CARD', payload: { ...card, lastUsedDate: new Date().toISOString().slice(0, 10) } })
+  }
+
   function handleDelete() {
     dispatch({ type: 'DELETE_CARD', id: card.id })
     setConfirming(false)
@@ -90,6 +95,14 @@ export default function CardItem({ card, players }) {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={markUsedToday}
+              title="Mark used today"
+              className="flex items-center gap-1 bg-zinc-700 hover:bg-emerald-700 text-zinc-300 hover:text-white text-xs px-2 py-1 rounded-md transition-colors"
+            >
+              <Zap size={11} />
+              <span>Used</span>
+            </button>
             <span className="text-zinc-500">{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
           </div>
         </div>
