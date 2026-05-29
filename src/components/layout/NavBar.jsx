@@ -6,8 +6,8 @@ const NAV_ITEMS = [
   { to: '/cards', icon: CreditCard, label: 'Cards' },
   { to: '/accounts', icon: Landmark, label: 'Accounts' },
   { to: '/rules', icon: BookOpen, label: 'Rules' },
-  { to: '/tax', icon: Calculator, label: 'Tax' },
   { to: '/players', icon: Users, label: 'Players' },
+  { to: '/tax', icon: Calculator, label: 'Tax' },
 ]
 
 export function SidebarNav({ collapsed }) {
