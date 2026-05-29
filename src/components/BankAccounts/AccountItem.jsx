@@ -5,11 +5,33 @@ import PlayerBadge from '../shared/PlayerBadge'
 import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountNextStatus } from '../../engines/lifecycle'
 import { fmt$, fmtDate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Shield } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, Shield, ExternalLink } from 'lucide-react'
 
 const STATUSES = ['Opened', 'DD Linked', 'Bonus Pending', 'Bonus Received', 'Cooling Period', 'Safe to Close']
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
+
+function ddDeadlineInfo(account) {
+  if (!account.openedDate || account.ddLinkedDate) return null
+  if (!(account.ddDeadlineDays > 0) && !(account.requiredDD > 0)) return null
+  const days = account.ddDeadlineDays ?? 90
+  const deadline = new Date(account.openedDate)
+  deadline.setDate(deadline.getDate() + days)
+  const daysLeft = Math.ceil((deadline - new Date()) / 86400000)
+  return { daysLeft, deadline: deadline.toISOString(), overdue: daysLeft < 0 }
+}
+
+function numOpt(v) {
+  if (v === '' || v == null) return undefined
+  const n = parseFloat(v)
+  return isNaN(n) ? undefined : n
+}
+
+function intOpt(v) {
+  if (v === '' || v == null) return undefined
+  const n = parseInt(v)
+  return isNaN(n) ? undefined : n
+}
 
 export default function AccountItem({ account, players }) {
   const { dispatch } = useChurn()
@@ -19,6 +41,7 @@ export default function AccountItem({ account, players }) {
 
   const shield = getClawbackStatus(account)
   const nextStatus = getAccountNextStatus(account)
+  const ddInfo = ddDeadlineInfo(account)
 
   function startEdit() {
     setDraft({ ...account })
@@ -39,12 +62,18 @@ export default function AccountItem({ account, players }) {
     dispatch({
       type: 'UPDATE_ACCOUNT', payload: {
         ...draft,
-        requiredDD: draft.requiredDD !== '' && draft.requiredDD != null ? parseFloat(draft.requiredDD) : undefined,
-        bonusAmount: draft.bonusAmount !== '' && draft.bonusAmount != null ? parseFloat(draft.bonusAmount) : undefined,
+        requiredDD: numOpt(draft.requiredDD),
+        bonusAmount: numOpt(draft.bonusAmount),
+        minimumBalance: numOpt(draft.minimumBalance),
+        ddDeadlineDays: intOpt(draft.ddDeadlineDays),
+        requiredDDCount: intOpt(draft.requiredDDCount),
+        ddsMade: intOpt(draft.ddsMade),
+        bonusDeadlineDays: intOpt(draft.bonusDeadlineDays),
         last4: draft.last4 ? String(draft.last4).slice(-4) : undefined,
         openedDate,
         ddLinkedDate: draft.ddLinkedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
+        offerUrl: draft.offerUrl || null,
         safeToCloseDate,
       }
     })
@@ -84,6 +113,17 @@ export default function AccountItem({ account, players }) {
               <span className="font-semibold text-white text-sm">{account.bankName}</span>
               {account.last4 && <span className="text-zinc-500 text-xs">···{account.last4}</span>}
               {account.accountType && <span className="text-zinc-500 text-xs">{account.accountType}</span>}
+              {account.offerUrl && (
+                <a
+                  href={account.offerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="inline-flex items-center gap-0.5 text-xs text-blue-400 hover:text-blue-300"
+                >
+                  Offer <ExternalLink size={9} />
+                </a>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5 mt-1.5">
               <PlayerBadge playerId={account.playerId} players={players} />
@@ -95,9 +135,7 @@ export default function AccountItem({ account, players }) {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-zinc-500">{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
-          </div>
+          <span className="text-zinc-500 flex-shrink-0">{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
         </div>
 
         <div className="mt-2 space-y-1 text-xs text-zinc-400">
@@ -107,9 +145,32 @@ export default function AccountItem({ account, players }) {
               <span className="text-white font-medium">{fmt$(account.bonusAmount)}</span>
             </div>
           )}
+          {/* DD deadline progress */}
+          {ddInfo && (
+            <div className={`flex justify-between font-medium ${ddInfo.overdue ? 'text-red-400' : ddInfo.daysLeft <= 14 ? 'text-amber-400' : 'text-zinc-400'}`}>
+              <span>DD deadline</span>
+              <span>{ddInfo.overdue ? `OVERDUE ${Math.abs(ddInfo.daysLeft)}d ago` : `${ddInfo.daysLeft}d left`}</span>
+            </div>
+          )}
+          {/* Multiple DD progress */}
+          {(account.requiredDDCount ?? 1) > 1 && (
+            <div className="flex justify-between">
+              <span>Direct deposits</span>
+              <span className={(account.ddsMade ?? 0) >= account.requiredDDCount ? 'text-emerald-400' : 'text-amber-400'}>
+                {account.ddsMade ?? 0}/{account.requiredDDCount} done
+              </span>
+            </div>
+          )}
+          {/* Minimum balance */}
+          {(account.minimumBalance ?? 0) > 0 && !account.bonusReceivedDate && (
+            <div className="flex justify-between">
+              <span>Min balance</span>
+              <span>{fmt$(account.minimumBalance)}</span>
+            </div>
+          )}
           {account.bonusReceivedDate && (
             <div className="flex justify-between">
-              <span>Received</span>
+              <span>Bonus received</span>
               <span className="text-emerald-400">{fmtDate(account.bonusReceivedDate)}</span>
             </div>
           )}
@@ -160,35 +221,70 @@ export default function AccountItem({ account, players }) {
             </div>
           </div>
 
-          <div>
-            <label className="text-xs text-zinc-400 block mb-1">Opened Date</label>
-            <input type="date" className={inp} value={draft.openedDate?.slice(0, 10) ?? ''} onChange={e => set('openedDate', e.target.value)} />
-          </div>
-
           <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Opened Date</label>
+              <input type="date" className={inp} value={draft.openedDate?.slice(0, 10) ?? ''} onChange={e => set('openedDate', e.target.value)} />
+            </div>
             <div>
               <label className="text-xs text-zinc-400 block mb-1">Bonus Amount ($)</label>
               <input type="number" min="0" className={inp} value={draft.bonusAmount ?? ''} onChange={e => set('bonusAmount', e.target.value)} placeholder="300" />
             </div>
+          </div>
+
+          {/* DD Requirements section */}
+          <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
+            <div className="text-xs font-medium text-zinc-300 mb-2">Direct Deposit Requirements</div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">DD Amount ($)</label>
+                <input type="number" min="0" className={inp} value={draft.requiredDD ?? ''} onChange={e => set('requiredDD', e.target.value)} placeholder="500" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1"># Required</label>
+                <input type="number" min="1" className={inp} value={draft.requiredDDCount ?? ''} onChange={e => set('requiredDDCount', e.target.value)} placeholder="1" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1"># Completed</label>
+                <input type="number" min="0" className={inp} value={draft.ddsMade ?? ''} onChange={e => set('ddsMade', e.target.value)} placeholder="0" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">DD Deadline (days from open)</label>
+                <input type="number" min="1" className={inp} value={draft.ddDeadlineDays ?? ''} onChange={e => set('ddDeadlineDays', e.target.value)} placeholder="90" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">DD Linked Date</label>
+                <input type="date" className={inp} value={draft.ddLinkedDate?.slice(0, 10) ?? ''} onChange={e => set('ddLinkedDate', e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">DD Source</label>
+              <input className={inp} value={draft.ddSourceDescription ?? ''} onChange={e => set('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, Social Security, ACH" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Min Balance ($)</label>
+              <input type="number" min="0" className={inp} value={draft.minimumBalance ?? ''} onChange={e => set('minimumBalance', e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Bonus Deadline (days)</label>
+              <input type="number" min="1" className={inp} value={draft.bonusDeadlineDays ?? ''} onChange={e => set('bonusDeadlineDays', e.target.value)} placeholder="120" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-400 block mb-1">Bonus Received Date</label>
               <input type="date" className={inp} value={draft.bonusReceivedDate?.slice(0, 10) ?? ''} onChange={e => set('bonusReceivedDate', e.target.value)} />
             </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-zinc-400 block mb-1">Required DD ($/month)</label>
-            <input type="number" min="0" className={inp} value={draft.requiredDD ?? ''} onChange={e => set('requiredDD', e.target.value)} placeholder="500 (optional)" />
-          </div>
-
-          <div>
-            <label className="text-xs text-zinc-400 block mb-1">DD Source</label>
-            <input className={inp} value={draft.ddSourceDescription ?? ''} onChange={e => set('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, SSI, ACH transfer" />
-          </div>
-
-          <div>
-            <label className="text-xs text-zinc-400 block mb-1">DD Linked Date</label>
-            <input type="date" className={inp} value={draft.ddLinkedDate?.slice(0, 10) ?? ''} onChange={e => set('ddLinkedDate', e.target.value)} />
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Offer Link</label>
+              <input className={inp} value={draft.offerUrl ?? ''} onChange={e => set('offerUrl', e.target.value)} placeholder="https://..." />
+            </div>
           </div>
 
           <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
@@ -198,7 +294,7 @@ export default function AccountItem({ account, players }) {
 
           <div>
             <label className="text-xs text-zinc-400 block mb-1">Notes</label>
-            <textarea rows={2} className={inp} value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} placeholder="optional" />
+            <textarea rows={2} className={inp} value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} placeholder="e.g. Offer terms, DD requirements, expiry" />
           </div>
 
           <div className="flex gap-2 pt-1">

@@ -1,5 +1,6 @@
 import { getSpendDeadlineInfo, getAnnualFeeInfo, getReeligibilityInfo } from './lifecycle'
 import { getClawbackStatus } from './clawbackShield'
+import { fmt$ } from '../utils/format'
 
 function pName(players, playerId) {
   return (players ?? []).find(p => p.id === playerId)?.name ?? ''
@@ -114,33 +115,101 @@ export function generateActionItems(state) {
     if (acct.status === 'Closed') continue
     const n = acctLabel(acct)
     const pn = pName(players, acct.playerId)
-
     const shield = getClawbackStatus(acct)
+    const hasBonus = (acct.bonusAmount ?? 0) > 0
+    const bonusReceived = !!acct.bonusReceivedDate
 
-    // Safe to close
-    if (shield.safe && acct.bonusReceivedDate) {
+    // 1. Safe to close (post-clawback window)
+    if (shield.safe && bonusReceived) {
       items.push({ id: `close-acct-${acct.id}`, type: 'info', category: 'clawback', accountId: acct.id, playerId: acct.playerId,
         title: `Safe to close: ${n}`,
-        detail: `Past the 181-day clawback window. You can safely close this account — the bank can no longer claw back your bonus. Call the bank or close online. ${pn}'s account.`,
+        detail: `Past the 181-day clawback window. The bank can no longer reverse your bonus. Close online or by phone. ${pn}'s account.`,
         dueDate: null, action: 'Close account' })
     }
 
-    // DD not yet linked
-    if (acct.openedDate && !acct.ddLinkedDate && (acct.requiredDD ?? 0) > 0) {
-      const daysOpen = Math.ceil((new Date() - new Date(acct.openedDate)) / 86400000)
-      if (daysOpen > 14) {
-        items.push({ id: `dd-${acct.id}`, type: daysOpen > 45 ? 'critical' : 'warning', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
-          title: `Link direct deposit: ${n}`,
-          detail: `Account opened ${daysOpen} days ago — direct deposit not yet marked as linked. Required: $${acct.requiredDD?.toLocaleString()}/month. Set this up ASAP to qualify for the bonus. ${pn}'s account.`,
-          dueDate: null, action: 'Set up direct deposit' })
+    // 2. DD deadline countdown
+    if (!acct.ddLinkedDate && !bonusReceived) {
+      if (acct.openedDate && (acct.ddDeadlineDays ?? 0) > 0) {
+        const deadline = new Date(acct.openedDate)
+        deadline.setDate(deadline.getDate() + acct.ddDeadlineDays)
+        const daysLeft = Math.ceil((deadline - new Date()) / 86400000)
+        const ddAmt = acct.requiredDD ? `$${acct.requiredDD.toLocaleString()}` : 'a qualifying'
+        if (daysLeft < 0) {
+          items.push({ id: `dd-overdue-${acct.id}`, type: 'critical', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
+            title: `DD deadline passed: ${n}`,
+            detail: `The ${acct.ddDeadlineDays}-day direct deposit window at ${acct.bankName} closed ${Math.abs(daysLeft)} days ago. Call the bank immediately — some will still honor late DDs if contacted promptly. Ask to speak to a supervisor and document your call. ${pn}'s account.`,
+            dueDate: deadline.toISOString(), action: 'Call bank now' })
+        } else if (daysLeft <= 7) {
+          items.push({ id: `dd-urgent-${acct.id}`, type: 'critical', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
+            title: `${daysLeft}d to link DD: ${n}`,
+            detail: `Must make ${ddAmt} direct deposit within ${daysLeft} days to qualify for the ${hasBonus ? fmt$(acct.bonusAmount) + ' ' : ''}bonus. Set up payroll direct deposit or qualifying ACH transfer NOW. ${pn}'s account.`,
+            dueDate: deadline.toISOString(), action: 'Link direct deposit NOW' })
+        } else if (daysLeft <= 30) {
+          items.push({ id: `dd-warn-${acct.id}`, type: 'warning', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
+            title: `${daysLeft}d left to link DD: ${n}`,
+            detail: `Must set up ${ddAmt} direct deposit at ${acct.bankName} by ${deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} to earn${hasBonus ? ' the ' + fmt$(acct.bonusAmount) : ' the'} bonus. ${pn}'s account.`,
+            dueDate: deadline.toISOString(), action: 'Set up direct deposit' })
+        } else if (daysLeft <= 60) {
+          items.push({ id: `dd-info-${acct.id}`, type: 'info', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
+            title: `Link DD within ${daysLeft}d: ${n}`,
+            detail: `Direct deposit deadline: ${deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. Required: ${ddAmt} per deposit${acct.ddSourceDescription ? ' from ' + acct.ddSourceDescription : ''}. ${pn}'s account.`,
+            dueDate: deadline.toISOString(), action: 'Schedule direct deposit' })
+        }
+      } else if (acct.openedDate && (acct.requiredDD ?? 0) > 0) {
+        const daysOpen = Math.ceil((new Date() - new Date(acct.openedDate)) / 86400000)
+        if (daysOpen > 14) {
+          items.push({ id: `dd-generic-${acct.id}`, type: daysOpen > 45 ? 'critical' : 'warning', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
+            title: `Link direct deposit: ${n}`,
+            detail: `Account opened ${daysOpen} days ago — direct deposit not yet set up. Required: $${acct.requiredDD.toLocaleString()}. Add a DD deadline (days) to get a precise countdown. ${pn}'s account.`,
+            dueDate: null, action: 'Set up direct deposit' })
+        }
       }
     }
 
-    // In cooling period — hold open
-    if (acct.bonusReceivedDate && !shield.safe) {
+    // 3. Multiple DDs in progress
+    if ((acct.requiredDDCount ?? 1) > 1 && !bonusReceived) {
+      const made = acct.ddsMade ?? 0
+      const needed = acct.requiredDDCount ?? 1
+      const remaining = needed - made
+      if (remaining > 0 && made > 0) {
+        items.push({ id: `dd-progress-${acct.id}`, type: 'info', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
+          title: `${remaining} more DD${remaining !== 1 ? 's' : ''} needed: ${n}`,
+          detail: `${made}/${needed} qualifying direct deposits completed at ${acct.bankName}. Each must be ${acct.requiredDD ? '$' + acct.requiredDD.toLocaleString() + '+' : 'qualifying'}. Update "DDs Completed" on the account as you go. ${pn}'s account.`,
+          dueDate: null, action: 'Make another deposit' })
+      }
+    }
+
+    // 4. Minimum balance reminder
+    if ((acct.minimumBalance ?? 0) > 0 && !bonusReceived) {
+      items.push({ id: `min-bal-${acct.id}`, type: 'info', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
+        title: `Maintain ${fmt$(acct.minimumBalance)} in ${n}`,
+        detail: `This account requires a ${fmt$(acct.minimumBalance)} minimum balance to avoid monthly fees and qualify for the bonus. Falling below this can reset the requirement or forfeit the offer. ${pn}'s account.`,
+        dueDate: null, action: 'Monitor balance' })
+    }
+
+    // 5. Overall bonus deadline countdown
+    if (acct.openedDate && (acct.bonusDeadlineDays ?? 0) > 0 && !bonusReceived) {
+      const deadline = new Date(acct.openedDate)
+      deadline.setDate(deadline.getDate() + acct.bonusDeadlineDays)
+      const daysLeft = Math.ceil((deadline - new Date()) / 86400000)
+      if (daysLeft < 0) {
+        items.push({ id: `bonus-deadline-missed-${acct.id}`, type: 'critical', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
+          title: `Bonus window expired: ${n}`,
+          detail: `The ${acct.bonusDeadlineDays}-day offer window at ${acct.bankName} closed ${Math.abs(daysLeft)} days ago without a bonus posting. Call the bank — if you met all requirements in time, ask them to manually post the bonus. Document every interaction. ${pn}'s account.`,
+          dueDate: deadline.toISOString(), action: 'Call bank to claim bonus' })
+      } else if (daysLeft <= 14) {
+        items.push({ id: `bonus-deadline-${acct.id}`, type: 'warning', category: 'bonus', accountId: acct.id, playerId: acct.playerId,
+          title: `Bonus deadline in ${daysLeft}d: ${n}`,
+          detail: `All requirements at ${acct.bankName} must be completed by ${deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} to earn${hasBonus ? ' the ' + fmt$(acct.bonusAmount) : ' the'} bonus. Verify every condition is met now. ${pn}'s account.`,
+          dueDate: deadline.toISOString(), action: 'Verify all requirements met' })
+      }
+    }
+
+    // 6. Bonus received — cooling period
+    if (bonusReceived && !shield.safe) {
       items.push({ id: `cooling-${acct.id}`, type: 'info', category: 'clawback', accountId: acct.id, playerId: acct.playerId,
-        title: `Hold open: ${n} (${shield.daysRemaining}d until safe)`,
-        detail: `Bonus received! Keep this account open and above any minimum balance for ${shield.daysRemaining} more days to clear the 181-day clawback window. Closing early risks losing your bonus. ${pn}'s account.`,
+        title: `Hold open ${shield.daysRemaining}d more: ${n}`,
+        detail: `Bonus received! Keep this account open${(acct.minimumBalance ?? 0) > 0 ? ' and above ' + fmt$(acct.minimumBalance) : ''} for ${shield.daysRemaining} more days to clear the 181-day clawback window. Closing early risks losing the bonus. ${pn}'s account.`,
         dueDate: shield.safeDate, action: 'Keep account open' })
     }
   }

@@ -23,8 +23,11 @@ export default function BankAccountsView() {
       playerId: players[0]?.id ?? 'p1',
       bankName: '', accountType: 'Checking', last4: '',
       openedDate: '', status: 'Opened',
-      requiredDD: '', ddSourceDescription: '', ddLinkedDate: '',
-      bonusAmount: '', bonusReceivedDate: '', isTaxable: true, notes: '',
+      requiredDD: '', requiredDDCount: '', ddsMade: '', ddDeadlineDays: '',
+      ddSourceDescription: '', ddLinkedDate: '',
+      minimumBalance: '', bonusDeadlineDays: '',
+      bonusAmount: '', bonusReceivedDate: '', isTaxable: true,
+      offerUrl: '', notes: '',
     })
     setAdding(true)
   }
@@ -33,6 +36,9 @@ export default function BankAccountsView() {
     setAdding(false)
     setNewAcct(null)
   }
+
+  function numOpt(v) { if (v === '' || v == null) return undefined; const n = parseFloat(v); return isNaN(n) ? undefined : n }
+  function intOpt(v) { if (v === '' || v == null) return undefined; const n = parseInt(v); return isNaN(n) ? undefined : n }
 
   function saveAdd() {
     if (!newAcct?.bankName?.trim()) return
@@ -43,12 +49,18 @@ export default function BankAccountsView() {
     dispatch({
       type: 'ADD_ACCOUNT', payload: {
         ...newAcct,
-        requiredDD: newAcct.requiredDD !== '' && newAcct.requiredDD != null ? parseFloat(newAcct.requiredDD) : undefined,
-        bonusAmount: newAcct.bonusAmount !== '' && newAcct.bonusAmount != null ? parseFloat(newAcct.bonusAmount) : undefined,
+        requiredDD: numOpt(newAcct.requiredDD),
+        bonusAmount: numOpt(newAcct.bonusAmount),
+        minimumBalance: numOpt(newAcct.minimumBalance),
+        ddDeadlineDays: intOpt(newAcct.ddDeadlineDays),
+        requiredDDCount: intOpt(newAcct.requiredDDCount),
+        ddsMade: intOpt(newAcct.ddsMade),
+        bonusDeadlineDays: intOpt(newAcct.bonusDeadlineDays),
         last4: newAcct.last4 ? String(newAcct.last4).slice(-4) : undefined,
         openedDate,
         ddLinkedDate: newAcct.ddLinkedDate || null,
         bonusReceivedDate: newAcct.bonusReceivedDate || null,
+        offerUrl: newAcct.offerUrl || null,
         safeToCloseDate,
       }
     })
@@ -151,19 +163,53 @@ export default function BankAccountsView() {
               </div>
             </div>
 
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Required DD ($/month)</label>
-              <input type="number" min="0" className={inp} value={newAcct.requiredDD} onChange={e => setN('requiredDD', e.target.value)} placeholder="500 (optional)" />
+            {/* DD Requirements */}
+            <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-medium text-zinc-300 mb-2">Direct Deposit Requirements</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">DD Amount ($)</label>
+                  <input type="number" min="0" className={inp} value={newAcct.requiredDD} onChange={e => setN('requiredDD', e.target.value)} placeholder="500" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1"># Required</label>
+                  <input type="number" min="1" className={inp} value={newAcct.requiredDDCount} onChange={e => setN('requiredDDCount', e.target.value)} placeholder="1" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1"># Completed</label>
+                  <input type="number" min="0" className={inp} value={newAcct.ddsMade} onChange={e => setN('ddsMade', e.target.value)} placeholder="0" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">DD Deadline (days)</label>
+                  <input type="number" min="1" className={inp} value={newAcct.ddDeadlineDays} onChange={e => setN('ddDeadlineDays', e.target.value)} placeholder="90" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">DD Linked Date</label>
+                  <input type="date" className={inp} value={newAcct.ddLinkedDate} onChange={e => setN('ddLinkedDate', e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">DD Source</label>
+                <input className={inp} value={newAcct.ddSourceDescription} onChange={e => setN('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, Social Security, ACH" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Min Balance ($)</label>
+                <input type="number" min="0" className={inp} value={newAcct.minimumBalance} onChange={e => setN('minimumBalance', e.target.value)} placeholder="0" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Bonus Deadline (days)</label>
+                <input type="number" min="1" className={inp} value={newAcct.bonusDeadlineDays} onChange={e => setN('bonusDeadlineDays', e.target.value)} placeholder="120" />
+              </div>
             </div>
 
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">DD Source</label>
-              <input className={inp} value={newAcct.ddSourceDescription} onChange={e => setN('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, SSI, ACH" />
-            </div>
-
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">DD Linked Date</label>
-              <input type="date" className={inp} value={newAcct.ddLinkedDate} onChange={e => setN('ddLinkedDate', e.target.value)} />
+              <label className="text-xs text-zinc-400 block mb-1">Offer Link</label>
+              <input className={inp} value={newAcct.offerUrl} onChange={e => setN('offerUrl', e.target.value)} placeholder="https://www.doctorofcredit.com/..." />
             </div>
 
             <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
@@ -173,7 +219,7 @@ export default function BankAccountsView() {
 
             <div>
               <label className="text-xs text-zinc-400 block mb-1">Notes</label>
-              <textarea rows={2} className={inp} value={newAcct.notes} onChange={e => setN('notes', e.target.value)} placeholder="optional" />
+              <textarea rows={2} className={inp} value={newAcct.notes} onChange={e => setN('notes', e.target.value)} placeholder="Offer terms, expiry date, special requirements..." />
             </div>
 
             <div className="flex gap-2 pt-1">
