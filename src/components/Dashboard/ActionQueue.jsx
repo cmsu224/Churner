@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { AlertTriangle, Info, CreditCard, Calendar, Zap, Scissors, Gift, Shield, RefreshCw, Heart, ChevronDown, ChevronUp } from 'lucide-react'
+import { useChurn } from '../../store/ChurnContext'
+import { AlertTriangle, Info, CreditCard, Calendar, Zap, Scissors, Gift, Shield, RefreshCw, Heart, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
 
 const CATEGORY_ICON = {
   spend: CreditCard,
@@ -31,11 +32,22 @@ const TYPE_STYLES = {
 }
 
 function ActionItem({ item, players }) {
+  const { state, dispatch } = useChurn()
   const [expanded, setExpanded] = useState(false)
+  const [done, setDone] = useState(false)
   const s = TYPE_STYLES[item.type]
   const Icon = CATEGORY_ICON[item.category] ?? Info
   const TypeIcon = item.type === 'critical' ? AlertTriangle : item.type === 'warning' ? AlertTriangle : Info
   const player = (players ?? []).find(p => p.id === item.playerId)
+
+  function markAutopayOn(e) {
+    e.stopPropagation()
+    const card = (state.creditCards ?? []).find(c => c.id === item.cardId)
+    if (card) dispatch({ type: 'UPDATE_CARD', payload: { ...card, autoPayEnabled: true } })
+    setDone(true)
+  }
+
+  if (done) return null
 
   return (
     <div className={`border-l-4 ${s.border} bg-zinc-900 border border-zinc-800 rounded-r-xl overflow-hidden`}>
@@ -67,6 +79,15 @@ function ActionItem({ item, players }) {
       {expanded && (
         <div className="px-4 pb-4 pt-0 ml-7">
           <p className="text-sm text-zinc-400 leading-relaxed">{item.detail}</p>
+          {item.category === 'autopay' && item.cardId && (
+            <button
+              onClick={markAutopayOn}
+              className="mt-3 flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <CheckCircle size={12} />
+              AutoPay is now on — mark done
+            </button>
+          )}
         </div>
       )}
     </div>
