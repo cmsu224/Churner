@@ -2,18 +2,22 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, claude/four-person-churn-dashboard-HU77F]
+    branches: [main]
   workflow_dispatch:
 
+# Allow the workflow to publish to GitHub Pages via the Actions deployment.
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
+# Only one Pages deploy at a time; let an in-progress run finish.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +27,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
