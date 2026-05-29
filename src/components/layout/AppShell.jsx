@@ -9,6 +9,8 @@ import BankAccountsView from '../BankAccounts/BankAccountsView'
 import RulesView from '../Rules/RulesView'
 import TaxView from '../Tax/TaxView'
 import PlayersView from '../Players/PlayersView'
+import ResourcesView from '../Resources/ResourcesView'
+import ImportExportView from '../ImportExport/ImportExportView'
 
 export default function AppShell() {
   const { gist } = useChurn()
@@ -78,6 +80,8 @@ export default function AppShell() {
             <Route path="/accounts" element={<BankAccountsView />} />
             <Route path="/rules" element={<RulesView />} />
             <Route path="/tax" element={<TaxView />} />
+            <Route path="/resources" element={<ResourcesView />} />
+            <Route path="/import" element={<ImportExportView />} />
             <Route path="/players" element={<PlayersView />} />
           </Routes>
         </main>

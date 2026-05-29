@@ -1,13 +1,15 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users, Link2, ArrowDownUp } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/cards', icon: CreditCard, label: 'Cards' },
   { to: '/accounts', icon: Landmark, label: 'Accounts' },
   { to: '/rules', icon: BookOpen, label: 'Rules' },
-  { to: '/players', icon: Users, label: 'Players' },
   { to: '/tax', icon: Calculator, label: 'Tax' },
+  { to: '/resources', icon: Link2, label: 'Resources' },
+  { to: '/import', icon: ArrowDownUp, label: 'Import' },
+  { to: '/players', icon: Users, label: 'Players' },
 ]
 
 export function SidebarNav({ collapsed }) {
