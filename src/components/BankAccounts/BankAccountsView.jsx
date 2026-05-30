@@ -3,9 +3,20 @@ import { useChurn } from '../../store/ChurnContext'
 import AccountItem from './AccountItem'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
+import FilterBar, { Pill, MultiPill, Chip, FilterRow } from '../shared/FilterBar'
 import { getIssuerMeta } from '../../utils/issuers'
-import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
+import { ACCOUNT_STATUSES, statusLabel } from '../../utils/statusMeta'
 import { Plus, X } from 'lucide-react'
+
+const SORT_OPTIONS = [
+  { value: 'newest',  label: 'Newest first' },
+  { value: 'oldest',  label: 'Oldest first' },
+  { value: 'balance', label: 'Highest balance' },
+  { value: 'bonus',   label: 'Highest bonus' },
+  { value: 'name',    label: 'Bank A–Z' },
+]
+const ACCT_TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
+const DEFAULT_FILTERS = { statuses: [], banks: [], types: [], hasBalance: false, hasBonus: false, bonusPending: false }
 
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
@@ -29,14 +40,65 @@ function groupByBank(accounts) {
 export default function BankAccountsView() {
   const { state, dispatch } = useChurn()
   const players = state.players ?? []
+  const allAccounts = state.bankAccounts ?? []
   const [adding, setAdding] = useState(false)
   const [newAcct, setNewAcct] = useState(null)
   const [filterPlayer, setFilterPlayer] = useState('all')
+  const [filters, setFilters] = useState(DEFAULT_FILTERS)
+  const [sortBy, setSortBy] = useState('newest')
 
-  const filtered = (state.bankAccounts ?? []).filter(
-    a => filterPlayer === 'all' || a.playerId === filterPlayer
-  )
-  const groups = groupByBank(filtered)
+  const availableBanks = [...new Set(
+    allAccounts.map(a => getIssuerMeta(a.bankName).name).filter(n => n && n !== 'Other')
+  )].sort()
+
+  function toggleStatus(s) {
+    setFilters(f => ({ ...f, statuses: f.statuses.includes(s) ? f.statuses.filter(x => x !== s) : [...f.statuses, s] }))
+  }
+  function toggleBank(b) {
+    setFilters(f => ({ ...f, banks: f.banks.includes(b) ? f.banks.filter(x => x !== b) : [...f.banks, b] }))
+  }
+  function toggleType(t) {
+    setFilters(f => ({ ...f, types: f.types.includes(t) ? f.types.filter(x => x !== t) : [...f.types, t] }))
+  }
+  function clearFilters() { setFilters(DEFAULT_FILTERS); setSortBy('newest') }
+
+  const activeCount = [
+    filters.statuses.length > 0,
+    filters.banks.length > 0,
+    filters.types.length > 0,
+    filters.hasBalance,
+    filters.hasBonus,
+    filters.bonusPending,
+    sortBy !== 'newest',
+  ].filter(Boolean).length
+
+  function applyFiltersAndSort(accounts) {
+    let result = accounts.filter(a => {
+      if (filterPlayer !== 'all' && a.playerId !== filterPlayer) return false
+      if (filters.statuses.length && !filters.statuses.includes(a.status)) return false
+      if (filters.banks.length) {
+        const name = getIssuerMeta(a.bankName).name
+        if (!filters.banks.includes(name)) return false
+      }
+      if (filters.types.length && !filters.types.includes(a.accountType)) return false
+      if (filters.hasBalance && !(a.currentBalance > 0)) return false
+      if (filters.hasBonus && !(a.bonusAmount > 0)) return false
+      if (filters.bonusPending && !(a.bonusAmount > 0 && !a.bonusReceivedDate)) return false
+      return true
+    })
+    const sortFn = {
+      newest:  (a, b) => new Date(b.openedDate || '1970') - new Date(a.openedDate || '1970'),
+      oldest:  (a, b) => new Date(a.openedDate || '9999') - new Date(b.openedDate || '9999'),
+      balance: (a, b) => (b.currentBalance ?? 0) - (a.currentBalance ?? 0),
+      bonus:   (a, b) => (b.bonusAmount ?? 0) - (a.bonusAmount ?? 0),
+      name:    (a, b) => (a.bankName ?? '').localeCompare(b.bankName ?? ''),
+    }[sortBy] ?? (() => 0)
+    return result.sort(sortFn)
+  }
+
+  const filteredAccounts = applyFiltersAndSort(allAccounts)
+  const useGroups = sortBy === 'newest'
+  const groups = useGroups ? groupByBank(filteredAccounts) : null
 
   function startAdd() {
     setNewAcct({
@@ -104,15 +166,9 @@ export default function BankAccountsView() {
         )}
       </div>
 
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <button
-          onClick={() => setFilterPlayer('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            filterPlayer === 'all' ? 'bg-zinc-700 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-300'
-          }`}
-        >
-          All
-        </button>
+      {/* Person filter */}
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <Pill active={filterPlayer === 'all'} onClick={() => setFilterPlayer('all')}>All</Pill>
         {players.map(p => (
           <button
             key={p.id}
@@ -126,6 +182,38 @@ export default function BankAccountsView() {
           </button>
         ))}
       </div>
+
+      {/* Filter + sort bar */}
+      <FilterBar
+        activeCount={activeCount}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortOptions={SORT_OPTIONS}
+        onClear={clearFilters}
+      >
+        <FilterRow label="Status">
+          {ACCOUNT_STATUSES.map(s => (
+            <MultiPill key={s.value} value={s.value} values={filters.statuses} onToggle={toggleStatus} label={s.label} />
+          ))}
+        </FilterRow>
+        {availableBanks.length > 0 && (
+          <FilterRow label="Bank">
+            {availableBanks.map(b => (
+              <MultiPill key={b} value={b} values={filters.banks} onToggle={toggleBank} label={b} />
+            ))}
+          </FilterRow>
+        )}
+        <FilterRow label="Type">
+          {ACCT_TYPES.map(t => (
+            <MultiPill key={t} value={t} values={filters.types} onToggle={toggleType} label={t} />
+          ))}
+        </FilterRow>
+        <FilterRow label="Show">
+          <Chip active={filters.hasBalance}   onClick={() => setFilters(f => ({ ...f, hasBalance: !f.hasBalance }))}>Has balance</Chip>
+          <Chip active={filters.hasBonus}     onClick={() => setFilters(f => ({ ...f, hasBonus: !f.hasBonus }))}>Has bonus offer</Chip>
+          <Chip active={filters.bonusPending} onClick={() => setFilters(f => ({ ...f, bonusPending: !f.bonusPending }))}>Bonus pending</Chip>
+        </FilterRow>
+      </FilterBar>
 
       {/* Add Account inline form */}
       {adding && newAcct && (
@@ -257,15 +345,22 @@ export default function BankAccountsView() {
         </div>
       )}
 
-      {filtered.length === 0 && !adding ? (
+      {filteredAccounts.length === 0 && !adding ? (
         <div className="text-center py-12 text-zinc-500">
           <div className="text-4xl mb-3">🏦</div>
-          <div className="text-base font-medium text-zinc-400 mb-1">
-            No accounts{filterPlayer !== 'all' ? ' for this person' : ''}
-          </div>
-          <div className="text-sm">Click &ldquo;Add Account&rdquo; to track a bank bonus.</div>
+          {activeCount > 0 ? (
+            <>
+              <div className="text-base font-medium text-zinc-400 mb-1">No accounts match these filters</div>
+              <button onClick={clearFilters} className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Clear filters</button>
+            </>
+          ) : (
+            <>
+              <div className="text-base font-medium text-zinc-400 mb-1">No accounts{filterPlayer !== 'all' ? ' for this person' : ''}</div>
+              <div className="text-sm">Click &ldquo;Add Account&rdquo; to track a bank bonus.</div>
+            </>
+          )}
         </div>
-      ) : (
+      ) : useGroups ? (
         <div className="space-y-6">
           {groups.map(group => (
             <section key={group.meta.key}>
@@ -279,6 +374,10 @@ export default function BankAccountsView() {
               </div>
             </section>
           ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {filteredAccounts.map(acct => <AccountItem key={acct.id} account={acct} players={players} />)}
         </div>
       )}
     </div>

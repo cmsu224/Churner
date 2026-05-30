@@ -3,10 +3,28 @@ import { useChurn } from '../../store/ChurnContext'
 import CardItem from './CardItem'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
+import FilterBar, { Pill, MultiPill, Chip, FilterRow } from '../shared/FilterBar'
 import { getIssuerMeta } from '../../utils/issuers'
-import { CARD_STATUSES } from '../../utils/statusMeta'
+import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
 import { getSmartCardStatus } from '../../engines/lifecycle'
+import { getCardAge } from '../../engines/creditAge'
 import { Plus, X } from 'lucide-react'
+
+const SORT_OPTIONS = [
+  { value: 'newest',   label: 'Newest first' },
+  { value: 'oldest',   label: 'Oldest first' },
+  { value: 'balance',  label: 'Highest balance' },
+  { value: 'fee',      label: 'Highest annual fee' },
+  { value: 'name',     label: 'Name A–Z' },
+]
+const AGE_RANGES = [
+  { value: 'any',  label: 'Any' },
+  { value: 'lt1',  label: '< 1yr' },
+  { value: '1to2', label: '1–2yr' },
+  { value: '2to4', label: '2–4yr' },
+  { value: 'gt4',  label: '4+yr' },
+]
+const DEFAULT_FILTERS = { statuses: [], issuers: [], ageRange: 'any', hasBalance: false, hasAnnualFee: false, bonusPending: false, hideClosed: false }
 
 const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
 const inpRequired = 'w-full bg-zinc-800 border border-blue-500/60 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400 transition-colors'
@@ -29,14 +47,73 @@ function groupByIssuer(cards) {
 export default function CreditCardsView() {
   const { state, dispatch } = useChurn()
   const players = state.players ?? []
+  const allCards = state.creditCards ?? []
   const [adding, setAdding] = useState(false)
   const [newCard, setNewCard] = useState(null)
   const [filterPlayer, setFilterPlayer] = useState('all')
+  const [filters, setFilters] = useState(DEFAULT_FILTERS)
+  const [sortBy, setSortBy] = useState('newest')
 
-  const filtered = (state.creditCards ?? []).filter(
-    c => filterPlayer === 'all' || c.playerId === filterPlayer
-  )
-  const groups = groupByIssuer(filtered)
+  // Unique issuer names present in the data (for the issuer filter pills).
+  const availableIssuers = [...new Set(
+    allCards.map(c => getIssuerMeta(c.issuer || c.cardName).name).filter(n => n && n !== 'Other')
+  )].sort()
+
+  function toggleStatus(s) {
+    setFilters(f => ({ ...f, statuses: f.statuses.includes(s) ? f.statuses.filter(x => x !== s) : [...f.statuses, s] }))
+  }
+  function toggleIssuer(i) {
+    setFilters(f => ({ ...f, issuers: f.issuers.includes(i) ? f.issuers.filter(x => x !== i) : [...f.issuers, i] }))
+  }
+  function clearFilters() { setFilters(DEFAULT_FILTERS); setSortBy('newest') }
+
+  const activeCount = [
+    filters.statuses.length > 0,
+    filters.issuers.length > 0,
+    filters.ageRange !== 'any',
+    filters.hasBalance,
+    filters.hasAnnualFee,
+    filters.bonusPending,
+    filters.hideClosed,
+    sortBy !== 'newest',
+  ].filter(Boolean).length
+
+  function applyFiltersAndSort(cards) {
+    let result = cards.filter(c => {
+      if (filterPlayer !== 'all' && c.playerId !== filterPlayer) return false
+      if (filters.hideClosed && c.status === 'Closed') return false
+      if (filters.statuses.length && !filters.statuses.includes(c.status)) return false
+      if (filters.issuers.length) {
+        const name = getIssuerMeta(c.issuer || c.cardName).name
+        if (!filters.issuers.includes(name)) return false
+      }
+      if (filters.hasBalance && !(c.currentBalance > 0)) return false
+      if (filters.hasAnnualFee && !(c.annualFee > 0)) return false
+      if (filters.bonusPending && c.status !== 'Active Churn') return false
+      if (filters.ageRange !== 'any') {
+        const age = getCardAge(c)
+        const m = age?.totalMonths ?? -1
+        if (filters.ageRange === 'lt1'  && !(m >= 0  && m < 12))  return false
+        if (filters.ageRange === '1to2' && !(m >= 12 && m < 24))  return false
+        if (filters.ageRange === '2to4' && !(m >= 24 && m < 48))  return false
+        if (filters.ageRange === 'gt4'  && m < 48)               return false
+      }
+      return true
+    })
+    const sortFn = {
+      newest:  (a, b) => new Date(b.openDate || '1970') - new Date(a.openDate || '1970'),
+      oldest:  (a, b) => new Date(a.openDate || '9999') - new Date(b.openDate || '9999'),
+      balance: (a, b) => (b.currentBalance ?? 0) - (a.currentBalance ?? 0),
+      fee:     (a, b) => (b.annualFee ?? 0) - (a.annualFee ?? 0),
+      name:    (a, b) => (a.cardName ?? '').localeCompare(b.cardName ?? ''),
+    }[sortBy] ?? (() => 0)
+    return result.sort(sortFn)
+  }
+
+  const filteredCards = applyFiltersAndSort(allCards)
+  // Use issuer groups only for default sort; flat list otherwise so sort order is obvious.
+  const useGroups = sortBy === 'newest'
+  const groups = useGroups ? groupByIssuer(filteredCards) : null
 
   function startAdd() {
     setNewCard({
@@ -99,15 +176,9 @@ export default function CreditCardsView() {
         )}
       </div>
 
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <button
-          onClick={() => setFilterPlayer('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            filterPlayer === 'all' ? 'bg-zinc-700 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-300'
-          }`}
-        >
-          All
-        </button>
+      {/* Person filter */}
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <Pill active={filterPlayer === 'all'} onClick={() => setFilterPlayer('all')}>All</Pill>
         {players.map(p => (
           <button
             key={p.id}
@@ -121,6 +192,39 @@ export default function CreditCardsView() {
           </button>
         ))}
       </div>
+
+      {/* Filter + sort bar */}
+      <FilterBar
+        activeCount={activeCount}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortOptions={SORT_OPTIONS}
+        onClear={clearFilters}
+      >
+        <FilterRow label="Status">
+          {CARD_STATUSES.map(s => (
+            <MultiPill key={s.value} value={s.value} values={filters.statuses} onToggle={toggleStatus} label={s.label} />
+          ))}
+        </FilterRow>
+        {availableIssuers.length > 0 && (
+          <FilterRow label="Brand">
+            {availableIssuers.map(i => (
+              <MultiPill key={i} value={i} values={filters.issuers} onToggle={toggleIssuer} label={i} />
+            ))}
+          </FilterRow>
+        )}
+        <FilterRow label="Age">
+          {AGE_RANGES.map(r => (
+            <Pill key={r.value} active={filters.ageRange === r.value} onClick={() => setFilters(f => ({ ...f, ageRange: r.value }))}>{r.label}</Pill>
+          ))}
+        </FilterRow>
+        <FilterRow label="Show">
+          <Chip active={filters.hasBalance}    onClick={() => setFilters(f => ({ ...f, hasBalance: !f.hasBalance }))}>Has balance</Chip>
+          <Chip active={filters.hasAnnualFee}  onClick={() => setFilters(f => ({ ...f, hasAnnualFee: !f.hasAnnualFee }))}>Has annual fee</Chip>
+          <Chip active={filters.bonusPending}  onClick={() => setFilters(f => ({ ...f, bonusPending: !f.bonusPending }))}>Bonus pending</Chip>
+          <Chip active={filters.hideClosed}    onClick={() => setFilters(f => ({ ...f, hideClosed: !f.hideClosed }))}>Hide closed</Chip>
+        </FilterRow>
+      </FilterBar>
 
       {/* Add Card inline form */}
       {adding && newCard && (
@@ -240,15 +344,22 @@ export default function CreditCardsView() {
         </div>
       )}
 
-      {filtered.length === 0 && !adding ? (
+      {filteredCards.length === 0 && !adding ? (
         <div className="text-center py-12 text-zinc-500">
           <div className="text-4xl mb-3">💳</div>
-          <div className="text-base font-medium text-zinc-400 mb-1">
-            No cards{filterPlayer !== 'all' ? ' for this person' : ''}
-          </div>
-          <div className="text-sm">Click &ldquo;Add Card&rdquo; to get started.</div>
+          {activeCount > 0 ? (
+            <>
+              <div className="text-base font-medium text-zinc-400 mb-1">No cards match these filters</div>
+              <button onClick={clearFilters} className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Clear filters</button>
+            </>
+          ) : (
+            <>
+              <div className="text-base font-medium text-zinc-400 mb-1">No cards{filterPlayer !== 'all' ? ' for this person' : ''}</div>
+              <div className="text-sm">Click &ldquo;Add Card&rdquo; to get started.</div>
+            </>
+          )}
         </div>
-      ) : (
+      ) : useGroups ? (
         <div className="space-y-6">
           {groups.map(group => (
             <section key={group.meta.key}>
@@ -262,6 +373,10 @@ export default function CreditCardsView() {
               </div>
             </section>
           ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {filteredCards.map(card => <CardItem key={card.id} card={card} players={players} />)}
         </div>
       )}
     </div>

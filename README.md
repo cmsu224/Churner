@@ -114,8 +114,11 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
 - **Live spend progress bar** right on the collapsed card, color-coded by urgency.
 - **Clearable date fields** — press Backspace/Delete or click the × to clear a date (desktop-friendly), plus the native picker for mobile.
 - **Required fields are accent-highlighted**; optional fields are muted gray so you know what to ignore.
-- **Per-person filter buttons** and an inline add form with every field.
-- Inline delete with confirmation.
+- **Per-person filter** buttons plus a full **filter + sort bar** on both the Credit Cards and Bank Accounts pages:
+  - **Credit cards** — filter by status (multi-select), issuer/brand (auto-populated, multi-select), age range (< 1yr / 1–2yr / 2–4yr / 4+yr), and toggle chips for "Has balance", "Has annual fee", "Bonus pending", "Hide closed". Sort by Newest, Oldest, Highest balance, Highest annual fee, or Name A–Z.
+  - **Bank accounts** — filter by status, bank (auto-populated), account type (Checking/Savings/Money Market/CD), and toggle chips for "Has balance", "Has bonus offer", "Bonus pending". Sort by Newest, Oldest, Highest balance, Highest bonus, or Bank A–Z.
+  - Active filter count badge on the "Clear filters" button; any sort other than "Newest" renders a flat list so sort order is obvious; default sort keeps issuer/bank grouping with logos.
+- Inline add form with every field and inline delete with confirmation.
 
 ### 4. Bank Account Tracking
 
