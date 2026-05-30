@@ -110,7 +110,9 @@ export default function CreditCardsView() {
     return result.sort(sortFn)
   }
 
-  const filteredCards = applyFiltersAndSort(allCards)
+  const allFiltered = applyFiltersAndSort(allCards)
+  const filteredCards = allFiltered.filter(c => c.status !== 'Closed')
+  const closedCards = allFiltered.filter(c => c.status === 'Closed')
   // Use issuer groups only for default sort; flat list otherwise so sort order is obvious.
   const useGroups = sortBy === 'newest'
   const groups = useGroups ? groupByIssuer(filteredCards) : null
@@ -344,7 +346,7 @@ export default function CreditCardsView() {
         </div>
       )}
 
-      {filteredCards.length === 0 && !adding ? (
+      {filteredCards.length === 0 && closedCards.length === 0 && !adding ? (
         <div className="text-center py-12 text-zinc-500">
           <div className="text-4xl mb-3">💳</div>
           {activeCount > 0 ? (
@@ -359,25 +361,41 @@ export default function CreditCardsView() {
             </>
           )}
         </div>
-      ) : useGroups ? (
-        <div className="space-y-6">
-          {groups.map(group => (
-            <section key={group.meta.key}>
-              <div className="flex items-center gap-2 mb-2">
-                <IssuerLogo name={group.meta.key === 'other' ? '' : group.meta.name} size={22} />
-                <h2 className="text-sm font-semibold text-white">{group.meta.name}</h2>
-                <span className="text-xs text-zinc-500">{group.cards.length}</span>
+      ) : (
+        <>
+          {filteredCards.length > 0 && (useGroups ? (
+            <div className="space-y-6">
+              {groups.map(group => (
+                <section key={group.meta.key}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <IssuerLogo name={group.meta.key === 'other' ? '' : group.meta.name} size={22} />
+                    <h2 className="text-sm font-semibold text-white">{group.meta.name}</h2>
+                    <span className="text-xs text-zinc-500">{group.cards.length}</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {group.cards.map(card => <CardItem key={card.id} card={card} members={members} />)}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {filteredCards.map(card => <CardItem key={card.id} card={card} members={members} />)}
+            </div>
+          ))}
+
+          {closedCards.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mt-2 mb-2 pt-4 border-t border-zinc-800">
+                <h2 className="text-sm font-semibold text-zinc-500">Closed Cards</h2>
+                <span className="text-xs text-zinc-600">{closedCards.length}</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {group.cards.map(card => <CardItem key={card.id} card={card} members={members} />)}
+                {closedCards.map(card => <CardItem key={card.id} card={card} members={members} />)}
               </div>
             </section>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filteredCards.map(card => <CardItem key={card.id} card={card} members={members} />)}
-        </div>
+          )}
+        </>
       )}
     </div>
   )

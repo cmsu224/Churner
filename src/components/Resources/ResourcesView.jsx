@@ -47,19 +47,19 @@ const SECTIONS = [
       },
       {
         label: 'Bank of America 2/3/4 Rule',
-        url: 'https://www.doctorofcredit.com/bank-of-america-credit-card-application-rules/',
+        url: 'https://www.doctorofcredit.com/knowledge-base/bank-of-america-credit-card-application-rules/',
         source: 'Doctor of Credit',
         desc: 'Max 2 BofA cards in 2 months, 3 in 12 months, 4 in 24 months. Preferred Rewards status affects approvals.',
       },
       {
         label: 'Capital One Application Rules',
-        url: 'https://www.doctorofcredit.com/capital-one-credit-card-application-rules/',
+        url: 'https://www.doctorofcredit.com/knowledge-base/capital-one-credit-card-application-rules/',
         source: 'Doctor of Credit',
         desc: '1 personal card per 6 months. Capital One pulls all 3 credit bureaus on every application.',
       },
       {
         label: 'Barclays Application Rules',
-        url: 'https://www.doctorofcredit.com/barclays-credit-card-application-rules/',
+        url: 'https://www.doctorofcredit.com/knowledge-base/barclays-credit-card-application-rules/',
         source: 'Doctor of Credit',
         desc: 'Known for denying churners. They review your history carefully — recent cards are a red flag.',
       },
@@ -88,7 +88,7 @@ const SECTIONS = [
       },
       {
         label: 'Annual Fee Cancel-for-Refund Guide',
-        url: 'https://www.doctorofcredit.com/credit-card-annual-fee-refund-policies/',
+        url: 'https://www.doctorofcredit.com/knowledge-base/credit-card-annual-fee-refund-policies/',
         source: 'Doctor of Credit',
         desc: 'Every issuer\'s refund policy. Most give 30 days after the fee posts. Some pro-rate. Know before you cancel.',
       },
@@ -105,7 +105,7 @@ const SECTIONS = [
       },
       {
         label: 'Credit Karma (Equifax + TransUnion)',
-        url: 'https://www.creditkarmra.com/',
+        url: 'https://www.creditkarma.com/',
         source: 'Credit Karma',
         desc: 'Free real-time Equifax and TransUnion scores. Useful for monitoring inquiries after applications.',
       },

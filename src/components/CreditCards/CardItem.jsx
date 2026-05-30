@@ -5,7 +5,7 @@ import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
 import BalanceBar from '../shared/BalanceBar'
 import DateField from '../shared/DateField'
-import { getSpendDeadlineInfo, getCardNextStatus } from '../../engines/lifecycle'
+import { getSpendDeadlineInfo, getCardNextStatus, getReeligibilityInfo } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
 import { fmt$ } from '../../utils/format'
@@ -65,6 +65,7 @@ export default function CardItem({ card, members }) {
   const nextStatus = getCardNextStatus(card)
   const age = getCardAge(card)
   const quickActions = getQuickActions(card)
+  const reeligibility = card.status === 'Closed' ? getReeligibilityInfo(card) : null
 
   useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
 
@@ -205,10 +206,42 @@ export default function CardItem({ card, members }) {
           </div>
         )}
 
-        <BalanceBar balance={card.currentBalance ?? 0} limit={card.creditLimit ?? 0} kind="card" />
-
-        {nextStatus && !expanded && (
-          <div className="mt-1.5 text-xs text-amber-400">→ {statusLabel(nextStatus)}</div>
+        {card.status === 'Closed' ? (
+          reeligibility && reeligibility.months ? (
+            reeligibility.reeligible ? (
+              <div className="mt-2">
+                <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden mb-1">
+                  <div className="h-full rounded-full bg-emerald-500 w-full" />
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Re-eligibility</span>
+                  <span className="text-emerald-400 font-medium">Ready to reapply</span>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2">
+                <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden mb-1">
+                  <div
+                    className="h-full rounded-full bg-zinc-500"
+                    style={{ width: `${Math.max(2, Math.round(((reeligibility.months * 30 - reeligibility.daysUntil) / (reeligibility.months * 30)) * 100))}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-zinc-500">
+                  <span>Re-eligible in {reeligibility.daysUntil}d</span>
+                  <span>{new Date(reeligibility.reeligibleDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                </div>
+              </div>
+            )
+          ) : reeligibility && !reeligibility.months ? (
+            <div className="mt-1.5 text-xs text-zinc-600">{reeligibility.note}</div>
+          ) : null
+        ) : (
+          <>
+            <BalanceBar balance={card.currentBalance ?? 0} limit={card.creditLimit ?? 0} kind="card" />
+            {nextStatus && !expanded && (
+              <div className="mt-1.5 text-xs text-amber-400">→ {statusLabel(nextStatus)}</div>
+            )}
+          </>
         )}
       </div>
 
