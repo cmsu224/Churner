@@ -112,5 +112,6 @@ export function useGist() {
     configure,
     disconnect,
     getGistId: gistId,
+    getPat: pat,
   }
 }

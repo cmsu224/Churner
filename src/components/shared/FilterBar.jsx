@@ -1,6 +1,6 @@
-import { SlidersHorizontal, X } from 'lucide-react'
+import { useState } from 'react'
+import { SlidersHorizontal, X, ChevronDown, ChevronUp } from 'lucide-react'
 
-// Reusable pill button (single-select within a group).
 export function Pill({ active, onClick, children }) {
   return (
     <button
@@ -14,7 +14,6 @@ export function Pill({ active, onClick, children }) {
   )
 }
 
-// Toggle chip (boolean on/off with blue accent when active).
 export function Chip({ active, onClick, children }) {
   return (
     <button
@@ -31,7 +30,6 @@ export function Chip({ active, onClick, children }) {
   )
 }
 
-// Multi-select pill (toggles individual values in an array).
 export function MultiPill({ value, values, onToggle, label }) {
   const active = values.includes(value)
   return (
@@ -46,12 +44,9 @@ export function MultiPill({ value, values, onToggle, label }) {
   )
 }
 
-/**
- * FilterBar wrapper — handles the "Filters (N)" toggle button, active count
- * badge, sort select, and "Clear all" button. Children are the filter rows
- * rendered inside the collapsible panel.
- */
 export default function FilterBar({ activeCount, sortBy, onSortChange, sortOptions, onClear, children }) {
+  const [open, setOpen] = useState(false)
+
   return (
     <div className="mb-4 space-y-2">
       {/* Control row */}
@@ -67,27 +62,45 @@ export default function FilterBar({ activeCount, sortBy, onSortChange, sortOptio
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-        {activeCount > 0 && (
-          <button
-            onClick={onClear}
-            className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2.5 py-1.5 rounded-lg transition-colors"
-          >
-            <X size={11} />
-            Clear filters
+
+        <button
+          onClick={() => setOpen(o => !o)}
+          className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
+            open || activeCount > 0
+              ? 'bg-zinc-700 border-zinc-600 text-white'
+              : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          Filters
+          {activeCount > 0 && (
             <span className="bg-amber-500 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
               {activeCount}
             </span>
+          )}
+          {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+        </button>
+
+        {activeCount > 0 && (
+          <button
+            onClick={() => { onClear(); setOpen(false) }}
+            className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2.5 py-1.5 rounded-lg transition-colors"
+          >
+            <X size={11} />
+            Clear
           </button>
         )}
       </div>
 
-      {/* Filter rows */}
-      {children}
+      {/* Filter rows — shown only when expanded */}
+      {open && (
+        <div className="space-y-2 bg-zinc-900/60 rounded-lg border border-zinc-800 p-3">
+          {children}
+        </div>
+      )}
     </div>
   )
 }
 
-// Labelled row inside a FilterBar panel.
 export function FilterRow({ label, children }) {
   return (
     <div className="flex items-start gap-2 flex-wrap">

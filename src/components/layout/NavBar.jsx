@@ -1,50 +1,62 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users, Link2, ArrowDownUp, Sun, Moon } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users, Link2, ArrowDownUp, Settings } from 'lucide-react'
 
-const NAV_ITEMS = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/cards', icon: CreditCard, label: 'Cards' },
-  { to: '/accounts', icon: Landmark, label: 'Accounts' },
-  { to: '/rules', icon: BookOpen, label: 'Eligibility' },
-  { to: '/tax', icon: Calculator, label: 'Tax' },
-  { to: '/resources', icon: Link2, label: 'Resources' },
-  { to: '/import', icon: ArrowDownUp, label: 'Import' },
-  { to: '/members', icon: Users, label: 'Members' },
+const MAIN_NAV = [
+  { to: '/',        icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/cards',   icon: CreditCard,      label: 'Cards' },
+  { to: '/accounts',icon: Landmark,        label: 'Accounts' },
+  { to: '/rules',   icon: BookOpen,        label: 'Eligibility' },
+  { to: '/tax',     icon: Calculator,      label: 'Tax' },
 ]
 
-export function SidebarNav({ collapsed, theme, onThemeToggle }) {
+const SETTINGS_NAV = [
+  { to: '/members',  icon: Users,       label: 'Members' },
+  { to: '/resources',icon: Link2,       label: 'Resources' },
+  { to: '/import',   icon: ArrowDownUp, label: 'Import' },
+  { to: '/settings', icon: Settings,    label: 'Settings' },
+]
+
+const BOTTOM_NAV = [
+  { to: '/',         icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/cards',    icon: CreditCard,      label: 'Cards' },
+  { to: '/accounts', icon: Landmark,        label: 'Accounts' },
+  { to: '/tax',      icon: Calculator,      label: 'Tax' },
+  { to: '/settings', icon: Settings,        label: 'Settings' },
+]
+
+function navClass(isActive) {
+  return `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+    isActive
+      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
+      : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+  }`
+}
+
+export function SidebarNav({ collapsed }) {
   return (
-    <nav className="flex flex-col h-full p-2">
-      <div className="flex flex-col gap-1 flex-1">
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`
-            }
-          >
+    <nav className="flex flex-col h-full p-2 overflow-y-auto">
+      <div className="flex flex-col gap-1">
+        {MAIN_NAV.map(({ to, icon: Icon, label }) => (
+          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => navClass(isActive)}>
             <Icon size={18} className="flex-shrink-0" />
             {!collapsed && <span>{label}</span>}
           </NavLink>
         ))}
-      </div>
 
-      {/* Theme toggle at bottom of sidebar */}
-      <div className="mt-2 pt-2 border-t border-zinc-800">
-        <button
-          onClick={onThemeToggle}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-zinc-400 hover:text-white hover:bg-zinc-800"
-        >
-          {theme === 'dark' ? <Sun size={18} className="flex-shrink-0" /> : <Moon size={18} className="flex-shrink-0" />}
-          {!collapsed && <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
-        </button>
+        {/* Settings section divider */}
+        {collapsed
+          ? <div className="my-2 border-t border-zinc-800" />
+          : <div className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider px-3 pt-4 pb-1 select-none">
+              Settings
+            </div>
+        }
+
+        {SETTINGS_NAV.map(({ to, icon: Icon, label }) => (
+          <NavLink key={to} to={to} className={({ isActive }) => navClass(isActive)}>
+            <Icon size={18} className="flex-shrink-0" />
+            {!collapsed && <span>{label}</span>}
+          </NavLink>
+        ))}
       </div>
     </nav>
   )
@@ -53,7 +65,7 @@ export function SidebarNav({ collapsed, theme, onThemeToggle }) {
 export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-700 flex z-40">
-      {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+      {BOTTOM_NAV.map(({ to, icon: Icon, label }) => (
         <NavLink
           key={to}
           to={to}
