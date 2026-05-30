@@ -137,6 +137,15 @@ Page: `/rules`. Each issuer has a dedicated engine and a dashboard widget, evalu
 
 A compact **Application Eligibility** section also appears on the Dashboard showing per-person mini-bars for every issuer window that has at least one card actively counted. Only shows issuers with current activity — if all windows are empty, the section stays hidden.
 
+**Card sign-up bonus re-eligibility** (`cardReeligibility.js`) — tracks when each person can earn a specific card's sign-up bonus again, based on per-product cooldown windows measured from the date the bonus was received. Key rules encoded:
+- **Chase Sapphire**: Preferred and Reserve share a **48-month** window — a bonus on either card blocks the other.
+- **Chase Freedom / Ink / co-brands**: each product has its own independent **24-month** window.
+- **Amex personal & business cards**: each product has its own **once-per-lifetime** rule.
+- **Citi ThankYou products**: **48-month** per-product window.
+- **Capital One**: Venture X **12 months**, Venture/Savor **24 months**.
+- **Plus**: Bank of America, US Bank, Wells Fargo, Barclays, and Bilt products.
+The widget only shows cards where the bonus has been received (`bonusReceived: true`). Rows are sorted with in-cooldown cards first (soonest-to-unlock), then eligible cards. Uses the bonus received date as the anchor, with openDate as fallback. Shown per person on the Eligibility page as **Card Sign-up Bonus Re-eligibility**.
+
 **Bank bonus eligibility** (`bankEligibility.js`) — the bank equivalent of card re-eligibility. For each bank a person has used, it shows when they can earn that bank's new-account bonus again, based on a per-bank cooldown measured from the last bonus received (or last account opened if none yet). Known windows include Chase ~24mo, Wells Fargo ~12mo, Capital One/TD ~12mo, and once-per-lifetime banks like Discover and SoFi; unknown banks default to a conservative 24 months. Windows are estimates flagged to verify on Doctor of Credit. Shown per person on the Eligibility page as **Bank Bonus Eligibility** (eligible now / cooldown countdown + date / lifetime).
 
 Also on the Eligibility page: the [Senior Income](#8-senior-income-tracking) widget and the [External Payer Monitor](#9-external-payer-monitor).

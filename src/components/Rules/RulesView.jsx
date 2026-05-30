@@ -4,6 +4,7 @@ import CitiWidget from './CitiWidget'
 import BofAWidget from './BofAWidget'
 import CapitalOneWidget from './CapitalOneWidget'
 import BankEligibilityWidget from './BankEligibilityWidget'
+import CardReeligibilityWidget from './CardReeligibilityWidget'
 import SeniorIncomeWidget from './SeniorIncomeWidget'
 import ExternalPayerMonitor from './ExternalPayerMonitor'
 
@@ -16,6 +17,7 @@ export default function RulesView() {
       <CitiWidget />
       <BofAWidget />
       <CapitalOneWidget />
+      <CardReeligibilityWidget />
       <BankEligibilityWidget />
       <SeniorIncomeWidget />
       <ExternalPayerMonitor />
