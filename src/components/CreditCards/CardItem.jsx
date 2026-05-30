@@ -15,11 +15,11 @@ const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text
 const inpRequired = 'w-full bg-zinc-800 border border-blue-500/60 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400 transition-colors'
 
 const btnColors = {
-  emerald: 'bg-emerald-900/40 hover:bg-emerald-700 border border-emerald-700/50 text-emerald-300 hover:text-white',
-  amber:   'bg-amber-900/40 hover:bg-amber-700 border border-amber-700/50 text-amber-300 hover:text-white',
-  blue:    'bg-blue-900/40 hover:bg-blue-700 border border-blue-700/50 text-blue-300 hover:text-white',
-  red:     'bg-red-900/40 hover:bg-red-700 border border-red-700/50 text-red-300 hover:text-white',
-  zinc:    'bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white',
+  emerald: 'border border-zinc-700 text-zinc-500 hover:text-emerald-400 hover:border-emerald-800',
+  amber:   'border border-zinc-700 text-zinc-500 hover:text-amber-400 hover:border-amber-800',
+  blue:    'border border-zinc-700 text-zinc-500 hover:text-blue-400 hover:border-blue-800',
+  red:     'border border-zinc-700 text-zinc-500 hover:text-red-400 hover:border-red-800',
+  zinc:    'border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600',
 }
 
 function getQuickActions(card) {
@@ -215,12 +215,13 @@ export default function CardItem({ card, members }) {
       {/* Quick action buttons — only shown when collapsed */}
       {!expanded && (quickActions.length > 0 || undoSnapshot) && (
         <div className="px-4 pb-3 pt-0 flex gap-2 flex-wrap items-center border-t border-zinc-800">
-          <div className="flex gap-2 flex-wrap pt-2.5 flex-1">
+          <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center">
+            <span className="text-[10px] text-zinc-600 uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
             {quickActions.map(action => (
               <button
                 key={action.label}
                 onClick={e => applyQuickAction(e, action.payload)}
-                className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors ${btnColors[action.color] ?? btnColors.zinc}`}
+                className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${btnColors[action.color] ?? btnColors.zinc}`}
               >
                 {action.label}
               </button>

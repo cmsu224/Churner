@@ -19,7 +19,7 @@ export default function IssuerLogo({ name, size = 28, rounded = 'rounded-md' }) 
         style={{ width: px, height: px }}
       >
         <img
-          src={`https://www.google.com/s2/favicons?domain=${meta.domain}&sz=64`}
+          src={`https://www.google.com/s2/favicons?domain=www.${meta.domain}&sz=64`}
           alt={meta.name}
           width={size - 8}
           height={size - 8}

@@ -13,6 +13,7 @@ const SETTINGS_NAV = [
   { to: '/members',  icon: Users,       label: 'Members' },
   { to: '/resources',icon: Link2,       label: 'Resources' },
   { to: '/import',   icon: ArrowDownUp, label: 'Import' },
+  { to: '/tax',      icon: Calculator,  label: 'Tax' },
   { to: '/settings', icon: Settings,    label: 'Settings' },
 ]
 
@@ -20,7 +21,7 @@ const BOTTOM_NAV = [
   { to: '/',         icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/cards',    icon: CreditCard,      label: 'Cards' },
   { to: '/accounts', icon: Landmark,        label: 'Accounts' },
-  { to: '/tax',      icon: Calculator,      label: 'Tax' },
+  { to: '/rules',    icon: BookOpen,        label: 'Eligibility' },
   { to: '/settings', icon: Settings,        label: 'Settings' },
 ]
 
