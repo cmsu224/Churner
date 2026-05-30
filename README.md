@@ -97,6 +97,15 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
 **Statuses** (friendly labels; stored values stable): Applied → Earning Bonus → Bonus Earned → Keep Alive → Annual Fee Decision → Cancel or Downgrade → Closed. The lifecycle engine suggests the next status automatically.
 
 **Highlights**
+- **Card age badge** — the collapsed header always shows how old the card is (e.g. "2y 3mo" or "8mo"), calculated from the open date so you can instantly judge credit-history impact.
+- **Dynamic status action buttons** — context-sensitive one-tap buttons appear on every card based on its current status, so you can advance the lifecycle without opening the edit form:
+  - *Applied* → **Card Arrived** (→ Earning Bonus)
+  - *Earning Bonus* → **✓ Bonus Received** (sets bonusReceived + bonusReceivedDate + status in one tap)
+  - *Bonus Earned* → **Annual Fee Decision** (→ Annual Fee Decision status) or **→ Keep Alive**
+  - *Annual Fee Decision* → **✓ Keep It** (→ Keep Alive) or **Close / Downgrade** (→ Cancel or Downgrade)
+  - *Keep Alive* → **Fee Decision** (→ Annual Fee Decision)
+  - *Cancel or Downgrade* → **✓ Mark Closed** or **Keep It** (→ Keep Alive)
+- **Undo button** — after any quick-action tap, an **↩ Undo** button appears for 6 seconds to instantly revert the change. No confirmation dialog.
 - **Balance bar** on every card — green/empty when paid off, amber (with utilization % if a credit limit is set) when a balance is owed, so you instantly see which cards carry a balance.
 - **"Used Today" ⚡ button** — one tap on the collapsed card sets the last-used date to today. No date picker — built specifically because typing dates is the most painful part of upkeep.
 - **Live spend progress bar** right on the collapsed card, color-coded by urgency.

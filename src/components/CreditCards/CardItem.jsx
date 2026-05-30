@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
@@ -6,23 +6,71 @@ import IssuerLogo from '../shared/IssuerLogo'
 import BalanceBar from '../shared/BalanceBar'
 import DateField from '../shared/DateField'
 import { getSpendDeadlineInfo, getCardNextStatus } from '../../engines/lifecycle'
+import { getCardAge } from '../../engines/creditAge'
 import { CARD_STATUSES } from '../../utils/statusMeta'
 import { fmt$ } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Zap } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw } from 'lucide-react'
 
-// Optional fields use the gray style; the one required field (card name) uses
-// the accent style so it stands out.
 const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
 const inpRequired = 'w-full bg-zinc-800 border border-blue-500/60 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400 transition-colors'
+
+const btnColors = {
+  emerald: 'bg-emerald-900/40 hover:bg-emerald-700 border border-emerald-700/50 text-emerald-300 hover:text-white',
+  amber:   'bg-amber-900/40 hover:bg-amber-700 border border-amber-700/50 text-amber-300 hover:text-white',
+  blue:    'bg-blue-900/40 hover:bg-blue-700 border border-blue-700/50 text-blue-300 hover:text-white',
+  red:     'bg-red-900/40 hover:bg-red-700 border border-red-700/50 text-red-300 hover:text-white',
+  zinc:    'bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white',
+}
+
+function getQuickActions(card) {
+  const today = new Date().toISOString().slice(0, 10)
+  switch (card.status) {
+    case 'Applied':
+      return [
+        { label: 'Card Arrived', color: 'blue', payload: { status: 'Active Churn' } },
+      ]
+    case 'Active Churn':
+      return [
+        { label: '✓ Bonus Received', color: 'emerald', payload: { bonusReceived: true, status: 'Bonus Met', bonusReceivedDate: today } },
+      ]
+    case 'Bonus Met':
+      return [
+        { label: 'Annual Fee Decision', color: 'amber', payload: { status: 'Retention Call Due' } },
+        { label: '→ Keep Alive', color: 'zinc', payload: { status: 'Keep Alive' } },
+      ]
+    case 'Retention Call Due':
+      return [
+        { label: '✓ Keep It', color: 'emerald', payload: { status: 'Keep Alive' } },
+        { label: 'Close / Downgrade', color: 'red', payload: { status: 'Downgrade/Close Due' } },
+      ]
+    case 'Keep Alive':
+      return [
+        { label: 'Fee Decision', color: 'amber', payload: { status: 'Retention Call Due' } },
+      ]
+    case 'Downgrade/Close Due':
+      return [
+        { label: '✓ Mark Closed', color: 'red', payload: { status: 'Closed' } },
+        { label: 'Keep It', color: 'emerald', payload: { status: 'Keep Alive' } },
+      ]
+    default:
+      return []
+  }
+}
 
 export default function CardItem({ card, players }) {
   const { dispatch } = useChurn()
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
   const [confirming, setConfirming] = useState(false)
+  const [undoSnapshot, setUndoSnapshot] = useState(null)
+  const undoTimerRef = useRef(null)
 
   const info = getSpendDeadlineInfo(card)
   const nextStatus = getCardNextStatus(card)
+  const age = getCardAge(card)
+  const quickActions = getQuickActions(card)
+
+  useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
 
   function startEdit() {
     setDraft({ ...card })
@@ -62,6 +110,22 @@ export default function CardItem({ card, players }) {
     dispatch({ type: 'UPDATE_CARD', payload: { ...card, lastUsedDate: new Date().toISOString().slice(0, 10) } })
   }
 
+  function applyQuickAction(e, payload) {
+    e.stopPropagation()
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    setUndoSnapshot({ ...card })
+    undoTimerRef.current = setTimeout(() => setUndoSnapshot(null), 6000)
+    dispatch({ type: 'UPDATE_CARD', payload: { ...card, ...payload } })
+  }
+
+  function undoAction(e) {
+    e.stopPropagation()
+    if (!undoSnapshot) return
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    dispatch({ type: 'UPDATE_CARD', payload: undoSnapshot })
+    setUndoSnapshot(null)
+  }
+
   function handleDelete() {
     dispatch({ type: 'DELETE_CARD', id: card.id })
     setConfirming(false)
@@ -81,9 +145,9 @@ export default function CardItem({ card, players }) {
 
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden hover:border-zinc-600 transition-colors">
-      {/* Collapsed header — always visible, tap to expand */}
-      <button
-        className="w-full text-left p-4"
+      {/* Collapsed header — click anywhere to expand/collapse */}
+      <div
+        className="w-full p-4 cursor-pointer select-none"
         onClick={() => expanded ? cancelEdit() : startEdit()}
       >
         <div className="flex items-start justify-between gap-2">
@@ -95,13 +159,18 @@ export default function CardItem({ card, players }) {
                 {card.last4 && <span className="text-zinc-500 text-xs">···{card.last4}</span>}
                 {card.issuer && <span className="text-zinc-500 text-xs">{card.issuer}</span>}
               </div>
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
+              <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
                 <PlayerBadge playerId={card.playerId} players={players} />
                 <StatusBadge status={card.status} />
+                {age && (
+                  <span className="text-zinc-500 text-xs bg-zinc-800 px-1.5 py-0.5 rounded">
+                    {age.label}
+                  </span>
+                )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
             <button
               onClick={markUsedToday}
               title="Mark used today"
@@ -110,7 +179,9 @@ export default function CardItem({ card, players }) {
               <Zap size={11} />
               <span>Used</span>
             </button>
-            <span className="text-zinc-500">{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
+            <span className="text-zinc-500">
+              {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+            </span>
           </div>
         </div>
 
@@ -126,13 +197,38 @@ export default function CardItem({ card, players }) {
           </div>
         )}
 
-        {/* Balance bar — shows on every card so zero-balance cards are obvious */}
         <BalanceBar balance={card.currentBalance ?? 0} limit={card.creditLimit ?? 0} kind="card" />
 
         {nextStatus && !expanded && (
           <div className="mt-1.5 text-xs text-amber-400">→ Suggest: {nextStatus}</div>
         )}
-      </button>
+      </div>
+
+      {/* Quick action buttons — only shown when collapsed */}
+      {!expanded && (quickActions.length > 0 || undoSnapshot) && (
+        <div className="px-4 pb-3 pt-0 flex gap-2 flex-wrap items-center border-t border-zinc-800">
+          <div className="flex gap-2 flex-wrap pt-2.5 flex-1">
+            {quickActions.map(action => (
+              <button
+                key={action.label}
+                onClick={e => applyQuickAction(e, action.payload)}
+                className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors ${btnColors[action.color] ?? btnColors.zinc}`}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+          {undoSnapshot && (
+            <button
+              onClick={undoAction}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-400 hover:text-white transition-colors mt-2.5 ml-auto flex-shrink-0"
+            >
+              <RotateCcw size={11} />
+              Undo
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Expanded edit form */}
       {expanded && draft && (
