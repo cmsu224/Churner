@@ -36,17 +36,12 @@ function getQuickActions(card) {
         : [{ label: '→ Keep Alive', color: 'zinc', payload: { status: 'Keep Alive' } }]
     case 'Bonus Met':
       return [
-        { label: 'Annual Fee Decision', color: 'amber', payload: { status: 'Retention Call Due' } },
         { label: '→ Keep Alive', color: 'zinc', payload: { status: 'Keep Alive' } },
-      ]
-    case 'Retention Call Due':
-      return [
-        { label: '✓ Keep It', color: 'emerald', payload: { status: 'Keep Alive' } },
         { label: 'Close / Downgrade', color: 'red', payload: { status: 'Downgrade/Close Due' } },
       ]
     case 'Keep Alive':
       return [
-        { label: 'Fee Decision', color: 'amber', payload: { status: 'Retention Call Due' } },
+        { label: 'Close / Downgrade', color: 'red', payload: { status: 'Downgrade/Close Due' } },
       ]
     case 'Downgrade/Close Due':
       return [
@@ -174,6 +169,11 @@ export default function CardItem({ card, members }) {
               <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
                 <PlayerBadge memberId={card.memberId} members={members} />
                 <StatusBadge status={card.status} />
+                {card.isAuthorizedUser && (
+                  <span className="text-purple-300 text-xs bg-purple-900/30 border border-purple-700/40 px-1.5 py-0.5 rounded">
+                    Auth User
+                  </span>
+                )}
                 {age && (
                   <span className="text-zinc-500 text-xs bg-zinc-800 px-1.5 py-0.5 rounded">
                     {age.label}

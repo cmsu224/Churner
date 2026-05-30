@@ -59,8 +59,7 @@ export function getCardNextStatus(card) {
   // Only age-based suggestions — bonus-received transition is handled by quick-action buttons
   if (status === 'Bonus Met' && openDate) {
     const months = monthsDiff(new Date(openDate), new Date())
-    if (months >= 13) return 'Downgrade/Close Due'
-    if (months >= 11) return 'Retention Call Due'
+    if (months >= 11) return 'Downgrade/Close Due'
   }
   return null
 }
@@ -86,7 +85,6 @@ export function getSmartCardStatus(card) {
   // Bonus card: map age to lifecycle stage
   if (months < 6)  return { status: 'Active Churn',        bonusReceived: false }
   if (months < 11) return { status: 'Bonus Met',            bonusReceived: true  }
-  if (months < 14) return { status: 'Retention Call Due',   bonusReceived: true  }
   return               { status: 'Keep Alive',             bonusReceived: true  }
 }
 

@@ -6,7 +6,6 @@ export const CARD_STATUSES = [
   { value: 'Active Churn',        label: 'Earning Bonus' },
   { value: 'Bonus Met',           label: 'Bonus Earned' },
   { value: 'Keep Alive',          label: 'Keep Alive' },
-  { value: 'Retention Call Due',  label: 'Annual Fee Decision' },
   { value: 'Downgrade/Close Due', label: 'Cancel or Downgrade' },
   { value: 'Closed',              label: 'Closed' },
 ]
@@ -20,7 +19,8 @@ export const ACCOUNT_STATUSES = [
   { value: 'Safe to Close',  label: 'Safe to Close' },
 ]
 
-const LABELS = {}
+// Keep removed statuses in the label map so existing saved data still displays correctly
+const LABELS = { 'Retention Call Due': 'Annual Fee Decision' }
 for (const s of [...CARD_STATUSES, ...ACCOUNT_STATUSES]) LABELS[s.value] = s.label
 
 export function statusLabel(value) {
