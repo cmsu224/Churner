@@ -4,7 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Churner — Bonus Tracker</title>
-    <style>html,body{background:#09090b;color:#fff;margin:0}</style>
+    <style>
+      html,body{margin:0}
+      html.dark,html.dark body{background:#09090b;color:#fff}
+      html:not(.dark),html:not(.dark) body{background:#f4f4f5;color:#18181b}
+    </style>
+    <script>try{if(localStorage.getItem('churner_theme')==='light')document.documentElement.classList.remove('dark')}catch(e){}</script>
   </head>
   <body>
     <div id="root"></div>

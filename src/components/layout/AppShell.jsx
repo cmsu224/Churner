@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { SidebarNav, BottomNav } from './NavBar'
 import { useChurn } from '../../store/ChurnContext'
-import { ChevronLeft, ChevronRight, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
+import { useTheme } from '../../hooks/useTheme'
+import { ChevronLeft, ChevronRight, RefreshCw, CheckCircle, AlertCircle, Sun, Moon } from 'lucide-react'
 import DashboardView from '../Dashboard/DashboardView'
 import CreditCardsView from '../CreditCards/CreditCardsView'
 import BankAccountsView from '../BankAccounts/BankAccountsView'
@@ -14,6 +15,7 @@ import ImportExportView from '../ImportExport/ImportExportView'
 
 export default function AppShell() {
   const { gist } = useChurn()
+  const { theme, toggle: toggleTheme } = useTheme()
   const [collapsed, setCollapsed] = useState(false)
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024)
 
@@ -54,7 +56,7 @@ export default function AppShell() {
               {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             </button>
           </div>
-          <SidebarNav collapsed={collapsed} />
+          <SidebarNav collapsed={collapsed} theme={theme} onThemeToggle={toggleTheme} />
         </aside>
       )}
 
@@ -62,14 +64,26 @@ export default function AppShell() {
         <header className="bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between flex-shrink-0">
           {!isDesktop && <span className="font-bold text-white text-base">Churner</span>}
           {isDesktop && <div />}
-          <div className="flex items-center gap-1.5 text-xs text-zinc-400 ml-auto">
-            {syncIcon}
-            <span>{syncLabel}</span>
-            {gist.error && (
-              <span className="text-red-400 ml-1 truncate max-w-[200px]" title={gist.error}>
-                — {gist.error}
-              </span>
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Theme toggle — visible on mobile; desktop uses sidebar button */}
+            {!isDesktop && (
+              <button
+                onClick={toggleTheme}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="text-zinc-400 hover:text-white transition-colors p-1 rounded"
+              >
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
             )}
+            <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+              {syncIcon}
+              <span>{syncLabel}</span>
+              {gist.error && (
+                <span className="text-red-400 ml-1 truncate max-w-[200px]" title={gist.error}>
+                  — {gist.error}
+                </span>
+              )}
+            </div>
           </div>
         </header>
 

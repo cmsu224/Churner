@@ -31,7 +31,6 @@ function getQuickActions(card) {
         { label: 'Card Arrived', color: 'blue', payload: { status: 'Active Churn' } },
       ]
     case 'Active Churn':
-      // Only show bonus button if card actually has a sign-up bonus
       return hasBonus
         ? [{ label: '✓ Bonus Received', color: 'emerald', payload: { bonusReceived: true, status: 'Bonus Met', bonusReceivedDate: today } }]
         : [{ label: '→ Keep Alive', color: 'zinc', payload: { status: 'Keep Alive' } }]
@@ -145,9 +144,20 @@ export default function CardItem({ card, players }) {
     )
   }
 
+  // Edit form section visibility
+  const showLastUsed = draft?.status === 'Keep Alive' || !!draft?.lastUsedDate
+  const showEarnBonusSection = draft?.status === 'Active Churn'
+    || Number(draft?.spendRequirement) > 0
+    || Number(draft?.spendDeadlineDays) > 0
+    || Number(draft?.currentSpend) > 0
+  const showBonusSection = draft?.status !== 'Closed'
+    || Number(draft?.bonusValue) > 0
+    || Number(draft?.annualFee) > 0
+    || !!draft?.bonusReceived
+
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden hover:border-zinc-600 transition-colors">
-      {/* Collapsed header — click anywhere to expand/collapse */}
+      {/* Collapsed header */}
       <div
         className="w-full p-4 cursor-pointer select-none"
         onClick={() => expanded ? cancelEdit() : startEdit()}
@@ -178,14 +188,17 @@ export default function CardItem({ card, players }) {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-            <button
-              onClick={markUsedToday}
-              title="Mark used today"
-              className="flex items-center gap-1 bg-zinc-700 hover:bg-emerald-700 text-zinc-300 hover:text-white text-xs px-2 py-1 rounded-md transition-colors"
-            >
-              <Zap size={11} />
-              <span>Used</span>
-            </button>
+            {/* Only show for Keep Alive cards — confirms card is still being used */}
+            {card.status === 'Keep Alive' && (
+              <button
+                onClick={markUsedToday}
+                title="Mark used today"
+                className="flex items-center gap-1 bg-zinc-700 hover:bg-emerald-700 text-zinc-300 hover:text-white text-xs px-2 py-1 rounded-md transition-colors"
+              >
+                <Zap size={11} />
+                <span>Used</span>
+              </button>
+            )}
             <span className="text-zinc-500">
               {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
             </span>
@@ -240,6 +253,8 @@ export default function CardItem({ card, players }) {
       {/* Expanded edit form */}
       {expanded && draft && (
         <div className="border-t border-zinc-700 p-4 space-y-3">
+
+          {/* Core */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-400 block mb-1">Person</label>
@@ -274,17 +289,21 @@ export default function CardItem({ card, players }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          {/* Dates */}
+          <div className={`grid gap-2 ${showLastUsed ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <div>
               <label className="text-xs text-zinc-500 block mb-1">Open Date</label>
               <DateField value={draft.openDate} onChange={v => set('openDate', v)} />
             </div>
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Last Used</label>
-              <DateField value={draft.lastUsedDate} onChange={v => set('lastUsedDate', v)} />
-            </div>
+            {showLastUsed && (
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1">Last Used</label>
+                <DateField value={draft.lastUsedDate} onChange={v => set('lastUsedDate', v)} />
+              </div>
+            )}
           </div>
 
+          {/* Balance */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-500 block mb-1">Current Balance ($)</label>
@@ -296,45 +315,64 @@ export default function CardItem({ card, players }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Spend Req ($)</label>
-              <input type="number" min="0" className={inp} value={draft.spendRequirement ?? ''} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
+          {/* Earning Bonus — only shown for Active Churn or when spend data exists */}
+          {showEarnBonusSection && (
+            <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-medium text-zinc-300 mb-2">Earning Bonus</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Spend Req ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.spendRequirement ?? ''} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Days</label>
+                  <input type="number" min="1" className={inp} value={draft.spendDeadlineDays ?? ''} onChange={e => set('spendDeadlineDays', e.target.value)} placeholder="90" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Spent ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.currentSpend ?? ''} onChange={e => set('currentSpend', e.target.value)} placeholder="0" />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Days</label>
-              <input type="number" min="1" className={inp} value={draft.spendDeadlineDays ?? ''} onChange={e => set('spendDeadlineDays', e.target.value)} placeholder="90" />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Spent ($)</label>
-              <input type="number" min="0" className={inp} value={draft.currentSpend ?? ''} onChange={e => set('currentSpend', e.target.value)} placeholder="0" />
-            </div>
-          </div>
+          )}
 
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Bonus</label>
-              <input type="number" min="0" className={inp} value={draft.bonusValue ?? ''} onChange={e => set('bonusValue', e.target.value)} placeholder="pts/$" />
+          {/* Bonus & Rewards — hidden for Closed cards unless data exists */}
+          {showBonusSection && (
+            <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-medium text-zinc-300 mb-2">Bonus & Rewards</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Bonus</label>
+                  <input type="number" min="0" className={inp} value={draft.bonusValue ?? ''} onChange={e => set('bonusValue', e.target.value)} placeholder="pts/$" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Type</label>
+                  <select className={inp} value={draft.bonusType ?? 'cashback'} onChange={e => set('bonusType', e.target.value)}>
+                    <option value="points">Points</option>
+                    <option value="cashback">Cash</option>
+                    <option value="miles">Miles</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Annual Fee ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.annualFee ?? ''} onChange={e => set('annualFee', e.target.value)} placeholder="0" />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                <input type="checkbox" checked={!!draft.bonusReceived} onChange={e => set('bonusReceived', e.target.checked)} />
+                Bonus received
+              </label>
+              {draft.bonusReceived && (
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Bonus Received Date</label>
+                  <DateField value={draft.bonusReceivedDate} onChange={v => set('bonusReceivedDate', v)} />
+                </div>
+              )}
             </div>
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Type</label>
-              <select className={inp} value={draft.bonusType ?? 'cashback'} onChange={e => set('bonusType', e.target.value)}>
-                <option value="points">Points</option>
-                <option value="cashback">Cash</option>
-                <option value="miles">Miles</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Annual Fee</label>
-              <input type="number" min="0" className={inp} value={draft.annualFee ?? ''} onChange={e => set('annualFee', e.target.value)} placeholder="0" />
-            </div>
-          </div>
+          )}
 
+          {/* Card Type */}
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
-              <input type="checkbox" checked={!!draft.bonusReceived} onChange={e => set('bonusReceived', e.target.checked)} />
-              Bonus received
-            </label>
             <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
               <input type="checkbox" checked={!!draft.isBusiness} onChange={e => set('isBusiness', e.target.checked)} />
               Business card
@@ -346,13 +384,7 @@ export default function CardItem({ card, players }) {
           </div>
           <p className="text-xs text-zinc-600 -mt-1">Business & authorized-user cards are excluded from Chase 5/24.</p>
 
-          {draft.bonusReceived && (
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Bonus Received Date</label>
-              <DateField value={draft.bonusReceivedDate} onChange={v => set('bonusReceivedDate', v)} />
-            </div>
-          )}
-
+          {/* Notes */}
           <div>
             <label className="text-xs text-zinc-500 block mb-1">Notes</label>
             <textarea rows={2} className={inp} value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} placeholder="optional" />

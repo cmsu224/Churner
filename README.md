@@ -110,7 +110,7 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
 - **Smart status on import** — when importing cards from a credit report (where bonus status is unknown), the app infers the right status from the card's age: under 6 months → Earning Bonus; 6–10 months → Bonus Earned (bonus assumed received); 11–13 months → Annual Fee Decision; 14+ months → Keep Alive. Cards with no bonus details are set to Keep Alive regardless of age.
 - **Smart status on manual add** — same age-based logic applies when you add a card manually and leave the status at the default. If you explicitly pick a status in the dropdown, that choice is respected as-is.
 - **Balance bar** on every card — green/empty when paid off, amber (with utilization % if a credit limit is set) when a balance is owed, so you instantly see which cards carry a balance.
-- **"Used Today" ⚡ button** — one tap on the collapsed card sets the last-used date to today. No date picker — built specifically because typing dates is the most painful part of upkeep.
+- **"Used Today" ⚡ button** — one tap on the collapsed card sets the last-used date to today. Only visible on **Keep Alive** cards (the only status where usage tracking matters). No date picker — built specifically because typing dates is the most painful part of upkeep.
 - **Live spend progress bar** right on the collapsed card, color-coded by urgency.
 - **Clearable date fields** — press Backspace/Delete or click the × to clear a date (desktop-friendly), plus the native picker for mobile.
 - **Required fields are accent-highlighted**; optional fields are muted gray so you know what to ignore.
@@ -118,15 +118,18 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
   - **Credit cards** — filter by status (multi-select), issuer/brand (auto-populated, multi-select), age range (< 1yr / 1–2yr / 2–4yr / 4+yr), and toggle chips for "Has balance", "Has annual fee", "Bonus pending", "Hide closed". Sort by Newest, Oldest, Highest balance, Highest annual fee, or Name A–Z.
   - **Bank accounts** — filter by status, bank (auto-populated), account type (Checking/Savings/Money Market/CD), and toggle chips for "Has balance", "Has bonus offer", "Bonus pending". Sort by Newest, Oldest, Highest balance, Highest bonus, or Bank A–Z.
   - Active filter count badge on the "Clear filters" button; any sort other than "Newest" renders a flat list so sort order is obvious; default sort keeps issuer/bank grouping with logos.
+- **Contextual edit form** — the inline edit form adapts to the card's status so you only see relevant fields. The **Earning Bonus** section (spend req, days, spent) only appears for Earning Bonus cards or when spend data exists. The **Bonus & Rewards** section (bonus value, type, annual fee, received date) is hidden for Closed cards unless data is present. The **Last Used** field only appears on Keep Alive cards or when a date is already set.
 - Inline add form with every field and inline delete with confirmation.
 
 ### 4. Bank Account Tracking
 
 Page: `/accounts`. Same expand-in-place pattern; only **bank name is required**. Accounts are **grouped by bank** with the bank's **logo** in each group header.
 
-**Tracked fields:** person, status, bank name, account type, last 4, opened date, **current balance**, bonus amount, bonus received date, **direct-deposit requirements** (DD amount, # of DDs required, # completed, DD deadline in days, DD linked date, DD source description — e.g. payroll, Social Security, ACH), minimum balance, bonus deadline (days), offer link, and notes.
+**Tracked fields:** person, status, bank name, account type, last 4, opened date, **current balance**, bonus amount, bonus received date, **direct-deposit requirements** (direct deposit amount, # of direct deposits required, # completed, direct deposit deadline in days, direct deposit linked date, direct deposit source — e.g. payroll, Social Security, ACH), minimum balance, bonus deadline (days), offer link, and notes.
 
-Every account shows a **balance bar** so you can instantly spot which accounts still hold money versus which are emptied out and can be ignored. The DD fields drive the multi-tier direct-deposit reminders, the multi-DD progress tracker, and the minimum-balance and bonus-deadline countdowns in the [Action Engine](#2-action-engine-the-brain). The **181-day clawback shield** tells you when each account is safe to close.
+Every account shows a **balance bar** so you can instantly spot which accounts still hold money versus which are emptied out and can be ignored. The direct deposit fields drive the multi-tier direct-deposit reminders, the multi-DD progress tracker, and the minimum-balance and bonus-deadline countdowns in the [Action Engine](#2-action-engine-the-brain). The **181-day clawback shield** tells you when each account is safe to close.
+
+**Contextual edit form** — the inline edit form adapts to the account's status. The **Sign-Up Bonus** section (bonus amount, deadline, minimum balance, taxable checkbox, bonus received date) only appears when the account is in a bonus-earning status or bonus data exists. The **Direct Deposit Requirements** section only appears when the status is Opened/DD Linked or when direct deposit data is present. "Direct Deposit" is always spelled out in full — never abbreviated.
 
 ### 5. Issuer Rule Engines
 
@@ -169,7 +172,7 @@ Also on the Eligibility page: the [Senior Income](#8-senior-income-tracking) wid
 - **Average Age of Accounts (AAoA)** per player, across open, dated cards.
 - **Keep-alive tracking on every open card** (not just the oldest) — each card gets a usage status: **Active** (used recently), **Use soon** (120+ days), **At risk** (180+ days), or **No usage date**.
 - **Three oldest cards starred** ⭐ as highest priority, since closing them shortens your history most.
-- **"Used Today" ⚡ button** on each card row and on every card in the Cards list — one tap marks it used, no date entry.
+- **"Used Today" ⚡ button** on Keep Alive cards — one tap marks it used, no date entry. Only shown when the card is in Keep Alive status.
 - Inactivity-closure warnings flow into the [Action Queue](#2-action-engine-the-brain).
 
 ### 8. Senior Income Tracking
@@ -226,6 +229,7 @@ Page: `/import`.
 
 ### 15. UI / UX
 
+- **Light / dark mode** — a Sun/Moon toggle in the sidebar (desktop) and header (mobile) switches between dark and light themes instantly. The preference persists in localStorage, and the correct theme is applied before first render to prevent flash. Tailwind's `darkMode: 'class'` strategy; light mode overrides live in `src/index.css`.
 - **Dark, responsive SPA** — desktop sidebar (collapsible) and mobile bottom-nav, switching at the 1024px breakpoint.
 - **HashRouter** routing so deep links work on GitHub Pages without server config.
 - **Expand-in-place editing** everywhere — no modal dialogs.

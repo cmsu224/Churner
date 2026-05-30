@@ -105,6 +105,30 @@ export default function AccountItem({ account, players }) {
     )
   }
 
+  // Edit form section visibility
+  const showBonusSection = draft
+    ? (Number(draft.bonusAmount) > 0
+      || !!draft.bonusReceivedDate
+      || ['Opened', 'DD Linked', 'Bonus Pending', 'Bonus Received'].includes(draft.status))
+    : false
+
+  const showDDSection = draft
+    ? (Number(draft.requiredDD) > 0
+      || Number(draft.requiredDDCount) > 0
+      || !!draft.ddLinkedDate
+      || !!draft.ddSourceDescription
+      || ['Opened', 'DD Linked'].includes(draft.status))
+    : false
+
+  const showMinBalance = draft
+    ? (Number(draft.minimumBalance) > 0
+      || ['Opened', 'DD Linked', 'Bonus Pending'].includes(draft.status))
+    : false
+
+  const showBonusReceivedDate = draft
+    ? (draft.status === 'Bonus Received' || !!draft.bonusReceivedDate)
+    : false
+
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden hover:border-zinc-600 transition-colors">
       {/* Collapsed header */}
@@ -153,14 +177,12 @@ export default function AccountItem({ account, players }) {
               <span className="text-white font-medium">{fmt$(account.bonusAmount)}</span>
             </div>
           )}
-          {/* DD deadline progress */}
           {ddInfo && (
             <div className={`flex justify-between font-medium ${ddInfo.overdue ? 'text-red-400' : ddInfo.daysLeft <= 14 ? 'text-amber-400' : 'text-zinc-400'}`}>
-              <span>DD deadline</span>
+              <span>Direct deposit deadline</span>
               <span>{ddInfo.overdue ? `OVERDUE ${Math.abs(ddInfo.daysLeft)}d ago` : `${ddInfo.daysLeft}d left`}</span>
             </div>
           )}
-          {/* Multiple DD progress */}
           {(account.requiredDDCount ?? 1) > 1 && (
             <div className="flex justify-between">
               <span>Direct deposits</span>
@@ -169,7 +191,6 @@ export default function AccountItem({ account, players }) {
               </span>
             </div>
           )}
-          {/* Minimum balance */}
           {(account.minimumBalance ?? 0) > 0 && !account.bonusReceivedDate && (
             <div className="flex justify-between">
               <span>Min balance</span>
@@ -188,7 +209,6 @@ export default function AccountItem({ account, players }) {
           </div>
         </div>
 
-        {/* Balance bar — instantly shows which accounts still hold money */}
         <BalanceBar balance={account.currentBalance ?? 0} kind="account" />
 
         {nextStatus && !expanded && (
@@ -199,6 +219,8 @@ export default function AccountItem({ account, players }) {
       {/* Expanded edit form */}
       {expanded && draft && (
         <div className="border-t border-zinc-700 p-4 space-y-3">
+
+          {/* Core */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-500 block mb-1">Person</label>
@@ -243,70 +265,79 @@ export default function AccountItem({ account, players }) {
             </div>
           </div>
 
+          {/* Sign-Up Bonus — shown for active bonus statuses or when bonus data exists */}
+          {showBonusSection && (
+            <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-medium text-zinc-300 mb-2">Sign-Up Bonus</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Bonus Amount ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.bonusAmount ?? ''} onChange={e => set('bonusAmount', e.target.value)} placeholder="300" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Bonus Deadline (days)</label>
+                  <input type="number" min="1" className={inp} value={draft.bonusDeadlineDays ?? ''} onChange={e => set('bonusDeadlineDays', e.target.value)} placeholder="120" />
+                </div>
+              </div>
+              {showMinBalance && (
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Minimum Balance ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.minimumBalance ?? ''} onChange={e => set('minimumBalance', e.target.value)} placeholder="0" />
+                </div>
+              )}
+              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                <input type="checkbox" checked={!!draft.isTaxable} onChange={e => set('isTaxable', e.target.checked)} />
+                Bank bonus is taxable (1099-INT)
+              </label>
+              {showBonusReceivedDate && (
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Bonus Received Date</label>
+                  <DateField value={draft.bonusReceivedDate} onChange={v => set('bonusReceivedDate', v)} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Direct Deposit — shown when DD is required or already linked */}
+          {showDDSection && (
+            <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-medium text-zinc-300 mb-2">Direct Deposit Requirements</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Direct Deposit Amount ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.requiredDD ?? ''} onChange={e => set('requiredDD', e.target.value)} placeholder="500" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1"># Required</label>
+                  <input type="number" min="1" className={inp} value={draft.requiredDDCount ?? ''} onChange={e => set('requiredDDCount', e.target.value)} placeholder="1" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1"># Completed</label>
+                  <input type="number" min="0" className={inp} value={draft.ddsMade ?? ''} onChange={e => set('ddsMade', e.target.value)} placeholder="0" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Direct Deposit Deadline (days from open)</label>
+                  <input type="number" min="1" className={inp} value={draft.ddDeadlineDays ?? ''} onChange={e => set('ddDeadlineDays', e.target.value)} placeholder="90" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Direct Deposit Linked Date</label>
+                  <DateField value={draft.ddLinkedDate} onChange={v => set('ddLinkedDate', v)} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Direct Deposit Source</label>
+                <input className={inp} value={draft.ddSourceDescription ?? ''} onChange={e => set('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, Social Security, ACH" />
+              </div>
+            </div>
+          )}
+
+          {/* Offer & Notes */}
           <div>
-            <label className="text-xs text-zinc-500 block mb-1">Bonus Amount ($)</label>
-            <input type="number" min="0" className={inp} value={draft.bonusAmount ?? ''} onChange={e => set('bonusAmount', e.target.value)} placeholder="300" />
+            <label className="text-xs text-zinc-500 block mb-1">Offer Link</label>
+            <input className={inp} value={draft.offerUrl ?? ''} onChange={e => set('offerUrl', e.target.value)} placeholder="https://..." />
           </div>
-
-          {/* DD Requirements section */}
-          <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
-            <div className="text-xs font-medium text-zinc-300 mb-2">Direct Deposit Requirements</div>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1">DD Amount ($)</label>
-                <input type="number" min="0" className={inp} value={draft.requiredDD ?? ''} onChange={e => set('requiredDD', e.target.value)} placeholder="500" />
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1"># Required</label>
-                <input type="number" min="1" className={inp} value={draft.requiredDDCount ?? ''} onChange={e => set('requiredDDCount', e.target.value)} placeholder="1" />
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1"># Completed</label>
-                <input type="number" min="0" className={inp} value={draft.ddsMade ?? ''} onChange={e => set('ddsMade', e.target.value)} placeholder="0" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1">DD Deadline (days from open)</label>
-                <input type="number" min="1" className={inp} value={draft.ddDeadlineDays ?? ''} onChange={e => set('ddDeadlineDays', e.target.value)} placeholder="90" />
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1">DD Linked Date</label>
-                <DateField value={draft.ddLinkedDate} onChange={v => set('ddLinkedDate', v)} />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">DD Source</label>
-              <input className={inp} value={draft.ddSourceDescription ?? ''} onChange={e => set('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, Social Security, ACH" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Min Balance ($)</label>
-              <input type="number" min="0" className={inp} value={draft.minimumBalance ?? ''} onChange={e => set('minimumBalance', e.target.value)} placeholder="0" />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Bonus Deadline (days)</label>
-              <input type="number" min="1" className={inp} value={draft.bonusDeadlineDays ?? ''} onChange={e => set('bonusDeadlineDays', e.target.value)} placeholder="120" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Bonus Received Date</label>
-              <DateField value={draft.bonusReceivedDate} onChange={v => set('bonusReceivedDate', v)} />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Offer Link</label>
-              <input className={inp} value={draft.offerUrl ?? ''} onChange={e => set('offerUrl', e.target.value)} placeholder="https://..." />
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
-            <input type="checkbox" checked={!!draft.isTaxable} onChange={e => set('isTaxable', e.target.checked)} />
-            Bank bonus is taxable (1099-INT)
-          </label>
 
           <div>
             <label className="text-xs text-zinc-400 block mb-1">Notes</label>
