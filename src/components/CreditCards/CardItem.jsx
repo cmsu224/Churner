@@ -127,18 +127,6 @@ export default function CardItem({ card, members }) {
     setConfirming(false)
   }
 
-  if (confirming) {
-    return (
-      <div className="bg-zinc-900 border border-red-500/30 rounded-xl p-4">
-        <p className="text-sm text-zinc-300 mb-3">Delete <strong className="text-white">{card.cardName}</strong>?</p>
-        <div className="flex gap-2">
-          <button onClick={() => setConfirming(false)} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors">Cancel</button>
-          <button onClick={handleDelete} className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded-lg text-sm font-semibold transition-colors">Delete</button>
-        </div>
-      </div>
-    )
-  }
-
   // Edit form section visibility
   const showLastUsed = draft?.status === 'Keep Alive' || !!draft?.lastUsedDate
   const showEarnBonusSection = draft?.status === 'Active Churn'
@@ -250,8 +238,19 @@ export default function CardItem({ card, members }) {
         </div>
       )}
 
+      {/* Delete confirmation — shown inline so the card doesn't collapse on mobile */}
+      {expanded && confirming && (
+        <div className="border-t border-zinc-700 p-4">
+          <p className="text-sm text-zinc-300 mb-3">Delete <strong className="text-white">{card.cardName}</strong>? This cannot be undone.</p>
+          <div className="flex gap-2">
+            <button onClick={() => setConfirming(false)} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors">Cancel</button>
+            <button onClick={handleDelete} className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded-lg text-sm font-semibold transition-colors">Delete</button>
+          </div>
+        </div>
+      )}
+
       {/* Expanded edit form */}
-      {expanded && draft && (
+      {expanded && draft && !confirming && (
         <div className="border-t border-zinc-700 p-4 space-y-3">
 
           {/* Core */}

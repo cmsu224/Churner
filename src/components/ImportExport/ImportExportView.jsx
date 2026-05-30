@@ -226,6 +226,7 @@ export default function ImportExportView() {
   const [importMode, setImportMode] = useState('append')
   const [importDone, setImportDone] = useState(false)
   const [fallbackMemberId, setFallbackMemberId] = useState(() => (state.members ?? [])[0]?.id ?? 'p1')
+  const [includeAU, setIncludeAU] = useState(false)
   const fileRef = useRef(null)
 
   const members = state.members ?? []
@@ -276,7 +277,13 @@ export default function ImportExportView() {
       const base = importMode === 'replace'
         ? { ...state, creditCards: [], bankAccounts: [] }
         : state
-      dispatch({ type: 'LOAD_STATE', payload: mergeAiImport(base, preview.data, members, fallbackMemberId) })
+      const filteredData = {
+        ...preview.data,
+        creditCards: includeAU
+          ? (preview.data.creditCards ?? [])
+          : (preview.data.creditCards ?? []).filter(c => !c.isAuthorizedUser),
+      }
+      dispatch({ type: 'LOAD_STATE', payload: mergeAiImport(base, filteredData, members, fallbackMemberId) })
     } else {
       dispatch({ type: 'LOAD_STATE', payload: preview.data })
     }
@@ -287,8 +294,10 @@ export default function ImportExportView() {
 
   const previewCards = preview?.data?.creditCards ?? []
   const previewAccounts = preview?.data?.bankAccounts ?? []
+  const auCardCount = previewCards.filter(c => c.isAuthorizedUser).length
+  const visibleCards = includeAU ? previewCards : previewCards.filter(c => !c.isAuthorizedUser)
 
-  const cardDist = memberDistribution(previewCards, members, fallbackMemberId)
+  const cardDist = memberDistribution(visibleCards, members, fallbackMemberId)
   const acctDist = memberDistribution(previewAccounts, members, fallbackMemberId)
   const hasUnresolved = cardDist.unresolved > 0 || acctDist.unresolved > 0
 
@@ -424,12 +433,12 @@ export default function ImportExportView() {
                   {previewCards.length > 0 && (
                     <div className="space-y-1">
                       <div className="text-zinc-400">
-                        <span className="text-zinc-300 font-medium">{previewCards.length} credit card{previewCards.length !== 1 ? 's' : ''}</span>
-                        {' — '}{previewCards.map(c => c.cardName).filter(Boolean).join(', ')}
+                        <span className="text-zinc-300 font-medium">{visibleCards.length} credit card{visibleCards.length !== 1 ? 's' : ''}</span>
+                        {' — '}{visibleCards.map(c => c.cardName).filter(Boolean).join(', ')}
                       </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-2">
                         {members.map(p => {
-                          const count = previewCards.filter(c => resolveMemberId(c.member, members, null) === p.id).length
+                          const count = visibleCards.filter(c => resolveMemberId(c.member, members, null) === p.id).length
                           if (!count) return null
                           return <span key={p.id} className="text-emerald-400">{p.name}: {count}</span>
                         })}
@@ -437,6 +446,17 @@ export default function ImportExportView() {
                           <span className="text-amber-400">{cardDist.unresolved} unassigned → {members.find(p => p.id === fallbackMemberId)?.name ?? 'fallback'}</span>
                         )}
                       </div>
+                      {auCardCount > 0 && (
+                        <label className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer mt-1 pl-2">
+                          <input
+                            type="checkbox"
+                            checked={includeAU}
+                            onChange={e => setIncludeAU(e.target.checked)}
+                          />
+                          Include {auCardCount} authorized user {auCardCount === 1 ? 'card' : 'cards'}
+                          <span className="text-zinc-600">(excluded by default)</span>
+                        </label>
+                      )}
                     </div>
                   )}
 
@@ -495,7 +515,7 @@ export default function ImportExportView() {
               onClick={handleImport}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
             >
-              {preview.mode === 'full' ? 'Restore Full Backup' : `Import ${previewCards.length + previewAccounts.length} Records`}
+              {preview.mode === 'full' ? 'Restore Full Backup' : `Import ${visibleCards.length + previewAccounts.length} Records`}
             </button>
           </div>
         )}
