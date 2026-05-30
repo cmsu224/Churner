@@ -167,7 +167,6 @@ const QUICK_TIPS = [
   'Chase Sapphire: you can only hold one Sapphire card at a time, and the 48-month rule applies across the family.',
   'Business cards from most issuers (except Chase) don\'t appear on personal credit reports and don\'t count toward 5/24.',
   '"Authorized user" cards from others DO count toward your Chase 5/24 — remove yourself if needed before applying.',
-  'For seniors on Social Security: use "Total Accessible Income" on applications — includes investment accounts.',
 ]
 
 export default function ResourcesView() {

@@ -59,13 +59,16 @@ export default function CardItem({ card, members }) {
   const [draft, setDraft] = useState(null)
   const [confirming, setConfirming] = useState(false)
   const [undoSnapshot, setUndoSnapshot] = useState(null)
+  const [showDowngradeInput, setShowDowngradeInput] = useState(false)
+  const [downgradingTo, setDowgradingTo] = useState('')
   const undoTimerRef = useRef(null)
 
   const info = getSpendDeadlineInfo(card)
   const nextStatus = getCardNextStatus(card)
   const age = getCardAge(card)
   const quickActions = getQuickActions(card)
-  const reeligibility = card.status === 'Closed' ? getReeligibilityInfo(card) : null
+  const isClosed = card.status === 'Closed' || card.status === 'Downgraded'
+  const reeligibility = isClosed ? getReeligibilityInfo(card) : null
 
   useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
 
@@ -128,13 +131,34 @@ export default function CardItem({ card, members }) {
     setConfirming(false)
   }
 
+  function confirmDowngrade(e) {
+    e.stopPropagation()
+    if (!downgradingTo.trim()) return
+    dispatch({ type: 'UPDATE_CARD', payload: { ...card, status: 'Downgraded', downgradedToCard: downgradingTo.trim() } })
+    dispatch({ type: 'ADD_CARD', payload: {
+      memberId: card.memberId,
+      cardName: downgradingTo.trim(),
+      issuer: card.issuer,
+      last4: card.last4,
+      openDate: card.openDate,
+      status: 'Keep Alive',
+      currentBalance: 0,
+      creditLimit: card.creditLimit ?? 0,
+      bonusReceived: false,
+      isBusiness: card.isBusiness,
+      isAuthorizedUser: card.isAuthorizedUser,
+    }})
+    setShowDowngradeInput(false)
+    setDowgradingTo('')
+  }
+
   // Edit form section visibility
   const showLastUsed = draft?.status === 'Keep Alive' || !!draft?.lastUsedDate
   const showEarnBonusSection = draft?.status === 'Active Churn'
     || Number(draft?.spendRequirement) > 0
     || Number(draft?.spendDeadlineDays) > 0
     || Number(draft?.currentSpend) > 0
-  const showBonusSection = draft?.status !== 'Closed'
+  const showBonusSection = (draft?.status !== 'Closed' && draft?.status !== 'Downgraded')
     || Number(draft?.bonusValue) > 0
     || Number(draft?.annualFee) > 0
     || !!draft?.bonusReceived
@@ -154,6 +178,11 @@ export default function CardItem({ card, members }) {
                 <span className="font-semibold text-white text-sm">{card.cardName}</span>
                 {card.last4 && <span className="text-zinc-500 text-xs">···{card.last4}</span>}
                 {card.issuer && <span className="text-zinc-500 text-xs">{card.issuer}</span>}
+                {card.status === 'Downgraded' && card.downgradedToCard && (
+                  <span className="text-xs text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
+                    → {card.downgradedToCard}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
                 <PlayerBadge memberId={card.memberId} members={members} />
@@ -206,7 +235,7 @@ export default function CardItem({ card, members }) {
           </div>
         )}
 
-        {card.status === 'Closed' ? (
+        {isClosed ? (
           reeligibility && reeligibility.months ? (
             reeligibility.reeligible ? (
               <div className="mt-2">
@@ -246,21 +275,44 @@ export default function CardItem({ card, members }) {
       </div>
 
       {/* Quick action buttons — only shown when collapsed */}
-      {!expanded && (quickActions.length > 0 || undoSnapshot) && (
+      {!expanded && (quickActions.length > 0 || undoSnapshot || card.status === 'Downgrade/Close Due') && (
         <div className="px-4 pb-3 pt-0 flex gap-2 flex-wrap items-center border-t border-zinc-800">
-          <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center">
-            <span className="text-[10px] text-zinc-600 uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
-            {quickActions.map(action => (
-              <button
-                key={action.label}
-                onClick={e => applyQuickAction(e, action.payload)}
-                className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${btnColors[action.color] ?? btnColors.zinc}`}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-          {undoSnapshot && (
+          {showDowngradeInput ? (
+            <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center" onClick={e => e.stopPropagation()}>
+              <input
+                autoFocus
+                value={downgradingTo}
+                onChange={e => setDowgradingTo(e.target.value)}
+                placeholder="New free card name (e.g. Freedom)"
+                className="flex-1 min-w-0 bg-zinc-800 border border-zinc-600 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                onKeyDown={e => { if (e.key === 'Enter') confirmDowngrade(e); if (e.key === 'Escape') { e.stopPropagation(); setShowDowngradeInput(false) } }}
+              />
+              <button onClick={e => { e.stopPropagation(); setShowDowngradeInput(false) }} className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${btnColors.zinc}`}>Cancel</button>
+              <button onClick={confirmDowngrade} disabled={!downgradingTo.trim()} className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40 ${btnColors.emerald}`}>Confirm</button>
+            </div>
+          ) : (
+            <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center">
+              <span className="text-[10px] text-zinc-600 uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
+              {quickActions.map(action => (
+                <button
+                  key={action.label}
+                  onClick={e => applyQuickAction(e, action.payload)}
+                  className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${btnColors[action.color] ?? btnColors.zinc}`}
+                >
+                  {action.label}
+                </button>
+              ))}
+              {card.status === 'Downgrade/Close Due' && (
+                <button
+                  onClick={e => { e.stopPropagation(); setShowDowngradeInput(true) }}
+                  className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${btnColors.blue}`}
+                >
+                  Downgrade →
+                </button>
+              )}
+            </div>
+          )}
+          {!showDowngradeInput && undoSnapshot && (
             <button
               onClick={undoAction}
               className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-400 hover:text-white transition-colors mt-2.5 ml-auto flex-shrink-0"

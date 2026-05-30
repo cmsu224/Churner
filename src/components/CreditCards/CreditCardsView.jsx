@@ -81,7 +81,7 @@ export default function CreditCardsView() {
   function applyFiltersAndSort(cards) {
     let result = cards.filter(c => {
       if (filterMember !== 'all' && c.memberId !== filterMember) return false
-      if (filters.hideClosed && c.status === 'Closed') return false
+      if (filters.hideClosed && (c.status === 'Closed' || c.status === 'Downgraded')) return false
       if (filters.statuses.length && !filters.statuses.includes(c.status)) return false
       if (filters.issuers.length) {
         const name = getIssuerMeta(c.issuer || c.cardName).name
@@ -111,8 +111,8 @@ export default function CreditCardsView() {
   }
 
   const allFiltered = applyFiltersAndSort(allCards)
-  const filteredCards = allFiltered.filter(c => c.status !== 'Closed')
-  const closedCards = allFiltered.filter(c => c.status === 'Closed')
+  const filteredCards = allFiltered.filter(c => c.status !== 'Closed' && c.status !== 'Downgraded')
+  const closedCards = allFiltered.filter(c => c.status === 'Closed' || c.status === 'Downgraded')
   // Use issuer groups only for default sort; flat list otherwise so sort order is obvious.
   const useGroups = sortBy === 'newest'
   const groups = useGroups ? groupByIssuer(filteredCards) : null
@@ -387,7 +387,7 @@ export default function CreditCardsView() {
           {closedCards.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mt-2 mb-2 pt-4 border-t border-zinc-800">
-                <h2 className="text-sm font-semibold text-zinc-500">Closed Cards</h2>
+                <h2 className="text-sm font-semibold text-zinc-500">Closed & Downgraded</h2>
                 <span className="text-xs text-zinc-600">{closedCards.length}</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

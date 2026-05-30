@@ -5,9 +5,6 @@ import BofAWidget from './BofAWidget'
 import CapitalOneWidget from './CapitalOneWidget'
 import BankEligibilityWidget from './BankEligibilityWidget'
 import CardReeligibilityWidget from './CardReeligibilityWidget'
-import SeniorIncomeWidget from './SeniorIncomeWidget'
-import ExternalPayerMonitor from './ExternalPayerMonitor'
-
 export default function RulesView() {
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-4">
@@ -19,8 +16,6 @@ export default function RulesView() {
       <CapitalOneWidget />
       <CardReeligibilityWidget />
       <BankEligibilityWidget />
-      <SeniorIncomeWidget />
-      <ExternalPayerMonitor />
 
       <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5">
         <h3 className="text-base font-semibold text-white mb-3">Key Churning Rules</h3>

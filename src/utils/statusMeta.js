@@ -7,6 +7,7 @@ export const CARD_STATUSES = [
   { value: 'Bonus Met',           label: 'Bonus Earned' },
   { value: 'Keep Alive',          label: 'Keep Alive' },
   { value: 'Downgrade/Close Due', label: 'Cancel or Downgrade' },
+  { value: 'Downgraded',          label: 'Downgraded' },
   { value: 'Closed',              label: 'Closed' },
 ]
 
