@@ -45,7 +45,7 @@ export default function CreditCardsView() {
       spendRequirement: '', spendDeadlineDays: '', currentSpend: '',
       currentBalance: '', creditLimit: '',
       bonusValue: '', bonusType: 'cashback', bonusReceived: false, bonusReceivedDate: '',
-      annualFee: '', isPrimary: true, notes: '',
+      annualFee: '', isBusiness: false, isAuthorizedUser: false, notes: '',
     })
     setAdding(true)
   }
@@ -212,10 +212,17 @@ export default function CreditCardsView() {
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
-              <input type="checkbox" checked={!!newCard.isPrimary} onChange={e => setN('isPrimary', e.target.checked)} />
-              Personal (counts toward 5/24)
-            </label>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                <input type="checkbox" checked={!!newCard.isBusiness} onChange={e => setN('isBusiness', e.target.checked)} />
+                Business card
+              </label>
+              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                <input type="checkbox" checked={!!newCard.isAuthorizedUser} onChange={e => setN('isAuthorizedUser', e.target.checked)} />
+                Authorized user
+              </label>
+            </div>
+            <p className="text-xs text-zinc-600 -mt-1">Personal cards count toward Chase 5/24. Check these only to exclude a card.</p>
 
             <div className="flex gap-2 pt-1">
               <button onClick={cancelAdd} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors">Cancel</button>

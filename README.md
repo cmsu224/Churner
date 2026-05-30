@@ -92,7 +92,7 @@ The engine generates these item types:
 
 Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline, no modals. Only the **card name is required**; everything else is optional so data entry stays fluid. Cards are **grouped by issuer** (Chase, American Express, Citi, …, with an "Other" bucket), each group headed by the issuer's **logo**.
 
-**Tracked fields:** person, status, card name, issuer (with autocomplete for Chase, Amex, Capital One, Citi, Bank of America, Barclays, Wells Fargo, US Bank, Discover), last 4, open date, last-used date, **current balance**, **credit limit**, minimum-spend requirement / deadline days / current spend, bonus value & type (points / cash / miles), annual fee, "bonus received" + received date, and "Personal (counts toward 5/24)".
+**Tracked fields:** person, status, card name, issuer (with autocomplete for Chase, Amex, Capital One, Citi, Bank of America, Barclays, Wells Fargo, US Bank, Discover), last 4, open date, last-used date, **current balance**, **credit limit**, minimum-spend requirement / deadline days / current spend, bonus value & type (points / cash / miles), annual fee, "bonus received" + received date, and the **"Business card"** / **"Authorized user"** flags (which exclude a card from Chase 5/24 — see below).
 
 **Statuses** (friendly labels; stored values stable): Applied → Earning Bonus → Bonus Earned → Keep Alive → Annual Fee Decision → Cancel or Downgrade → Closed. The lifecycle engine suggests the next status automatically.
 
@@ -117,7 +117,7 @@ Every account shows a **balance bar** so you can instantly spot which accounts s
 
 Page: `/rules`. Each issuer has a dedicated engine and a dashboard widget, evaluated **per player**:
 
-- **Chase 5/24** (`chase524.js`) — counts personal cards (flagged "Personal") opened in the rolling 24-month window. Status: *safe* (<4), *warning* (exactly 4), *blocked* (≥5). Shows slots remaining and the date the next slot opens (oldest card in window + 24 months).
+- **Chase 5/24** (`chase524.js`) — counts personal cards opened in the rolling 24-month window. **Every card in the window counts by default**; only cards flagged **Business** or **Authorized user** are excluded (these are the real exceptions to 5/24). Status: *safe* (<4), *warning* (exactly 4), *blocked* (≥5). Shows slots remaining and the date the next slot opens (oldest card in window + 24 months).
 - **Amex** (`amex.js`) — enforces **1 new Amex per 5 days** and **2 new Amex per 90 days**, computes next-eligible dates, and notes Amex's "once per lifetime" bonus language.
 - **Citi** (`citi.js`) — **1 new Citi per 8 days** and **2 new Citi per 65 days**, with next-eligible dates.
 - **Bank of America 2/3/4** (`bofa.js`) — max **2 cards / 2 months**, **3 / 12 months**, **4 / 24 months**, each rule tracked independently with counts.
@@ -264,7 +264,7 @@ creditCards[]      { id, playerId, status, cardName, issuer, last4,
                      openDate, lastUsedDate, currentBalance, creditLimit,
                      spendRequirement, spendDeadlineDays, currentSpend,
                      bonusValue, bonusType, annualFee, bonusReceived,
-                     bonusReceivedDate, isPrimary, notes }
+                     bonusReceivedDate, isBusiness, isAuthorizedUser, notes }
 bankAccounts[]     { id, playerId, status, bankName, accountType, last4,
                      openedDate, currentBalance, bonusAmount, bonusReceivedDate,
                      requiredDD, requiredDDCount, ddsMade, ddDeadlineDays,

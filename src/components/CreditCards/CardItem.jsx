@@ -233,10 +233,15 @@ export default function CardItem({ card, players }) {
               Bonus received
             </label>
             <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
-              <input type="checkbox" checked={!!draft.isPrimary} onChange={e => set('isPrimary', e.target.checked)} />
-              Personal (5/24)
+              <input type="checkbox" checked={!!draft.isBusiness} onChange={e => set('isBusiness', e.target.checked)} />
+              Business card
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+              <input type="checkbox" checked={!!draft.isAuthorizedUser} onChange={e => set('isAuthorizedUser', e.target.checked)} />
+              Authorized user
             </label>
           </div>
+          <p className="text-xs text-zinc-600 -mt-1">Business & authorized-user cards are excluded from Chase 5/24.</p>
 
           {draft.bonusReceived && (
             <div>

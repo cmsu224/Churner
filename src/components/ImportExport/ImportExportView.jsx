@@ -21,8 +21,8 @@ Output ONLY valid JSON in this exact structure — no explanation, no markdown f
       "bonusValue": 60000,
       "bonusType": "points",
       "bonusReceived": false,
-      "autoPayEnabled": false,
-      "isPrimary": true,
+      "isBusiness": false,
+      "isAuthorizedUser": false,
       "status": "Active Churn"
     }
   ],
@@ -46,6 +46,7 @@ Field reference:
 - status (cards): "Applied", "Active Churn", "Bonus Met", "Retention Call Due", "Downgrade/Close Due", "Closed"
 - status (accounts): "Opened", "DD Linked", "Bonus Pending", "Bonus Received", "Cooling Period", "Safe to Close"
 - accountType: "Checking", "Savings", "Money Market", "CD"
+- isBusiness: true only for business cards (e.g. Ink, Amex Business). isAuthorizedUser: true if the account lists you as an authorized user, not the primary holder. Both default false. These are excluded from Chase 5/24.
 - Leave any unknown field blank, null, or 0
 
 DO NOT include "id" or "playerId" fields.
@@ -85,8 +86,8 @@ function mergeAiImport(state, aiData, defaultPlayerId) {
     bonusReceived: c.bonusReceived ?? false,
     bonusReceivedDate: c.bonusReceivedDate ?? null,
     annualFee: c.annualFee ?? 0,
-    autoPayEnabled: c.autoPayEnabled ?? false,
-    isPrimary: c.isPrimary ?? true,
+    isBusiness: c.isBusiness ?? false,
+    isAuthorizedUser: c.isAuthorizedUser ?? false,
     notes: c.notes ?? '',
   }))
 
