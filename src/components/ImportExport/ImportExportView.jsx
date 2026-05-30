@@ -3,14 +3,36 @@ import { useChurn } from '../../store/ChurnContext'
 import { getSmartCardStatus } from '../../engines/lifecycle'
 import { Download, Upload, Copy, Check, AlertTriangle, ExternalLink } from 'lucide-react'
 
-const AI_PROMPT = `Convert the following into JSON for my Churner tracking app. I'm giving you EITHER a credit report, OR screenshots / a list of my credit cards and bank accounts.
+function buildPrompt(players) {
+  const names = (players ?? []).map(p => p.name).join(' | ')
+  const first = players?.[0]?.name ?? 'Me'
 
-If this is a credit report: extract every open revolving credit card account. Use "Date Opened" for openDate, the account name for cardName, and the last 4 digits of the account number for last4. Leave bonus fields blank — credit reports don't include sign-up bonus details.
+  return `You are helping import credit cards and bank accounts into Churner, a household churning-tracker app.
 
-Output ONLY valid JSON in this exact structure — no explanation, no markdown fences:
+This household has ${(players ?? []).length} member${(players ?? []).length !== 1 ? 's' : ''}: ${names}
+
+I will give you one of the following:
+• A credit report (PDF or screenshot)
+• A screenshot or typed list of cards / accounts
+• Data for one person OR multiple people mixed together
+
+For every item, set "player" to the exact name of the owner (must be one of: ${names}).
+If all the data clearly belongs to one person, set every item's "player" to that person's name.
+If the data covers multiple people, assign each item individually.
+If you genuinely cannot tell who owns an item, omit "player" and it will be handled during import.
+
+━━━ CREDIT REPORT RULES ━━━
+• Include ONLY open revolving credit cards — skip closed accounts, loans, mortgages, auto loans, student loans
+• openDate = "Date Opened" from the report (YYYY-MM-DD)
+• isAuthorizedUser: true if the person is listed as authorized user, not primary account holder
+• isBusiness: true for business cards (names containing "Business", "Ink", "Plum", "Gold Business", "Blue Business", "Spark", etc.)
+• Leave ALL bonus/spend fields blank — credit reports don't have sign-up bonus data
+
+━━━ OUTPUT (only valid JSON, no explanation, no markdown fences) ━━━
 {
   "creditCards": [
     {
+      "player": "${first}",
       "cardName": "Sapphire Preferred",
       "issuer": "Chase",
       "last4": "1234",
@@ -22,44 +44,84 @@ Output ONLY valid JSON in this exact structure — no explanation, no markdown f
       "bonusValue": 60000,
       "bonusType": "points",
       "bonusReceived": false,
+      "bonusReceivedDate": null,
       "isBusiness": false,
       "isAuthorizedUser": false,
-      "status": "Active Churn"
+      "status": "Active Churn",
+      "notes": ""
     }
   ],
   "bankAccounts": [
     {
+      "player": "${first}",
       "bankName": "Chase",
       "accountType": "Checking",
       "last4": "5678",
       "openedDate": "2024-02-01",
       "bonusAmount": 300,
       "requiredDD": 500,
+      "requiredDDCount": 1,
+      "ddDeadlineDays": 90,
+      "minimumBalance": 0,
       "isTaxable": true,
-      "status": "Opened"
+      "status": "Opened",
+      "notes": ""
     }
   ]
 }
 
-Field reference:
-- openDate / openedDate: format YYYY-MM-DD
-- bonusType: "points", "miles", or "cashback"
-- status (cards): "Applied", "Active Churn", "Bonus Met", "Retention Call Due", "Downgrade/Close Due", "Closed"
-- status (accounts): "Opened", "DD Linked", "Bonus Pending", "Bonus Received", "Cooling Period", "Safe to Close"
-- accountType: "Checking", "Savings", "Money Market", "CD"
-- isBusiness: true only for business cards (e.g. Ink, Amex Business). isAuthorizedUser: true if the account lists you as an authorized user, not the primary holder. Both default false. These are excluded from Chase 5/24.
-- Leave any unknown field blank, null, or 0
+━━━ FIELD RULES ━━━
+player            — one of: ${names}. Omit if unknown.
+openDate / openedDate — YYYY-MM-DD. Omit entirely if unknown (never guess a date).
+bonusType         — "points" | "miles" | "cashback"
+annualFee         — infer from well-known cards (Sapphire Preferred=95, Reserve=550, Platinum=695, Gold=250, Freedom=0, etc.). 0 if truly unknown.
+bonusValue / spendRequirement / spendDeadlineDays — fill in from well-known current offers only if the user provides card details; omit if importing from a credit report.
+status (cards) — use the most accurate:
+  "Applied"             — approved, card not yet arrived
+  "Active Churn"        — actively working toward sign-up bonus spend requirement
+  "Bonus Met"           — spend met, bonus not yet posted
+  "Retention Call Due"  — annual fee coming up, retention call needed
+  "Keep Alive"          — keeping for credit history / ongoing rewards, no active bonus
+  "Downgrade/Close Due" — decided to close or downgrade
+  "Closed"              — closed (omit unless user specifically asks for closed cards)
+status (accounts) — use the most accurate:
+  "Opened"          — account open, direct deposit not yet made
+  "DD Linked"       — first qualifying direct deposit made
+  "Bonus Pending"   — DD requirement complete, waiting for bonus to post
+  "Bonus Received"  — bonus posted
+  "Cooling Period"  — within 181-day clawback window
+  "Safe to Close"   — past 181 days, safe to close
+accountType       — "Checking" | "Savings" | "Money Market" | "CD"
+isBusiness        — true for any business card (Ink, Plum, Blue Business, Spark, etc.)
+isAuthorizedUser  — true only if this person is an authorized user, not the primary cardholder
+isTaxable         — ALWAYS true for bank account bonuses (taxable as 1099-INT). Omit or false for credit card bonuses.
+requiredDD        — minimum single direct deposit amount required (e.g. 500)
+requiredDDCount   — number of qualifying DDs required (default 1)
+ddDeadlineDays    — days from account opening to meet the DD requirement (e.g. 60, 90, 120)
+minimumBalance    — required minimum balance to qualify for bonus (0 if none)
 
 DO NOT include "id" or "playerId" fields.
+Omit or null any field you don't know. Do NOT guess dates.
 Output ONLY the JSON — nothing else.
 
-My cards and accounts:
-[PASTE YOUR DATA OR DESCRIBE YOUR ACCOUNTS HERE]`
+━━━ DATA TO IMPORT ━━━
+[Whose data is this? e.g.: "These are Wife's cards" or "Me and Wife mixed — assign each item to the right person"]
+[Paste your credit report, screenshot description, or card list here]`
+}
+
+function resolvePlayerId(playerName, players, fallbackId) {
+  if (!playerName) return fallbackId
+  const lower = playerName.toLowerCase().trim()
+  const match = (players ?? []).find(p => {
+    const n = p.name.toLowerCase()
+    return n === lower || n.startsWith(lower) || lower.startsWith(n)
+  })
+  return match?.id ?? fallbackId
+}
 
 function parseImport(text) {
   const cleaned = text.trim().replace(/^```json?\s*/i, '').replace(/\s*```$/, '')
   const data = JSON.parse(cleaned)
-  // Detect format: AI simplified vs full state
   if (data.creditCards !== undefined || data.bankAccounts !== undefined) {
     return { mode: 'ai', data }
   }
@@ -69,11 +131,12 @@ function parseImport(text) {
   throw new Error('Unrecognized format. Expected { creditCards, bankAccounts } or a full Churner state export.')
 }
 
-function mergeAiImport(state, aiData, defaultPlayerId) {
+function mergeAiImport(state, aiData, players, fallbackPlayerId) {
   const newCards = (aiData.creditCards ?? []).map(c => {
+    const playerId = resolvePlayerId(c.player, players, fallbackPlayerId)
     const base = {
       id: crypto.randomUUID(),
-      playerId: defaultPlayerId,
+      playerId,
       cardName: c.cardName ?? '',
       issuer: c.issuer ?? '',
       last4: c.last4 ?? '',
@@ -91,8 +154,6 @@ function mergeAiImport(state, aiData, defaultPlayerId) {
       isAuthorizedUser: c.isAuthorizedUser ?? false,
       notes: c.notes ?? '',
     }
-    // Apply age-based smart status unless explicit bonus data says otherwise.
-    // Credit reports don't include bonus info, so the AI's status guess is unreliable.
     const hasExplicitBonus = c.bonusReceived || c.bonusReceivedDate
     if (!hasExplicitBonus) {
       const smart = getSmartCardStatus(base)
@@ -105,23 +166,30 @@ function mergeAiImport(state, aiData, defaultPlayerId) {
   })
 
   const newAccounts = (aiData.bankAccounts ?? []).map(a => {
+    const playerId = resolvePlayerId(a.player, players, fallbackPlayerId)
     const openedDate = a.openedDate ?? null
     const safeToCloseDate = openedDate
       ? (() => { const d = new Date(openedDate); d.setDate(d.getDate() + 181); return d.toISOString() })()
       : null
     return {
       id: crypto.randomUUID(),
-      playerId: defaultPlayerId,
+      playerId,
       bankName: a.bankName ?? '',
       accountType: a.accountType ?? 'Checking',
       last4: a.last4 ?? '',
       openedDate,
       status: a.status ?? 'Opened',
       requiredDD: a.requiredDD ?? undefined,
+      requiredDDCount: a.requiredDDCount ?? undefined,
+      ddDeadlineDays: a.ddDeadlineDays ?? undefined,
       ddLinkedDate: a.ddLinkedDate ?? null,
+      ddSourceDescription: a.ddSourceDescription ?? '',
       bonusAmount: a.bonusAmount ?? undefined,
+      bonusDeadlineDays: a.bonusDeadlineDays ?? undefined,
       bonusReceivedDate: a.bonusReceivedDate ?? null,
+      minimumBalance: a.minimumBalance ?? undefined,
       isTaxable: a.isTaxable ?? true,
+      offerUrl: a.offerUrl ?? null,
       safeToCloseDate,
       notes: a.notes ?? '',
     }
@@ -134,19 +202,34 @@ function mergeAiImport(state, aiData, defaultPlayerId) {
   }
 }
 
+function playerDistribution(items, players, fallbackId) {
+  const counts = {}
+  let unresolved = 0
+  ;(items ?? []).forEach(item => {
+    const id = resolvePlayerId(item.player, players, null)
+    if (id) {
+      counts[id] = (counts[id] ?? 0) + 1
+    } else {
+      counts[fallbackId] = (counts[fallbackId] ?? 0) + 1
+      unresolved++
+    }
+  })
+  return { counts, unresolved }
+}
+
 export default function ImportExportView() {
   const { state, dispatch } = useChurn()
   const [importText, setImportText] = useState('')
   const [preview, setPreview] = useState(null)
   const [parseError, setParseError] = useState(null)
   const [copied, setCopied] = useState(false)
-  const [importMode, setImportMode] = useState('append') // 'append' | 'replace'
+  const [importMode, setImportMode] = useState('append')
   const [importDone, setImportDone] = useState(false)
+  const [fallbackPlayerId, setFallbackPlayerId] = useState(() => (state.players ?? [])[0]?.id ?? 'p1')
   const fileRef = useRef(null)
 
-  const defaultPlayerId = (state.players ?? [])[0]?.id ?? 'p1'
+  const players = state.players ?? []
 
-  // ── EXPORT ───────────────────────────────────────────────────────────────
   function handleExport() {
     const json = JSON.stringify(state, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
@@ -158,15 +241,13 @@ export default function ImportExportView() {
     URL.revokeObjectURL(url)
   }
 
-  // ── COPY PROMPT ──────────────────────────────────────────────────────────
   function handleCopyPrompt() {
-    navigator.clipboard.writeText(AI_PROMPT).then(() => {
+    navigator.clipboard.writeText(buildPrompt(players)).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
   }
 
-  // ── PARSE PREVIEW ────────────────────────────────────────────────────────
   function handleParsePreview(text) {
     setImportText(text)
     setPreview(null)
@@ -174,14 +255,12 @@ export default function ImportExportView() {
     setImportDone(false)
     if (!text.trim()) return
     try {
-      const result = parseImport(text)
-      setPreview(result)
+      setPreview(parseImport(text))
     } catch (e) {
       setParseError(e.message)
     }
   }
 
-  // ── FILE LOAD ─────────────────────────────────────────────────────────────
   function handleFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -191,16 +270,14 @@ export default function ImportExportView() {
     e.target.value = ''
   }
 
-  // ── IMPORT ───────────────────────────────────────────────────────────────
   function handleImport() {
     if (!preview) return
     if (preview.mode === 'ai') {
-      const nextState = importMode === 'replace'
-        ? mergeAiImport({ ...state, creditCards: [], bankAccounts: [] }, preview.data, defaultPlayerId)
-        : mergeAiImport(state, preview.data, defaultPlayerId)
-      dispatch({ type: 'LOAD_STATE', payload: nextState })
+      const base = importMode === 'replace'
+        ? { ...state, creditCards: [], bankAccounts: [] }
+        : state
+      dispatch({ type: 'LOAD_STATE', payload: mergeAiImport(base, preview.data, players, fallbackPlayerId) })
     } else {
-      // Full state restore
       dispatch({ type: 'LOAD_STATE', payload: preview.data })
     }
     setImportText('')
@@ -211,6 +288,12 @@ export default function ImportExportView() {
   const previewCards = preview?.data?.creditCards ?? []
   const previewAccounts = preview?.data?.bankAccounts ?? []
 
+  const cardDist = playerDistribution(previewCards, players, fallbackPlayerId)
+  const acctDist = playerDistribution(previewAccounts, players, fallbackPlayerId)
+  const hasUnresolved = cardDist.unresolved > 0 || acctDist.unresolved > 0
+
+  const inp = 'bg-zinc-800 border border-zinc-700 text-sm text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 transition-colors'
+
   return (
     <div className="p-4 max-w-3xl mx-auto space-y-8">
       <div>
@@ -218,7 +301,7 @@ export default function ImportExportView() {
         <p className="text-sm text-zinc-400">Back up your data, restore it, or import a list of cards from Claude AI.</p>
       </div>
 
-      {/* ── EXPORT ─────────────────────────────────────────────────────── */}
+      {/* EXPORT */}
       <section className="bg-zinc-900 border border-zinc-700 rounded-xl p-5">
         <h2 className="text-base font-semibold text-white mb-1">Export Your Data</h2>
         <p className="text-xs text-zinc-400 mb-4">
@@ -234,22 +317,24 @@ export default function ImportExportView() {
         </button>
       </section>
 
-      {/* ── AI IMPORT HELPER ────────────────────────────────────────────── */}
+      {/* AI IMPORT HELPER */}
       <section className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
         <div>
           <h2 className="text-base font-semibold text-white mb-1">AI Import Helper</h2>
           <p className="text-xs text-zinc-400 leading-relaxed">
-            The fastest way to get all your cards in. Take a screenshot of your cards/accounts <strong className="text-zinc-300">or download your credit report (PDF)</strong>, open{' '}
+            The fastest way to get all your cards in. Take a screenshot or{' '}
+            <strong className="text-zinc-300">download your credit report (PDF)</strong>, open{' '}
             <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-0.5">
               claude.ai <ExternalLink size={10} />
             </a>
-            {' '}or any AI chat, paste the prompt below + your file, then paste the JSON output back here. A credit report is ideal — it has every card's open date, which powers the age tracker.
+            {' '}or any AI chat, paste the prompt below + your file, then paste the JSON back here.
+            The prompt is generated with your household members' names so the AI can assign each card to the right person.
           </p>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-zinc-300">Step 1 — Copy this prompt, then paste it into Claude with your screenshot:</span>
+            <span className="text-xs font-medium text-zinc-300">Step 1 — Copy this prompt into Claude with your data:</span>
             <button
               onClick={handleCopyPrompt}
               className="flex items-center gap-1.5 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1.5 rounded-lg transition-colors"
@@ -258,27 +343,39 @@ export default function ImportExportView() {
               {copied ? 'Copied!' : 'Copy prompt'}
             </button>
           </div>
-          <pre className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 text-xs text-zinc-400 leading-relaxed overflow-auto max-h-48 whitespace-pre-wrap font-mono">
-            {AI_PROMPT}
+          <pre className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 text-xs text-zinc-400 leading-relaxed overflow-auto max-h-56 whitespace-pre-wrap font-mono">
+            {buildPrompt(players)}
           </pre>
         </div>
 
         <div className="bg-zinc-800/60 border border-zinc-700 rounded-lg px-4 py-3 text-xs text-zinc-400 space-y-1">
           <div className="font-medium text-zinc-300">How it works:</div>
           <ol className="list-decimal list-inside space-y-1 ml-1">
-            <li>Copy the prompt above</li>
-            <li>Open Claude.ai (or any AI), paste the prompt</li>
-            <li>Attach your screenshot or type out your card names/details</li>
-            <li>Claude outputs JSON — copy it</li>
-            <li>Paste the JSON in the Import box below and click Import</li>
-            <li>Assign players to each card — they default to your first player</li>
+            <li>Copy the prompt above (it already has your household members: <span className="text-zinc-300">{players.map(p => p.name).join(', ')}</span>)</li>
+            <li>Open Claude.ai, paste the prompt + attach your credit report PDF or screenshot</li>
+            <li>Tell Claude whose cards you're importing — e.g. <em>"These are Wife's cards"</em> or <em>"Mixed — assign each to the right person"</em></li>
+            <li>Claude outputs JSON with a <code className="text-zinc-300">player</code> field on each item</li>
+            <li>Paste the JSON in the Import box below — player assignment is automatic</li>
+            <li>Review the preview, set a fallback player for any unassigned items, then click Import</li>
           </ol>
         </div>
       </section>
 
-      {/* ── IMPORT ──────────────────────────────────────────────────────── */}
+      {/* IMPORT */}
       <section className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
-        <h2 className="text-base font-semibold text-white mb-1">Import JSON</h2>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h2 className="text-base font-semibold text-white">Import JSON</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400">Fallback player for unassigned items:</span>
+            <select
+              className={inp}
+              value={fallbackPlayerId}
+              onChange={e => setFallbackPlayerId(e.target.value)}
+            >
+              {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        </div>
 
         {importDone && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm rounded-lg px-4 py-3">
@@ -316,15 +413,59 @@ export default function ImportExportView() {
 
         {preview && (
           <div className="space-y-3">
-            <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-sm">
-              <div className="font-medium text-white mb-2">
+            <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-sm space-y-2">
+              <div className="font-medium text-white">
                 {preview.mode === 'full' ? 'Full backup detected' : 'AI import format detected'}
               </div>
+
               {preview.mode === 'ai' ? (
-                <div className="space-y-1 text-zinc-400 text-xs">
-                  <div>• {previewCards.length} credit card{previewCards.length !== 1 ? 's' : ''}: {previewCards.map(c => c.cardName).filter(Boolean).join(', ') || '—'}</div>
-                  <div>• {previewAccounts.length} bank account{previewAccounts.length !== 1 ? 's' : ''}: {previewAccounts.map(a => a.bankName).filter(Boolean).join(', ') || '—'}</div>
-                  <div className="text-zinc-500 mt-1">All cards will default to player: <span className="text-zinc-300">{(state.players ?? [])[0]?.name ?? 'first player'}</span>. Change them after import by tapping each card.</div>
+                <div className="space-y-2 text-xs">
+                  {/* Cards */}
+                  {previewCards.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-zinc-400">
+                        <span className="text-zinc-300 font-medium">{previewCards.length} credit card{previewCards.length !== 1 ? 's' : ''}</span>
+                        {' — '}{previewCards.map(c => c.cardName).filter(Boolean).join(', ')}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-2">
+                        {players.map(p => {
+                          const count = previewCards.filter(c => resolvePlayerId(c.player, players, null) === p.id).length
+                          if (!count) return null
+                          return <span key={p.id} className="text-emerald-400">{p.name}: {count}</span>
+                        })}
+                        {cardDist.unresolved > 0 && (
+                          <span className="text-amber-400">{cardDist.unresolved} unassigned → {players.find(p => p.id === fallbackPlayerId)?.name ?? 'fallback'}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Accounts */}
+                  {previewAccounts.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-zinc-400">
+                        <span className="text-zinc-300 font-medium">{previewAccounts.length} bank account{previewAccounts.length !== 1 ? 's' : ''}</span>
+                        {' — '}{previewAccounts.map(a => a.bankName).filter(Boolean).join(', ')}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-2">
+                        {players.map(p => {
+                          const count = previewAccounts.filter(a => resolvePlayerId(a.player, players, null) === p.id).length
+                          if (!count) return null
+                          return <span key={p.id} className="text-emerald-400">{p.name}: {count}</span>
+                        })}
+                        {acctDist.unresolved > 0 && (
+                          <span className="text-amber-400">{acctDist.unresolved} unassigned → {players.find(p => p.id === fallbackPlayerId)?.name ?? 'fallback'}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {hasUnresolved && (
+                    <div className="flex items-start gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-md px-2.5 py-1.5 mt-1">
+                      <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+                      <span>Some items have no player name — they'll be assigned to the fallback player above. You can change it before importing.</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-xs text-zinc-400">

@@ -214,8 +214,12 @@ All links open in a new tab.
 Page: `/import`.
 
 - **Export** — downloads your full state as a JSON backup file.
-- **AI Import Helper** — the fastest way to bulk-load. Copy the built-in prompt, open Claude (or any AI chat), paste the prompt **plus a screenshot of your cards/accounts or a downloaded credit-report PDF**, and paste the returned JSON back into the app. The prompt extracts every open revolving account from a credit report, mapping **"Date Opened" → openDate**, account name → cardName, and last 4 digits → last4. The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card. A credit report is ideal because it carries every card's open date, which powers the age tracker.
-- **Import** — paste or file-load JSON, preview what will be added, then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
+- **AI Import Helper** — the fastest way to bulk-load. The prompt is **generated dynamically** with your actual household member names (e.g. Me | Wife | Mom | Dad) so the AI knows exactly who to assign each card to. Copy the prompt, open Claude (or any AI chat), paste the prompt + your credit-report PDF or screenshot, tell the AI whose cards you're importing ("These are Wife's cards" or "assign each to the right person"), and paste the returned JSON back into the app. The AI outputs a `player` field on each item; the import automatically resolves it to the correct player. Works for single-person and multi-person imports in one batch.
+  - Credit report import: extracts every open revolving account, maps "Date Opened" → openDate, skips closed accounts/loans/mortgages, auto-flags business cards and authorized-user accounts.
+  - Manual/screenshot import: supports all fields including bonus details, spend requirements, DD requirements, annual fees, and status.
+  - A **fallback player** selector in the import UI handles any items the AI couldn't assign.
+  - The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card.
+- **Import** — paste or file-load JSON, preview what will be added (with per-player assignment breakdown and an unassigned-items warning), then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
 
 ### 14. Data Sync (GitHub Gist)
 
