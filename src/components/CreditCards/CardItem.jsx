@@ -2,12 +2,18 @@ import { useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
+import IssuerLogo from '../shared/IssuerLogo'
+import BalanceBar from '../shared/BalanceBar'
+import DateField from '../shared/DateField'
 import { getSpendDeadlineInfo, getCardNextStatus } from '../../engines/lifecycle'
-import { fmt$, fmtDate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, AlertCircle, CheckCircle, Zap } from 'lucide-react'
+import { CARD_STATUSES } from '../../utils/statusMeta'
+import { fmt$ } from '../../utils/format'
+import { ChevronDown, ChevronUp, Trash2, Zap } from 'lucide-react'
 
-const STATUSES = ['Applied', 'Active Churn', 'Bonus Met', 'Retention Call Due', 'Downgrade/Close Due', 'Closed']
+// Optional fields use the gray style; the one required field (card name) uses
+// the accent style so it stands out.
 const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
+const inpRequired = 'w-full bg-zinc-800 border border-blue-500/60 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400 transition-colors'
 
 export default function CardItem({ card, players }) {
   const { dispatch } = useChurn()
@@ -36,6 +42,8 @@ export default function CardItem({ card, players }) {
         spendRequirement: draft.spendRequirement !== '' && draft.spendRequirement != null ? parseFloat(draft.spendRequirement) : undefined,
         spendDeadlineDays: draft.spendDeadlineDays !== '' && draft.spendDeadlineDays != null ? parseInt(draft.spendDeadlineDays) : undefined,
         currentSpend: draft.currentSpend !== '' && draft.currentSpend != null ? parseFloat(draft.currentSpend) || 0 : 0,
+        currentBalance: draft.currentBalance !== '' && draft.currentBalance != null ? parseFloat(draft.currentBalance) || 0 : 0,
+        creditLimit: draft.creditLimit !== '' && draft.creditLimit != null ? parseFloat(draft.creditLimit) || 0 : 0,
         bonusValue: draft.bonusValue !== '' && draft.bonusValue != null ? parseFloat(draft.bonusValue) || 0 : 0,
         annualFee: draft.annualFee !== '' && draft.annualFee != null ? parseFloat(draft.annualFee) || 0 : 0,
         openDate: draft.openDate || null,
@@ -79,19 +87,18 @@ export default function CardItem({ card, players }) {
         onClick={() => expanded ? cancelEdit() : startEdit()}
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-white text-sm">{card.cardName}</span>
-              {card.last4 && <span className="text-zinc-500 text-xs">···{card.last4}</span>}
-              {card.issuer && <span className="text-zinc-500 text-xs">{card.issuer}</span>}
-            </div>
-            <div className="flex flex-wrap gap-1.5 mt-1.5">
-              <PlayerBadge playerId={card.playerId} players={players} />
-              <StatusBadge status={card.status} />
-              {card.autoPayEnabled
-                ? <span className="inline-flex items-center gap-1 text-xs text-emerald-400"><CheckCircle size={10} />AutoPay</span>
-                : <span className="inline-flex items-center gap-1 text-xs text-red-400"><AlertCircle size={10} />No AutoPay</span>
-              }
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <IssuerLogo name={card.issuer || card.cardName} size={30} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-white text-sm">{card.cardName}</span>
+                {card.last4 && <span className="text-zinc-500 text-xs">···{card.last4}</span>}
+                {card.issuer && <span className="text-zinc-500 text-xs">{card.issuer}</span>}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                <PlayerBadge playerId={card.playerId} players={players} />
+                <StatusBadge status={card.status} />
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -113,12 +120,15 @@ export default function CardItem({ card, players }) {
               <div className={`h-full rounded-full ${info.daysLeft < 14 ? 'bg-red-500' : info.daysLeft < 30 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${info.pct}%` }} />
             </div>
             <div className="flex justify-between text-xs text-zinc-400">
-              <span>{fmt$(card.currentSpend ?? 0)} / {fmt$(card.spendRequirement ?? 0)}</span>
+              <span>{fmt$(card.currentSpend ?? 0)} / {fmt$(card.spendRequirement ?? 0)} spend</span>
               <span className={info.daysLeft < 14 ? 'text-red-400 font-medium' : ''}>{info.daysLeft}d left</span>
             </div>
           </div>
         )}
-        {info?.met && <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1"><CheckCircle size={10} />Spend met</div>}
+
+        {/* Balance bar — shows on every card so zero-balance cards are obvious */}
+        <BalanceBar balance={card.currentBalance ?? 0} limit={card.creditLimit ?? 0} kind="card" />
+
         {nextStatus && !expanded && (
           <div className="mt-1.5 text-xs text-amber-400">→ Suggest: {nextStatus}</div>
         )}
@@ -129,7 +139,7 @@ export default function CardItem({ card, players }) {
         <div className="border-t border-zinc-700 p-4 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Player</label>
+              <label className="text-xs text-zinc-400 block mb-1">Person</label>
               <select className={inp} value={draft.playerId ?? ''} onChange={e => set('playerId', e.target.value)}>
                 {(players ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -137,63 +147,74 @@ export default function CardItem({ card, players }) {
             <div>
               <label className="text-xs text-zinc-400 block mb-1">Status</label>
               <select className={inp} value={draft.status ?? 'Active Churn'} onChange={e => set('status', e.target.value)}>
-                {STATUSES.map(s => <option key={s}>{s}</option>)}
+                {CARD_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
           </div>
 
           <div>
-            <label className="text-xs text-zinc-400 block mb-1">Card Name <span className="text-red-400">*</span></label>
-            <input className={inp} value={draft.cardName ?? ''} onChange={e => set('cardName', e.target.value)} placeholder="e.g. Sapphire Preferred" />
+            <label className="text-xs text-blue-400 block mb-1 font-medium">Card Name <span className="text-blue-400">*required</span></label>
+            <input className={inpRequired} value={draft.cardName ?? ''} onChange={e => set('cardName', e.target.value)} placeholder="e.g. Sapphire Preferred" />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Issuer</label>
+              <label className="text-xs text-zinc-500 block mb-1">Issuer</label>
               <input list="issuers" className={inp} value={draft.issuer ?? ''} onChange={e => set('issuer', e.target.value)} placeholder="Chase" />
               <datalist id="issuers">
                 {['Chase', 'Amex', 'Capital One', 'Citi', 'Bank of America', 'Barclays', 'Wells Fargo', 'US Bank', 'Discover'].map(i => <option key={i} value={i} />)}
               </datalist>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Last 4</label>
+              <label className="text-xs text-zinc-500 block mb-1">Last 4</label>
               <input className={inp} value={draft.last4 ?? ''} onChange={e => set('last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="optional" maxLength={4} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Open Date</label>
-              <input type="date" className={inp} value={draft.openDate?.slice(0, 10) ?? ''} onChange={e => set('openDate', e.target.value)} />
+              <label className="text-xs text-zinc-500 block mb-1">Open Date</label>
+              <DateField value={draft.openDate} onChange={v => set('openDate', v)} />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Last Used</label>
-              <input type="date" className={inp} value={draft.lastUsedDate?.slice(0, 10) ?? ''} onChange={e => set('lastUsedDate', e.target.value)} />
+              <label className="text-xs text-zinc-500 block mb-1">Last Used</label>
+              <DateField value={draft.lastUsedDate} onChange={v => set('lastUsedDate', v)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Current Balance ($)</label>
+              <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Credit Limit ($)</label>
+              <input type="number" min="0" className={inp} value={draft.creditLimit ?? ''} onChange={e => set('creditLimit', e.target.value)} placeholder="optional" />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Spend Req ($)</label>
+              <label className="text-xs text-zinc-500 block mb-1">Spend Req ($)</label>
               <input type="number" min="0" className={inp} value={draft.spendRequirement ?? ''} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Days</label>
+              <label className="text-xs text-zinc-500 block mb-1">Days</label>
               <input type="number" min="1" className={inp} value={draft.spendDeadlineDays ?? ''} onChange={e => set('spendDeadlineDays', e.target.value)} placeholder="90" />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Spent ($)</label>
+              <label className="text-xs text-zinc-500 block mb-1">Spent ($)</label>
               <input type="number" min="0" className={inp} value={draft.currentSpend ?? ''} onChange={e => set('currentSpend', e.target.value)} placeholder="0" />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Bonus</label>
+              <label className="text-xs text-zinc-500 block mb-1">Bonus</label>
               <input type="number" min="0" className={inp} value={draft.bonusValue ?? ''} onChange={e => set('bonusValue', e.target.value)} placeholder="pts/$" />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Type</label>
+              <label className="text-xs text-zinc-500 block mb-1">Type</label>
               <select className={inp} value={draft.bonusType ?? 'cashback'} onChange={e => set('bonusType', e.target.value)}>
                 <option value="points">Points</option>
                 <option value="cashback">Cash</option>
@@ -201,7 +222,7 @@ export default function CardItem({ card, players }) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Annual Fee</label>
+              <label className="text-xs text-zinc-500 block mb-1">Annual Fee</label>
               <input type="number" min="0" className={inp} value={draft.annualFee ?? ''} onChange={e => set('annualFee', e.target.value)} placeholder="0" />
             </div>
           </div>
@@ -212,10 +233,6 @@ export default function CardItem({ card, players }) {
               Bonus received
             </label>
             <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
-              <input type="checkbox" checked={!!draft.autoPayEnabled} onChange={e => set('autoPayEnabled', e.target.checked)} />
-              AutoPay on
-            </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
               <input type="checkbox" checked={!!draft.isPrimary} onChange={e => set('isPrimary', e.target.checked)} />
               Personal (5/24)
             </label>
@@ -223,13 +240,13 @@ export default function CardItem({ card, players }) {
 
           {draft.bonusReceived && (
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Bonus Received Date</label>
-              <input type="date" className={inp} value={draft.bonusReceivedDate?.slice(0, 10) ?? ''} onChange={e => set('bonusReceivedDate', e.target.value)} />
+              <label className="text-xs text-zinc-500 block mb-1">Bonus Received Date</label>
+              <DateField value={draft.bonusReceivedDate} onChange={v => set('bonusReceivedDate', v)} />
             </div>
           )}
 
           <div>
-            <label className="text-xs text-zinc-400 block mb-1">Notes</label>
+            <label className="text-xs text-zinc-500 block mb-1">Notes</label>
             <textarea rows={2} className={inp} value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} placeholder="optional" />
           </div>
 

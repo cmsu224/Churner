@@ -85,14 +85,6 @@ export function generateActionItems(state) {
       }
     }
 
-    // AutoPay not set
-    if (!card.autoPayEnabled) {
-      items.push({ id: `autopay-${card.id}`, type: 'warning', category: 'autopay', cardId: card.id, playerId: card.playerId,
-        title: `Enable AutoPay: ${n}`,
-        detail: `One missed payment can void your sign-up bonus and trigger penalty APR (up to 29.99%). Log into the card portal → Payments → AutoPay → set to "Statement Balance." ${pn}'s card.`,
-        dueDate: null, action: 'Set up AutoPay now' })
-    }
-
     // Bonus received but status stale
     if (card.bonusReceived && card.status === 'Active Churn') {
       items.push({ id: `stale-status-${card.id}`, type: 'info', category: 'bonus', cardId: card.id, playerId: card.playerId,

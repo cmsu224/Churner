@@ -55,14 +55,14 @@ Players are **fully editable** — none of the names, colors, or roles are hardc
 
 ### 1. Command Center Dashboard
 
-The home screen (`/`) is a prioritized command center, not a passive summary:
+The home screen (`/`) is a prioritized command center, not a passive summary. **Every section is reorderable** — tap **Customize** to move sections up/down; the layout is saved per device (localStorage). Default order: Individual Summary → Application Eligibility → Credit Age & Usage → Spend Challenges → Action Items → Stats.
 
-- **Stats bar** — cash pipeline (total tracked bonus value in flight), count of active cards, and count of bank accounts at a glance.
-- **Action Queue** — the heart of the app. A single ranked list of *everything you need to do*, pulled from every card and account (see [Action Engine](#2-action-engine-the-brain)). If nothing is pending, you get an "all caught up" state instead.
-- **Active Spend Challenges** — live progress bars for every card with an open minimum-spend requirement, showing dollars spent vs. required and days remaining.
-- **Credit Age & Card Usage** — per-player panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#7-credit-age--keep-alive-tracker)).
-- **Application Eligibility** — compact per-person issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
 - **Individual Summary** — per-person rollup of activity.
+- **Application Eligibility** — compact per-person issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
+- **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#7-credit-age--keep-alive-tracker)).
+- **Active Spend Challenges** — live progress bars for every card with an open minimum-spend requirement, showing dollars spent vs. required and days remaining.
+- **Action Queue** — a single ranked list of *everything you need to do*, pulled from every card and account (see [Action Engine](#2-action-engine-the-brain)). If nothing is pending, you get an "all caught up" state instead.
+- **Stats bar** — cash pipeline (total tracked bonus value in flight), count of active cards, and count of bank accounts at a glance.
 
 ### 2. Action Engine (the brain)
 
@@ -75,8 +75,7 @@ The engine generates these item types:
 - **Annual fee — refund window** — when a fee has already posted, counts down the **30-day cancel-for-full-refund** window (critical at ≤5 days), with the option to product-change to a no-fee card to keep the history.
 - **Annual fee — upcoming** — fires within 45 days of a fee posting, coaching you to call the retention line first, then either cancel before it posts or let it post and refund within 30 days.
 - **Retention call due** — for fee cards aged 10–12 months, prompts you to call the retention/loyalty line and ask for an offer.
-- **AutoPay missing** — warns that one missed payment can void a bonus and trigger penalty APR; tells you exactly where to enable AutoPay.
-- **Stale status** — flags cards marked "bonus received" but still showing "Active Churn" so your tracker stays accurate.
+- **Stale status** — flags cards marked "bonus received" but still showing an earning status so your tracker stays accurate.
 - **Re-eligibility** — tells you when you can earn a card's sign-up bonus again (per-issuer windows).
 
 **Bank-account items**
@@ -91,25 +90,28 @@ The engine generates these item types:
 
 ### 3. Credit Card Tracking
 
-Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline, no modals. Only the **card name is required**; everything else is optional so data entry stays fluid.
+Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline, no modals. Only the **card name is required**; everything else is optional so data entry stays fluid. Cards are **grouped by issuer** (Chase, American Express, Citi, …, with an "Other" bucket), each group headed by the issuer's **logo**.
 
-**Tracked fields:** player, status, card name, issuer (with autocomplete for Chase, Amex, Capital One, Citi, Bank of America, Barclays, Wells Fargo, US Bank, Discover), last 4, open date, last-used date, minimum-spend requirement / deadline days / current spend, bonus value & type (points / cash / miles), annual fee, "bonus received" + received date, "AutoPay on", and "Personal (counts toward 5/24)".
+**Tracked fields:** person, status, card name, issuer (with autocomplete for Chase, Amex, Capital One, Citi, Bank of America, Barclays, Wells Fargo, US Bank, Discover), last 4, open date, last-used date, **current balance**, **credit limit**, minimum-spend requirement / deadline days / current spend, bonus value & type (points / cash / miles), annual fee, "bonus received" + received date, and "Personal (counts toward 5/24)".
 
-**Statuses:** Applied → Active Churn → Bonus Met → Retention Call Due → Downgrade/Close Due → Closed. The lifecycle engine suggests the next status automatically.
+**Statuses** (friendly labels; stored values stable): Applied → Earning Bonus → Bonus Earned → Keep Alive → Annual Fee Decision → Cancel or Downgrade → Closed. The lifecycle engine suggests the next status automatically.
 
 **Highlights**
+- **Balance bar** on every card — green/empty when paid off, amber (with utilization % if a credit limit is set) when a balance is owed, so you instantly see which cards carry a balance.
 - **"Used Today" ⚡ button** — one tap on the collapsed card sets the last-used date to today. No date picker — built specifically because typing dates is the most painful part of upkeep.
 - **Live spend progress bar** right on the collapsed card, color-coded by urgency.
-- **Per-player filter buttons** and an inline add form with every field.
+- **Clearable date fields** — press Backspace/Delete or click the × to clear a date (desktop-friendly), plus the native picker for mobile.
+- **Required fields are accent-highlighted**; optional fields are muted gray so you know what to ignore.
+- **Per-person filter buttons** and an inline add form with every field.
 - Inline delete with confirmation.
 
 ### 4. Bank Account Tracking
 
-Page: `/accounts`. Same expand-in-place pattern; only **bank name is required**.
+Page: `/accounts`. Same expand-in-place pattern; only **bank name is required**. Accounts are **grouped by bank** with the bank's **logo** in each group header.
 
-**Tracked fields:** player, status, bank name, account type, last 4, opened date, bonus amount, bonus received date, **direct-deposit requirements** (DD amount, # of DDs required, # completed, DD deadline in days, DD linked date, DD source description — e.g. payroll, Social Security, ACH), minimum balance, bonus deadline (days), offer link, and notes.
+**Tracked fields:** person, status, bank name, account type, last 4, opened date, **current balance**, bonus amount, bonus received date, **direct-deposit requirements** (DD amount, # of DDs required, # completed, DD deadline in days, DD linked date, DD source description — e.g. payroll, Social Security, ACH), minimum balance, bonus deadline (days), offer link, and notes.
 
-The DD fields drive the multi-tier direct-deposit reminders, the multi-DD progress tracker, and the minimum-balance and bonus-deadline countdowns in the [Action Engine](#2-action-engine-the-brain). The **181-day clawback shield** tells you when each account is safe to close.
+Every account shows a **balance bar** so you can instantly spot which accounts still hold money versus which are emptied out and can be ignored. The DD fields drive the multi-tier direct-deposit reminders, the multi-DD progress tracker, and the minimum-balance and bonus-deadline countdowns in the [Action Engine](#2-action-engine-the-brain). The **181-day clawback shield** tells you when each account is safe to close.
 
 ### 5. Issuer Rule Engines
 
@@ -201,8 +203,10 @@ Page: `/import`.
 - **Dark, responsive SPA** — desktop sidebar (collapsible) and mobile bottom-nav, switching at the 1024px breakpoint.
 - **HashRouter** routing so deep links work on GitHub Pages without server config.
 - **Expand-in-place editing** everywhere — no modal dialogs.
+- **Configurable dashboard** — reorder sections per device.
+- **Issuer logos** — real brand logos via Google's public favicon service (no auth, no user data sent — just the public brand domain), with a brand-colored monogram fallback if a logo can't load.
 - **Error boundary** — a class-based React error boundary catches render errors and shows a recoverable screen instead of a blank page.
-- **Player color badges** and **status badges** for instant scanning.
+- **Person color badges** and **status badges** for instant scanning.
 
 ---
 
@@ -257,15 +261,15 @@ State (synced as `churner-data.json`):
 version
 players[]          { id, name, role: 'churner'|'senior', hex }
 creditCards[]      { id, playerId, status, cardName, issuer, last4,
-                     openDate, lastUsedDate, spendRequirement,
-                     spendDeadlineDays, currentSpend, bonusValue, bonusType,
-                     annualFee, bonusReceived, bonusReceivedDate,
-                     autoPayEnabled, isPrimary, notes }
+                     openDate, lastUsedDate, currentBalance, creditLimit,
+                     spendRequirement, spendDeadlineDays, currentSpend,
+                     bonusValue, bonusType, annualFee, bonusReceived,
+                     bonusReceivedDate, isPrimary, notes }
 bankAccounts[]     { id, playerId, status, bankName, accountType, last4,
-                     openedDate, bonusAmount, bonusReceivedDate, requiredDD,
-                     requiredDDCount, ddsMade, ddDeadlineDays, ddLinkedDate,
-                     ddSourceDescription, minimumBalance, bonusDeadlineDays,
-                     offerUrl, notes }
+                     openedDate, currentBalance, bonusAmount, bonusReceivedDate,
+                     requiredDD, requiredDDCount, ddsMade, ddDeadlineDays,
+                     ddLinkedDate, ddSourceDescription, minimumBalance,
+                     bonusDeadlineDays, offerUrl, notes }
 seniorIncome       { [playerId]: { ssMonthly, accessibleSupport } }
 externalPayments[]
 taxYear

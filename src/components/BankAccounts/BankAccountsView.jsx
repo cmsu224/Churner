@@ -1,11 +1,30 @@
 import { useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import AccountItem from './AccountItem'
+import IssuerLogo from '../shared/IssuerLogo'
+import DateField from '../shared/DateField'
+import { getIssuerMeta } from '../../utils/issuers'
+import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { Plus, X } from 'lucide-react'
 
-const STATUSES = ['Opened', 'DD Linked', 'Bonus Pending', 'Bonus Received', 'Cooling Period', 'Safe to Close']
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
+const inpRequired = 'w-full bg-zinc-800 border border-blue-500/60 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400 transition-colors'
+
+// Group accounts by bank; "Other" bucket last.
+function groupByBank(accounts) {
+  const groups = {}
+  for (const a of accounts) {
+    const meta = getIssuerMeta(a.bankName)
+    if (!groups[meta.key]) groups[meta.key] = { meta, accounts: [] }
+    groups[meta.key].accounts.push(a)
+  }
+  return Object.values(groups).sort((a, b) => {
+    if (a.meta.key === 'other') return 1
+    if (b.meta.key === 'other') return -1
+    return b.accounts.length - a.accounts.length || a.meta.name.localeCompare(b.meta.name)
+  })
+}
 
 export default function BankAccountsView() {
   const { state, dispatch } = useChurn()
@@ -17,12 +36,13 @@ export default function BankAccountsView() {
   const filtered = (state.bankAccounts ?? []).filter(
     a => filterPlayer === 'all' || a.playerId === filterPlayer
   )
+  const groups = groupByBank(filtered)
 
   function startAdd() {
     setNewAcct({
       playerId: players[0]?.id ?? 'p1',
       bankName: '', accountType: 'Checking', last4: '',
-      openedDate: '', status: 'Opened',
+      openedDate: '', status: 'Opened', currentBalance: '',
       requiredDD: '', requiredDDCount: '', ddsMade: '', ddDeadlineDays: '',
       ddSourceDescription: '', ddLinkedDate: '',
       minimumBalance: '', bonusDeadlineDays: '',
@@ -51,6 +71,7 @@ export default function BankAccountsView() {
         ...newAcct,
         requiredDD: numOpt(newAcct.requiredDD),
         bonusAmount: numOpt(newAcct.bonusAmount),
+        currentBalance: parseFloat(newAcct.currentBalance) || 0,
         minimumBalance: numOpt(newAcct.minimumBalance),
         ddDeadlineDays: intOpt(newAcct.ddDeadlineDays),
         requiredDDCount: intOpt(newAcct.requiredDDCount),
@@ -116,50 +137,56 @@ export default function BankAccountsView() {
           <div className="p-4 pt-2 space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">Player</label>
+                <label className="text-xs text-zinc-500 block mb-1">Person</label>
                 <select className={inp} value={newAcct.playerId} onChange={e => setN('playerId', e.target.value)}>
                   {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">Status</label>
+                <label className="text-xs text-zinc-500 block mb-1">Status</label>
                 <select className={inp} value={newAcct.status} onChange={e => setN('status', e.target.value)}>
-                  {STATUSES.map(s => <option key={s}>{s}</option>)}
+                  {ACCOUNT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Bank Name <span className="text-red-400">*</span></label>
-              <input className={inp} value={newAcct.bankName} onChange={e => setN('bankName', e.target.value)} placeholder="e.g. Chase, Wells Fargo" autoFocus />
+              <label className="text-xs text-blue-400 block mb-1 font-medium">Bank Name <span className="text-blue-400">*required</span></label>
+              <input className={inpRequired} value={newAcct.bankName} onChange={e => setN('bankName', e.target.value)} placeholder="e.g. Chase, Wells Fargo" autoFocus />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">Account Type</label>
+                <label className="text-xs text-zinc-500 block mb-1">Account Type</label>
                 <select className={inp} value={newAcct.accountType} onChange={e => setN('accountType', e.target.value)}>
                   {TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">Last 4</label>
+                <label className="text-xs text-zinc-500 block mb-1">Last 4</label>
                 <input className={inp} value={newAcct.last4} onChange={e => setN('last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="optional" maxLength={4} />
               </div>
             </div>
 
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Opened Date</label>
-              <input type="date" className={inp} value={newAcct.openedDate} onChange={e => setN('openedDate', e.target.value)} />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1">Opened Date</label>
+                <DateField value={newAcct.openedDate} onChange={v => setN('openedDate', v)} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1">Current Balance ($)</label>
+                <input type="number" min="0" className={inp} value={newAcct.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">Bonus Amount ($)</label>
+                <label className="text-xs text-zinc-500 block mb-1">Bonus Amount ($)</label>
                 <input type="number" min="0" className={inp} value={newAcct.bonusAmount} onChange={e => setN('bonusAmount', e.target.value)} placeholder="300" />
               </div>
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">Bonus Received Date</label>
-                <input type="date" className={inp} value={newAcct.bonusReceivedDate} onChange={e => setN('bonusReceivedDate', e.target.value)} />
+                <label className="text-xs text-zinc-500 block mb-1">Bonus Received Date</label>
+                <DateField value={newAcct.bonusReceivedDate} onChange={v => setN('bonusReceivedDate', v)} />
               </div>
             </div>
 
@@ -187,7 +214,7 @@ export default function BankAccountsView() {
                 </div>
                 <div>
                   <label className="text-xs text-zinc-400 block mb-1">DD Linked Date</label>
-                  <input type="date" className={inp} value={newAcct.ddLinkedDate} onChange={e => setN('ddLinkedDate', e.target.value)} />
+                  <DateField value={newAcct.ddLinkedDate} onChange={v => setN('ddLinkedDate', v)} />
                 </div>
               </div>
               <div>
@@ -234,13 +261,24 @@ export default function BankAccountsView() {
         <div className="text-center py-12 text-zinc-500">
           <div className="text-4xl mb-3">🏦</div>
           <div className="text-base font-medium text-zinc-400 mb-1">
-            No accounts{filterPlayer !== 'all' ? ' for this player' : ''}
+            No accounts{filterPlayer !== 'all' ? ' for this person' : ''}
           </div>
           <div className="text-sm">Click &ldquo;Add Account&rdquo; to track a bank bonus.</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filtered.map(acct => <AccountItem key={acct.id} account={acct} players={players} />)}
+        <div className="space-y-6">
+          {groups.map(group => (
+            <section key={group.meta.key}>
+              <div className="flex items-center gap-2 mb-2">
+                <IssuerLogo name={group.meta.key === 'other' ? '' : group.meta.name} size={22} />
+                <h2 className="text-sm font-semibold text-white">{group.meta.name}</h2>
+                <span className="text-xs text-zinc-500">{group.accounts.length}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {group.accounts.map(acct => <AccountItem key={acct.id} account={acct} players={players} />)}
+              </div>
+            </section>
+          ))}
         </div>
       )}
     </div>

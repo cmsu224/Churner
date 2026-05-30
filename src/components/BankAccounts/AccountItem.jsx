@@ -2,14 +2,18 @@ import { useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
+import IssuerLogo from '../shared/IssuerLogo'
+import BalanceBar from '../shared/BalanceBar'
+import DateField from '../shared/DateField'
 import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountNextStatus } from '../../engines/lifecycle'
+import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { fmt$, fmtDate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Trash2, Shield, ExternalLink } from 'lucide-react'
 
-const STATUSES = ['Opened', 'DD Linked', 'Bonus Pending', 'Bonus Received', 'Cooling Period', 'Safe to Close']
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
+const inpRequired = 'w-full bg-zinc-800 border border-blue-500/60 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400 transition-colors'
 
 function ddDeadlineInfo(account) {
   if (!account.openedDate || account.ddLinkedDate) return null
@@ -64,6 +68,7 @@ export default function AccountItem({ account, players }) {
         ...draft,
         requiredDD: numOpt(draft.requiredDD),
         bonusAmount: numOpt(draft.bonusAmount),
+        currentBalance: draft.currentBalance !== '' && draft.currentBalance != null ? parseFloat(draft.currentBalance) || 0 : 0,
         minimumBalance: numOpt(draft.minimumBalance),
         ddDeadlineDays: intOpt(draft.ddDeadlineDays),
         requiredDDCount: intOpt(draft.requiredDDCount),
@@ -108,31 +113,34 @@ export default function AccountItem({ account, players }) {
         onClick={() => expanded ? cancelEdit() : startEdit()}
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-white text-sm">{account.bankName}</span>
-              {account.last4 && <span className="text-zinc-500 text-xs">···{account.last4}</span>}
-              {account.accountType && <span className="text-zinc-500 text-xs">{account.accountType}</span>}
-              {account.offerUrl && (
-                <a
-                  href={account.offerUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="inline-flex items-center gap-0.5 text-xs text-blue-400 hover:text-blue-300"
-                >
-                  Offer <ExternalLink size={9} />
-                </a>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-1.5 mt-1.5">
-              <PlayerBadge playerId={account.playerId} players={players} />
-              <StatusBadge status={account.status} />
-              {account.isTaxable && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  1099-INT
-                </span>
-              )}
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <IssuerLogo name={account.bankName} size={30} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-white text-sm">{account.bankName}</span>
+                {account.last4 && <span className="text-zinc-500 text-xs">···{account.last4}</span>}
+                {account.accountType && <span className="text-zinc-500 text-xs">{account.accountType}</span>}
+                {account.offerUrl && (
+                  <a
+                    href={account.offerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="inline-flex items-center gap-0.5 text-xs text-blue-400 hover:text-blue-300"
+                  >
+                    Offer <ExternalLink size={9} />
+                  </a>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                <PlayerBadge playerId={account.playerId} players={players} />
+                <StatusBadge status={account.status} />
+                {account.isTaxable && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    1099-INT
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <span className="text-zinc-500 flex-shrink-0">{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
@@ -180,6 +188,9 @@ export default function AccountItem({ account, players }) {
           </div>
         </div>
 
+        {/* Balance bar — instantly shows which accounts still hold money */}
+        <BalanceBar balance={account.currentBalance ?? 0} kind="account" />
+
         {nextStatus && !expanded && (
           <div className="mt-1.5 text-xs text-amber-400">→ Suggest: {nextStatus}</div>
         )}
@@ -190,46 +201,51 @@ export default function AccountItem({ account, players }) {
         <div className="border-t border-zinc-700 p-4 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Player</label>
+              <label className="text-xs text-zinc-500 block mb-1">Person</label>
               <select className={inp} value={draft.playerId ?? ''} onChange={e => set('playerId', e.target.value)}>
                 {(players ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Status</label>
+              <label className="text-xs text-zinc-500 block mb-1">Status</label>
               <select className={inp} value={draft.status ?? 'Opened'} onChange={e => set('status', e.target.value)}>
-                {STATUSES.map(s => <option key={s}>{s}</option>)}
+                {ACCOUNT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
           </div>
 
           <div>
-            <label className="text-xs text-zinc-400 block mb-1">Bank Name <span className="text-red-400">*</span></label>
-            <input className={inp} value={draft.bankName ?? ''} onChange={e => set('bankName', e.target.value)} placeholder="e.g. Chase, Wells Fargo" />
+            <label className="text-xs text-blue-400 block mb-1 font-medium">Bank Name <span className="text-blue-400">*required</span></label>
+            <input className={inpRequired} value={draft.bankName ?? ''} onChange={e => set('bankName', e.target.value)} placeholder="e.g. Chase, Wells Fargo" />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Account Type</label>
+              <label className="text-xs text-zinc-500 block mb-1">Account Type</label>
               <select className={inp} value={draft.accountType ?? 'Checking'} onChange={e => set('accountType', e.target.value)}>
                 {TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Last 4</label>
+              <label className="text-xs text-zinc-500 block mb-1">Last 4</label>
               <input className={inp} value={draft.last4 ?? ''} onChange={e => set('last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="optional" maxLength={4} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Opened Date</label>
-              <input type="date" className={inp} value={draft.openedDate?.slice(0, 10) ?? ''} onChange={e => set('openedDate', e.target.value)} />
+              <label className="text-xs text-zinc-500 block mb-1">Opened Date</label>
+              <DateField value={draft.openedDate} onChange={v => set('openedDate', v)} />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Bonus Amount ($)</label>
-              <input type="number" min="0" className={inp} value={draft.bonusAmount ?? ''} onChange={e => set('bonusAmount', e.target.value)} placeholder="300" />
+              <label className="text-xs text-zinc-500 block mb-1">Current Balance ($)</label>
+              <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-zinc-500 block mb-1">Bonus Amount ($)</label>
+            <input type="number" min="0" className={inp} value={draft.bonusAmount ?? ''} onChange={e => set('bonusAmount', e.target.value)} placeholder="300" />
           </div>
 
           {/* DD Requirements section */}
@@ -256,7 +272,7 @@ export default function AccountItem({ account, players }) {
               </div>
               <div>
                 <label className="text-xs text-zinc-400 block mb-1">DD Linked Date</label>
-                <input type="date" className={inp} value={draft.ddLinkedDate?.slice(0, 10) ?? ''} onChange={e => set('ddLinkedDate', e.target.value)} />
+                <DateField value={draft.ddLinkedDate} onChange={v => set('ddLinkedDate', v)} />
               </div>
             </div>
             <div>
@@ -267,22 +283,22 @@ export default function AccountItem({ account, players }) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Min Balance ($)</label>
+              <label className="text-xs text-zinc-500 block mb-1">Min Balance ($)</label>
               <input type="number" min="0" className={inp} value={draft.minimumBalance ?? ''} onChange={e => set('minimumBalance', e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Bonus Deadline (days)</label>
+              <label className="text-xs text-zinc-500 block mb-1">Bonus Deadline (days)</label>
               <input type="number" min="1" className={inp} value={draft.bonusDeadlineDays ?? ''} onChange={e => set('bonusDeadlineDays', e.target.value)} placeholder="120" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Bonus Received Date</label>
-              <input type="date" className={inp} value={draft.bonusReceivedDate?.slice(0, 10) ?? ''} onChange={e => set('bonusReceivedDate', e.target.value)} />
+              <label className="text-xs text-zinc-500 block mb-1">Bonus Received Date</label>
+              <DateField value={draft.bonusReceivedDate} onChange={v => set('bonusReceivedDate', v)} />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Offer Link</label>
+              <label className="text-xs text-zinc-500 block mb-1">Offer Link</label>
               <input className={inp} value={draft.offerUrl ?? ''} onChange={e => set('offerUrl', e.target.value)} placeholder="https://..." />
             </div>
           </div>
