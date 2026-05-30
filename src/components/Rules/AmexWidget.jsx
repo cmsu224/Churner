@@ -4,7 +4,7 @@ import { fmtDate } from '../../utils/format'
 
 export default function AmexWidget() {
   const { state } = useChurn()
-  const players = (state.players ?? []).filter(p => p.role === 'churner')
+  const players = (state.members ?? []).filter(p => p.role === 'churner')
 
   if (players.length === 0) return null
 

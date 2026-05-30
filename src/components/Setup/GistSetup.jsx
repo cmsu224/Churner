@@ -52,7 +52,7 @@ export default function GistSetup({ onConfigured }) {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-3xl font-bold text-white mb-1">Churner</div>
-          <div className="text-zinc-400 text-sm">Four-Player Bonus Tracker</div>
+          <div className="text-zinc-400 text-sm">Four-Member Bonus Tracker</div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-xl">

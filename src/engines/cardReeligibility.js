@@ -129,15 +129,15 @@ export function matchCardToRule(card) {
   return null
 }
 
-// Returns one row per card family where the player has received a bonus.
+// Returns one row per card family where the member has received a bonus.
 // Rows are sorted: still-in-cooldown first (soonest-to-unlock), then eligible.
-export function getCardReeligibility(playerId, allCards) {
-  const playerCards = (allCards ?? []).filter(
-    c => c.playerId === playerId && c.bonusReceived
+export function getCardReeligibility(memberId, allCards) {
+  const memberCards = (allCards ?? []).filter(
+    c => c.memberId === memberId && c.bonusReceived
   )
 
   const byFamily = {}
-  for (const card of playerCards) {
+  for (const card of memberCards) {
     const rule = matchCardToRule(card)
     if (!rule) continue
     const anchorStr = card.bonusReceivedDate || card.openDate

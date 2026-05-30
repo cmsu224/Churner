@@ -38,11 +38,11 @@ function Row({ row }) {
 
 export default function CardReeligibilityWidget() {
   const { state } = useChurn()
-  const players = state.players ?? []
+  const players = state.members ?? []
   const cards   = state.creditCards ?? []
 
   const withBonuses = players.filter(p =>
-    cards.some(c => c.playerId === p.id && c.bonusReceived)
+    cards.some(c => c.memberId === p.id && c.bonusReceived)
   )
   if (withBonuses.length === 0) return null
 

@@ -34,7 +34,7 @@ function ActionItem({ item, players }) {
   const s = TYPE_STYLES[item.type]
   const Icon = CATEGORY_ICON[item.category] ?? Info
   const TypeIcon = item.type === 'critical' ? AlertTriangle : item.type === 'warning' ? AlertTriangle : Info
-  const player = (players ?? []).find(p => p.id === item.playerId)
+  const player = (players ?? []).find(p => p.id === item.memberId)
 
   return (
     <div className={`border-l-4 ${s.border} bg-zinc-900 border border-zinc-800 rounded-r-xl overflow-hidden`}>
@@ -73,7 +73,7 @@ function ActionItem({ item, players }) {
 }
 
 export default function ActionQueue({ items, state }) {
-  const players = state?.players ?? []
+  const players = state?.members ?? []
   const critical = items.filter(i => i.type === 'critical')
   const warnings = items.filter(i => i.type === 'warning')
   const info = items.filter(i => i.type === 'info')

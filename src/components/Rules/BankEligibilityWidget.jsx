@@ -37,10 +37,10 @@ function Row({ row }) {
 
 export default function BankEligibilityWidget() {
   const { state } = useChurn()
-  const players = state.players ?? []
+  const players = state.members ?? []
   const accounts = state.bankAccounts ?? []
 
-  const withAccounts = players.filter(p => accounts.some(a => a.playerId === p.id))
+  const withAccounts = players.filter(p => accounts.some(a => a.memberId === p.id))
   if (withAccounts.length === 0) return null
 
   return (

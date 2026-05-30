@@ -99,20 +99,20 @@ export default function PlayersView() {
   const [editingId, setEditingId] = useState(null)
   const [confirmingId, setConfirmingId] = useState(null)
 
-  const players = state.players ?? []
+  const players = state.members ?? []
 
   function addPlayer(data) {
-    dispatch({ type: 'ADD_PLAYER', payload: data })
+    dispatch({ type: 'ADD_MEMBER', payload: data })
     setAdding(false)
   }
 
   function updatePlayer(id, data) {
-    dispatch({ type: 'UPDATE_PLAYER', payload: { id, ...data } })
+    dispatch({ type: 'UPDATE_MEMBER', payload: { id, ...data } })
     setEditingId(null)
   }
 
   function deletePlayer(id) {
-    dispatch({ type: 'DELETE_PLAYER', id })
+    dispatch({ type: 'DELETE_MEMBER', id })
     setConfirmingId(null)
   }
 
@@ -137,8 +137,8 @@ export default function PlayersView() {
 
       <div className="space-y-3">
         {players.map(player => {
-          const cardCount = (state.creditCards ?? []).filter(c => c.playerId === player.id).length
-          const accountCount = (state.bankAccounts ?? []).filter(a => a.playerId === player.id).length
+          const cardCount = (state.creditCards ?? []).filter(c => c.memberId === player.id).length
+          const accountCount = (state.bankAccounts ?? []).filter(a => a.memberId === player.id).length
 
           if (editingId === player.id) {
             return (
@@ -159,8 +159,8 @@ export default function PlayersView() {
                 </p>
                 <p className="text-xs text-zinc-500 mb-3">
                   {cardCount + accountCount > 0
-                    ? `This player has ${cardCount} card(s) and ${accountCount} account(s) — those records will remain but become unassigned.`
-                    : 'This player has no associated cards or accounts.'}
+                    ? `This member has ${cardCount} card(s) and ${accountCount} account(s) — those records will remain but become unassigned.`
+                    : 'This member has no associated cards or accounts.'}
                 </p>
                 <div className="flex gap-2">
                   <button onClick={() => setConfirmingId(null)} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors">Cancel</button>

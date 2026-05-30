@@ -6,11 +6,11 @@
 //  - cards where you're only an authorized user (not the primary applicant).
 // Everything else counts by default — you shouldn't have to hand-flag each
 // card just to be counted.
-export function getChase524Status(playerId, allCreditCards) {
+export function getChase524Status(memberId, allCreditCards) {
   const cutoff = new Date()
   cutoff.setMonth(cutoff.getMonth() - 24)
-  const playerCards = (allCreditCards ?? []).filter(c => c.playerId === playerId)
-  const inWindow = playerCards.filter(c => {
+  const memberCards = (allCreditCards ?? []).filter(c => c.memberId === memberId)
+  const inWindow = memberCards.filter(c => {
     if (!c.openDate) return false
     if (c.isBusiness) return false
     if (c.isAuthorizedUser) return false

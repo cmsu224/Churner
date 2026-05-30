@@ -16,10 +16,10 @@ I will give you one of the following:
 • A screenshot or typed list of cards / accounts
 • Data for one person OR multiple people mixed together
 
-For every item, set "player" to the exact name of the owner (must be one of: ${names}).
-If all the data clearly belongs to one person, set every item's "player" to that person's name.
+For every item, set "member" to the exact name of the owner (must be one of: ${names}).
+If all the data clearly belongs to one person, set every item's "member" to that person's name.
 If the data covers multiple people, assign each item individually.
-If you genuinely cannot tell who owns an item, omit "player" and it will be handled during import.
+If you genuinely cannot tell who owns an item, omit "member" and it will be handled during import.
 
 ━━━ CREDIT REPORT RULES ━━━
 • Include ONLY open revolving credit cards — skip closed accounts, loans, mortgages, auto loans, student loans
@@ -32,7 +32,7 @@ If you genuinely cannot tell who owns an item, omit "player" and it will be hand
 {
   "creditCards": [
     {
-      "player": "${first}",
+      "member": "${first}",
       "cardName": "Sapphire Preferred",
       "issuer": "Chase",
       "last4": "1234",
@@ -53,7 +53,7 @@ If you genuinely cannot tell who owns an item, omit "player" and it will be hand
   ],
   "bankAccounts": [
     {
-      "player": "${first}",
+      "member": "${first}",
       "bankName": "Chase",
       "accountType": "Checking",
       "last4": "5678",
@@ -71,7 +71,7 @@ If you genuinely cannot tell who owns an item, omit "player" and it will be hand
 }
 
 ━━━ FIELD RULES ━━━
-player            — one of: ${names}. Omit if unknown.
+member            — one of: ${names}. Omit if unknown.
 openDate / openedDate — YYYY-MM-DD. Omit entirely if unknown (never guess a date).
 bonusType         — "points" | "miles" | "cashback"
 annualFee         — infer from well-known cards (Sapphire Preferred=95, Reserve=550, Platinum=695, Gold=250, Freedom=0, etc.). 0 if truly unknown.
@@ -100,7 +100,7 @@ requiredDDCount   — number of qualifying DDs required (default 1)
 ddDeadlineDays    — days from account opening to meet the DD requirement (e.g. 60, 90, 120)
 minimumBalance    — required minimum balance to qualify for bonus (0 if none)
 
-DO NOT include "id" or "playerId" fields.
+DO NOT include "id" or "memberId" fields.
 Omit or null any field you don't know. Do NOT guess dates.
 Output ONLY the JSON — nothing else.
 
@@ -109,10 +109,10 @@ Output ONLY the JSON — nothing else.
 [Paste your credit report, screenshot description, or card list here]`
 }
 
-function resolvePlayerId(playerName, players, fallbackId) {
-  if (!playerName) return fallbackId
-  const lower = playerName.toLowerCase().trim()
-  const match = (players ?? []).find(p => {
+function resolveMemberId(memberName, members, fallbackId) {
+  if (!memberName) return fallbackId
+  const lower = memberName.toLowerCase().trim()
+  const match = (members ?? []).find(p => {
     const n = p.name.toLowerCase()
     return n === lower || n.startsWith(lower) || lower.startsWith(n)
   })
@@ -125,18 +125,18 @@ function parseImport(text) {
   if (data.creditCards !== undefined || data.bankAccounts !== undefined) {
     return { mode: 'ai', data }
   }
-  if (data.version !== undefined && data.players !== undefined) {
+  if (data.version !== undefined && (data.players !== undefined || data.members !== undefined)) {
     return { mode: 'full', data }
   }
   throw new Error('Unrecognized format. Expected { creditCards, bankAccounts } or a full Churner state export.')
 }
 
-function mergeAiImport(state, aiData, players, fallbackPlayerId) {
+function mergeAiImport(state, aiData, members, fallbackMemberId) {
   const newCards = (aiData.creditCards ?? []).map(c => {
-    const playerId = resolvePlayerId(c.player, players, fallbackPlayerId)
+    const memberId = resolveMemberId(c.member, members, fallbackMemberId)
     const base = {
       id: crypto.randomUUID(),
-      playerId,
+      memberId,
       cardName: c.cardName ?? '',
       issuer: c.issuer ?? '',
       last4: c.last4 ?? '',
@@ -166,14 +166,14 @@ function mergeAiImport(state, aiData, players, fallbackPlayerId) {
   })
 
   const newAccounts = (aiData.bankAccounts ?? []).map(a => {
-    const playerId = resolvePlayerId(a.player, players, fallbackPlayerId)
+    const memberId = resolveMemberId(a.member, members, fallbackMemberId)
     const openedDate = a.openedDate ?? null
     const safeToCloseDate = openedDate
       ? (() => { const d = new Date(openedDate); d.setDate(d.getDate() + 181); return d.toISOString() })()
       : null
     return {
       id: crypto.randomUUID(),
-      playerId,
+      memberId,
       bankName: a.bankName ?? '',
       accountType: a.accountType ?? 'Checking',
       last4: a.last4 ?? '',
@@ -202,11 +202,11 @@ function mergeAiImport(state, aiData, players, fallbackPlayerId) {
   }
 }
 
-function playerDistribution(items, players, fallbackId) {
+function memberDistribution(items, members, fallbackId) {
   const counts = {}
   let unresolved = 0
   ;(items ?? []).forEach(item => {
-    const id = resolvePlayerId(item.player, players, null)
+    const id = resolveMemberId(item.member, members, null)
     if (id) {
       counts[id] = (counts[id] ?? 0) + 1
     } else {
@@ -225,10 +225,10 @@ export default function ImportExportView() {
   const [copied, setCopied] = useState(false)
   const [importMode, setImportMode] = useState('append')
   const [importDone, setImportDone] = useState(false)
-  const [fallbackPlayerId, setFallbackPlayerId] = useState(() => (state.players ?? [])[0]?.id ?? 'p1')
+  const [fallbackMemberId, setFallbackMemberId] = useState(() => (state.members ?? [])[0]?.id ?? 'p1')
   const fileRef = useRef(null)
 
-  const players = state.players ?? []
+  const members = state.members ?? []
 
   function handleExport() {
     const json = JSON.stringify(state, null, 2)
@@ -242,7 +242,7 @@ export default function ImportExportView() {
   }
 
   function handleCopyPrompt() {
-    navigator.clipboard.writeText(buildPrompt(players)).then(() => {
+    navigator.clipboard.writeText(buildPrompt(members)).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -276,7 +276,7 @@ export default function ImportExportView() {
       const base = importMode === 'replace'
         ? { ...state, creditCards: [], bankAccounts: [] }
         : state
-      dispatch({ type: 'LOAD_STATE', payload: mergeAiImport(base, preview.data, players, fallbackPlayerId) })
+      dispatch({ type: 'LOAD_STATE', payload: mergeAiImport(base, preview.data, members, fallbackMemberId) })
     } else {
       dispatch({ type: 'LOAD_STATE', payload: preview.data })
     }
@@ -288,8 +288,8 @@ export default function ImportExportView() {
   const previewCards = preview?.data?.creditCards ?? []
   const previewAccounts = preview?.data?.bankAccounts ?? []
 
-  const cardDist = playerDistribution(previewCards, players, fallbackPlayerId)
-  const acctDist = playerDistribution(previewAccounts, players, fallbackPlayerId)
+  const cardDist = memberDistribution(previewCards, members, fallbackMemberId)
+  const acctDist = memberDistribution(previewAccounts, members, fallbackMemberId)
   const hasUnresolved = cardDist.unresolved > 0 || acctDist.unresolved > 0
 
   const inp = 'bg-zinc-800 border border-zinc-700 text-sm text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 transition-colors'
@@ -328,7 +328,7 @@ export default function ImportExportView() {
               claude.ai <ExternalLink size={10} />
             </a>
             {' '}or any AI chat, paste the prompt below + your file, then paste the JSON back here.
-            The prompt is generated with your household members' names so the AI can assign each card to the right person.
+            The prompt includes your household members' names so the AI can assign each card to the right member.
           </p>
         </div>
 
@@ -344,19 +344,19 @@ export default function ImportExportView() {
             </button>
           </div>
           <pre className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 text-xs text-zinc-400 leading-relaxed overflow-auto max-h-56 whitespace-pre-wrap font-mono">
-            {buildPrompt(players)}
+            {buildPrompt(members)}
           </pre>
         </div>
 
         <div className="bg-zinc-800/60 border border-zinc-700 rounded-lg px-4 py-3 text-xs text-zinc-400 space-y-1">
           <div className="font-medium text-zinc-300">How it works:</div>
           <ol className="list-decimal list-inside space-y-1 ml-1">
-            <li>Copy the prompt above (it already has your household members: <span className="text-zinc-300">{players.map(p => p.name).join(', ')}</span>)</li>
+            <li>Copy the prompt above (it already has your household members: <span className="text-zinc-300">{members.map(p => p.name).join(', ')}</span>)</li>
             <li>Open Claude.ai, paste the prompt + attach your credit report PDF or screenshot</li>
             <li>Tell Claude whose cards you're importing — e.g. <em>"These are Wife's cards"</em> or <em>"Mixed — assign each to the right person"</em></li>
-            <li>Claude outputs JSON with a <code className="text-zinc-300">player</code> field on each item</li>
-            <li>Paste the JSON in the Import box below — player assignment is automatic</li>
-            <li>Review the preview, set a fallback player for any unassigned items, then click Import</li>
+            <li>Claude outputs JSON with a <code className="text-zinc-300">member</code> field on each item</li>
+            <li>Paste the JSON in the Import box below — member assignment is automatic</li>
+            <li>Review the preview, set a fallback member for any unassigned items, then click Import</li>
           </ol>
         </div>
       </section>
@@ -366,13 +366,13 @@ export default function ImportExportView() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-base font-semibold text-white">Import JSON</h2>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-400">Fallback player for unassigned items:</span>
+            <span className="text-xs text-zinc-400">Fallback member for unassigned items:</span>
             <select
               className={inp}
-              value={fallbackPlayerId}
-              onChange={e => setFallbackPlayerId(e.target.value)}
+              value={fallbackMemberId}
+              onChange={e => setFallbackMemberId(e.target.value)}
             >
-              {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {members.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
         </div>
@@ -428,13 +428,13 @@ export default function ImportExportView() {
                         {' — '}{previewCards.map(c => c.cardName).filter(Boolean).join(', ')}
                       </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-2">
-                        {players.map(p => {
-                          const count = previewCards.filter(c => resolvePlayerId(c.player, players, null) === p.id).length
+                        {members.map(p => {
+                          const count = previewCards.filter(c => resolveMemberId(c.member, members, null) === p.id).length
                           if (!count) return null
                           return <span key={p.id} className="text-emerald-400">{p.name}: {count}</span>
                         })}
                         {cardDist.unresolved > 0 && (
-                          <span className="text-amber-400">{cardDist.unresolved} unassigned → {players.find(p => p.id === fallbackPlayerId)?.name ?? 'fallback'}</span>
+                          <span className="text-amber-400">{cardDist.unresolved} unassigned → {members.find(p => p.id === fallbackMemberId)?.name ?? 'fallback'}</span>
                         )}
                       </div>
                     </div>
@@ -448,13 +448,13 @@ export default function ImportExportView() {
                         {' — '}{previewAccounts.map(a => a.bankName).filter(Boolean).join(', ')}
                       </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-2">
-                        {players.map(p => {
-                          const count = previewAccounts.filter(a => resolvePlayerId(a.player, players, null) === p.id).length
+                        {members.map(p => {
+                          const count = previewAccounts.filter(a => resolveMemberId(a.member, members, null) === p.id).length
                           if (!count) return null
                           return <span key={p.id} className="text-emerald-400">{p.name}: {count}</span>
                         })}
                         {acctDist.unresolved > 0 && (
-                          <span className="text-amber-400">{acctDist.unresolved} unassigned → {players.find(p => p.id === fallbackPlayerId)?.name ?? 'fallback'}</span>
+                          <span className="text-amber-400">{acctDist.unresolved} unassigned → {members.find(p => p.id === fallbackMemberId)?.name ?? 'fallback'}</span>
                         )}
                       </div>
                     </div>
@@ -463,7 +463,7 @@ export default function ImportExportView() {
                   {hasUnresolved && (
                     <div className="flex items-start gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-md px-2.5 py-1.5 mt-1">
                       <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
-                      <span>Some items have no player name — they'll be assigned to the fallback player above. You can change it before importing.</span>
+                      <span>Some items have no member name — they'll be assigned to the fallback member above. You can change it before importing.</span>
                     </div>
                   )}
                 </div>

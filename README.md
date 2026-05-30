@@ -22,7 +22,7 @@ No backend, no subscription, no database server. The whole app is a static singl
   - [8. Senior Income Tracking](#8-senior-income-tracking)
   - [9. External Payer Monitor](#9-external-payer-monitor)
   - [10. Tax Liability Predictor](#10-tax-liability-predictor)
-  - [11. Player Management](#11-player-management)
+  - [11. Member Management](#11-member-management)
   - [12. Resources Hub](#12-resources-hub)
   - [13. Import / Export & AI Import Helper](#13-import--export--ai-import-helper)
   - [14. Data Sync (GitHub Gist)](#14-data-sync-github-gist)
@@ -38,16 +38,16 @@ No backend, no subscription, no database server. The whole app is a static singl
 
 ## Concept
 
-The household has **four "players"** by default, each with a role:
+The household has **four members** by default, each with a role:
 
-| Player | Role | Purpose |
+| Member | Role | Purpose |
 |--------|------|---------|
 | Me | `churner` | High-velocity churning |
 | Wife | `churner` | High-velocity churning |
 | Mom | `senior` | Retired, on Social Security |
 | Dad | `senior` | Retired, on Social Security |
 
-Players are **fully editable** — none of the names, colors, or roles are hardcoded. Add, rename, recolor, or delete players freely (see [Player Management](#11-player-management)). Every card, account, and rule check is attributed to a player.
+Members are **fully editable** — none of the names, colors, or roles are hardcoded. Add, rename, recolor, or delete members freely (see [Member Management](#11-member-management)). Every card, account, and rule check is attributed to a member.
 
 ---
 
@@ -58,7 +58,7 @@ Players are **fully editable** — none of the names, colors, or roles are hardc
 The home screen (`/`) is a prioritized command center, not a passive summary. **Every section is reorderable** — tap **Customize** to move sections up/down; the layout is saved per device (localStorage). Default order: Individual Summary → Application Eligibility → Credit Age & Usage → Spend Challenges → Action Items → Stats.
 
 - **Individual Summary** — per-person rollup of activity.
-- **Application Eligibility** — compact per-person issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
+- **Application Eligibility** — compact per-member issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
 - **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#7-credit-age--keep-alive-tracker)).
 - **Active Spend Challenges** — live progress bars for every card with an open minimum-spend requirement, showing dollars spent vs. required and days remaining.
 - **Action Queue** — a single ranked list of *everything you need to do*, pulled from every card and account (see [Action Engine](#2-action-engine-the-brain)). If nothing is pending, you get an "all caught up" state instead.
@@ -133,7 +133,7 @@ Every account shows a **balance bar** so you can instantly spot which accounts s
 
 ### 5. Issuer Rule Engines
 
-Page: `/rules`. Each issuer has a dedicated engine and a dashboard widget, evaluated **per player**:
+Page: `/rules`. Each issuer has a dedicated engine and a dashboard widget, evaluated **per member**:
 
 - **Chase 5/24** (`chase524.js`) — counts personal cards opened in the rolling 24-month window. **Every card in the window counts by default**; only cards flagged **Business** or **Authorized user** are excluded (these are the real exceptions to 5/24). Status: *safe* (<4), *warning* (exactly 4), *blocked* (≥5). Shows slots remaining and the date the next slot opens (oldest card in window + 24 months).
 - **Amex** (`amex.js`) — enforces **1 new Amex per 5 days** and **2 new Amex per 90 days**, computes next-eligible dates, and notes Amex's "once per lifetime" bonus language.
@@ -169,7 +169,7 @@ Also on the Eligibility page: the [Senior Income](#8-senior-income-tracking) wid
 
 `src/engines/creditAge.js` protects the ~15% of a FICO score driven by length of credit history:
 
-- **Average Age of Accounts (AAoA)** per player, across open, dated cards.
+- **Average Age of Accounts (AAoA)** per member, across open, dated cards.
 - **Keep-alive tracking on every open card** (not just the oldest) — each card gets a usage status: **Active** (used recently), **Use soon** (120+ days), **At risk** (180+ days), or **No usage date**.
 - **Three oldest cards starred** ⭐ as highest priority, since closing them shortens your history most.
 - **"Used Today" ⚡ button** on Keep Alive cards — one tap marks it used, no date entry. Only shown when the card is in Keep Alive status.
@@ -177,7 +177,7 @@ Also on the Eligibility page: the [Senior Income](#8-senior-income-tracking) wid
 
 ### 8. Senior Income Tracking
 
-`src/engines/seniorIncome.js` — tracks monthly Social Security and other accessible support for senior players, rolling up to annual SS, annual support, total accessible income per senior, and a combined household figure. Useful for sizing how much direct-deposit / spend capacity the seniors can realistically support.
+`src/engines/seniorIncome.js` — tracks monthly Social Security and other accessible support for senior members, rolling up to annual SS, annual support, total accessible income per senior, and a combined household figure. Useful for sizing how much direct-deposit / spend capacity the seniors can realistically support.
 
 ### 9. External Payer Monitor
 
@@ -187,14 +187,14 @@ A Rules-page widget (`ExternalPayerMonitor.jsx`, backed by `externalPayments` st
 
 Page: `/tax`. `src/engines/taxPredictor.js` summarizes the year's taxable income from churning:
 
-- **Bank account bonuses are taxable** (reported on a 1099-INT) — summed per player for the selected tax year.
+- **Bank account bonuses are taxable** (reported on a 1099-INT) — summed per member for the selected tax year.
 - **Credit-card sign-up bonuses are treated as rebates (tax-free)** — shown as $0.
-- Adjustable **federal tax bracket** (stored in settings) produces an **estimated federal tax** on bank bonuses, per player and household-wide.
+- Adjustable **federal tax bracket** (stored in settings) produces an **estimated federal tax** on bank bonuses, per member and household-wide.
 - Selectable tax year and a CSV-style export of the table.
 
-### 11. Player Management
+### 11. Member Management
 
-Page: `/players`. Full CRUD over the household: add a player, rename, change role (churner / senior), and recolor (the color drives the player badges everywhere). The app refuses to delete the last remaining player. No names are hardcoded anywhere.
+Page: `/members`. Full CRUD over the household: add a member, rename, change role (churner / senior), and recolor (the color drives the member badges everywhere). The app refuses to delete the last remaining member. No names are hardcoded anywhere.
 
 ### 12. Resources Hub
 
@@ -214,12 +214,12 @@ All links open in a new tab.
 Page: `/import`.
 
 - **Export** — downloads your full state as a JSON backup file.
-- **AI Import Helper** — the fastest way to bulk-load. The prompt is **generated dynamically** with your actual household member names (e.g. Me | Wife | Mom | Dad) so the AI knows exactly who to assign each card to. Copy the prompt, open Claude (or any AI chat), paste the prompt + your credit-report PDF or screenshot, tell the AI whose cards you're importing ("These are Wife's cards" or "assign each to the right person"), and paste the returned JSON back into the app. The AI outputs a `player` field on each item; the import automatically resolves it to the correct player. Works for single-person and multi-person imports in one batch.
+- **AI Import Helper** — the fastest way to bulk-load. The prompt is **generated dynamically** with your actual household member names (e.g. Me | Wife | Mom | Dad) so the AI knows exactly who to assign each card to. Copy the prompt, open Claude (or any AI chat), paste the prompt + your credit-report PDF or screenshot, tell the AI whose cards you're importing ("These are Wife's cards" or "assign each to the right person"), and paste the returned JSON back into the app. The AI outputs a `member` field on each item; the import automatically resolves it to the correct member. Works for single-person and multi-person imports in one batch.
   - Credit report import: extracts every open revolving account, maps "Date Opened" → openDate, skips closed accounts/loans/mortgages, auto-flags business cards and authorized-user accounts.
   - Manual/screenshot import: supports all fields including bonus details, spend requirements, DD requirements, annual fees, and status.
-  - A **fallback player** selector in the import UI handles any items the AI couldn't assign.
+  - A **fallback member** selector in the import UI handles any items the AI couldn't assign.
   - The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card.
-- **Import** — paste or file-load JSON, preview what will be added (with per-player assignment breakdown and an unassigned-items warning), then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
+- **Import** — paste or file-load JSON, preview what will be added (with per-member assignment breakdown and an unassigned-items warning), then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
 
 ### 14. Data Sync (GitHub Gist)
 
@@ -240,7 +240,7 @@ Page: `/import`.
 - **Configurable dashboard** — reorder sections per device.
 - **Issuer logos** — real brand logos via Google's public favicon service (no auth, no user data sent — just the public brand domain), with a brand-colored monogram fallback if a logo can't load.
 - **Error boundary** — a class-based React error boundary catches render errors and shows a recoverable screen instead of a blank page.
-- **Person color badges** and **status badges** for instant scanning.
+- **Member color badges** and **status badges** for instant scanning.
 
 ---
 
@@ -293,18 +293,18 @@ State (synced as `churner-data.json`):
 
 ```
 version
-players[]          { id, name, role: 'churner'|'senior', hex }
-creditCards[]      { id, playerId, status, cardName, issuer, last4,
+members[]          { id, name, role: 'churner'|'senior', hex }
+creditCards[]      { id, memberId, status, cardName, issuer, last4,
                      openDate, lastUsedDate, currentBalance, creditLimit,
                      spendRequirement, spendDeadlineDays, currentSpend,
                      bonusValue, bonusType, annualFee, bonusReceived,
                      bonusReceivedDate, isBusiness, isAuthorizedUser, notes }
-bankAccounts[]     { id, playerId, status, bankName, accountType, last4,
+bankAccounts[]     { id, memberId, status, bankName, accountType, last4,
                      openedDate, currentBalance, bonusAmount, bonusReceivedDate,
                      requiredDD, requiredDDCount, ddsMade, ddDeadlineDays,
                      ddLinkedDate, ddSourceDescription, minimumBalance,
                      bonusDeadlineDays, offerUrl, notes }
-seniorIncome       { [playerId]: { ssMonthly, accessibleSupport } }
+seniorIncome       { [memberId]: { ssMonthly, accessibleSupport } }
 externalPayments[]
 taxYear
 settings           { taxBracket }

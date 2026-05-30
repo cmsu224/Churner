@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { to: '/tax', icon: Calculator, label: 'Tax' },
   { to: '/resources', icon: Link2, label: 'Resources' },
   { to: '/import', icon: ArrowDownUp, label: 'Import' },
-  { to: '/players', icon: Users, label: 'Members' },
+  { to: '/members', icon: Users, label: 'Members' },
 ]
 
 export function SidebarNav({ collapsed, theme, onThemeToggle }) {

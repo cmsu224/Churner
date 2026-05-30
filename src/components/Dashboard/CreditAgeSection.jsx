@@ -128,10 +128,10 @@ function PlayerAge({ player, cards }) {
 
 export default function CreditAgeSection() {
   const { state } = useChurn()
-  const players = state.players ?? []
+  const players = state.members ?? []
 
   const playersWithCards = players.filter(
-    p => (state.creditCards ?? []).some(c => c.playerId === p.id && c.status !== 'Closed')
+    p => (state.creditCards ?? []).some(c => c.memberId === p.id && c.status !== 'Closed')
   )
 
   if (playersWithCards.length === 0) return null
@@ -147,7 +147,7 @@ export default function CreditAgeSection() {
           <PlayerAge
             key={player.id}
             player={player}
-            cards={(state.creditCards ?? []).filter(c => c.playerId === player.id)}
+            cards={(state.creditCards ?? []).filter(c => c.memberId === player.id)}
           />
         ))}
       </div>

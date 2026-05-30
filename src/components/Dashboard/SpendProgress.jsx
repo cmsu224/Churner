@@ -28,7 +28,7 @@ export default function SpendProgress({ card }) {
           <div className="text-sm font-medium text-white leading-tight">{card.cardName}</div>
           <div className="text-xs text-zinc-400">{card.issuer} ···{card.last4}</div>
         </div>
-        <PlayerBadge playerId={card.playerId} showName={false} />
+        <PlayerBadge memberId={card.memberId} showName={false} />
       </div>
       <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden mb-2">
         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${info.pct}%` }} />

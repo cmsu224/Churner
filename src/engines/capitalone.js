@@ -1,9 +1,9 @@
 // Capital One: typically 1 personal card per 6 months
-export function getCapitalOneStatus(playerId, allCreditCards) {
+export function getCapitalOneStatus(memberId, allCreditCards) {
   const now = new Date()
   const c1Cards = (allCreditCards ?? []).filter(c => {
     const iss = c.issuer?.toLowerCase() ?? ''
-    return c.playerId === playerId && (iss.includes('capital one') || iss.includes('capitalone'))
+    return c.memberId === memberId && (iss.includes('capital one') || iss.includes('capitalone'))
   })
 
   const cutoff6m = new Date(now); cutoff6m.setMonth(cutoff6m.getMonth() - 6)

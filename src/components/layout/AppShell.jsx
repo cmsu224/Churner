@@ -96,7 +96,7 @@ export default function AppShell() {
             <Route path="/tax" element={<TaxView />} />
             <Route path="/resources" element={<ResourcesView />} />
             <Route path="/import" element={<ImportExportView />} />
-            <Route path="/players" element={<PlayersView />} />
+            <Route path="/members" element={<PlayersView />} />
           </Routes>
         </main>
       </div>

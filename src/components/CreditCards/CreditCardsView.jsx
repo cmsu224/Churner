@@ -46,11 +46,11 @@ function groupByIssuer(cards) {
 
 export default function CreditCardsView() {
   const { state, dispatch } = useChurn()
-  const players = state.players ?? []
+  const members = state.members ?? []
   const allCards = state.creditCards ?? []
   const [adding, setAdding] = useState(false)
   const [newCard, setNewCard] = useState(null)
-  const [filterPlayer, setFilterPlayer] = useState('all')
+  const [filterMember, setFilterMember] = useState('all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [sortBy, setSortBy] = useState('newest')
 
@@ -80,7 +80,7 @@ export default function CreditCardsView() {
 
   function applyFiltersAndSort(cards) {
     let result = cards.filter(c => {
-      if (filterPlayer !== 'all' && c.playerId !== filterPlayer) return false
+      if (filterMember !== 'all' && c.memberId !== filterMember) return false
       if (filters.hideClosed && c.status === 'Closed') return false
       if (filters.statuses.length && !filters.statuses.includes(c.status)) return false
       if (filters.issuers.length) {
@@ -117,7 +117,7 @@ export default function CreditCardsView() {
 
   function startAdd() {
     setNewCard({
-      playerId: players[0]?.id ?? 'p1',
+      memberId: members[0]?.id ?? 'p1',
       cardName: '', issuer: '', last4: '',
       openDate: '', lastUsedDate: '', status: 'Active Churn',
       _statusSet: false, // tracks whether the user explicitly picked a status
@@ -178,13 +178,13 @@ export default function CreditCardsView() {
 
       {/* Person filter */}
       <div className="flex gap-2 mb-3 flex-wrap">
-        <Pill active={filterPlayer === 'all'} onClick={() => setFilterPlayer('all')}>All</Pill>
-        {players.map(p => (
+        <Pill active={filterMember === 'all'} onClick={() => setFilterMember('all')}>All</Pill>
+        {members.map(p => (
           <button
             key={p.id}
-            onClick={() => setFilterPlayer(p.id)}
+            onClick={() => setFilterMember(p.id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
-              filterPlayer === p.id ? 'bg-zinc-700 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-300'
+              filterMember === p.id ? 'bg-zinc-700 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-300'
             }`}
           >
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.hex }} />
@@ -237,8 +237,8 @@ export default function CreditCardsView() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-zinc-500 block mb-1">Person</label>
-                <select className={inp} value={newCard.playerId} onChange={e => setN('playerId', e.target.value)}>
-                  {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                <select className={inp} value={newCard.memberId} onChange={e => setN('memberId', e.target.value)}>
+                  {members.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>
@@ -354,7 +354,7 @@ export default function CreditCardsView() {
             </>
           ) : (
             <>
-              <div className="text-base font-medium text-zinc-400 mb-1">No cards{filterPlayer !== 'all' ? ' for this person' : ''}</div>
+              <div className="text-base font-medium text-zinc-400 mb-1">No cards{filterMember !== 'all' ? ' for this person' : ''}</div>
               <div className="text-sm">Click &ldquo;Add Card&rdquo; to get started.</div>
             </>
           )}
@@ -369,14 +369,14 @@ export default function CreditCardsView() {
                 <span className="text-xs text-zinc-500">{group.cards.length}</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {group.cards.map(card => <CardItem key={card.id} card={card} players={players} />)}
+                {group.cards.map(card => <CardItem key={card.id} card={card} members={members} />)}
               </div>
             </section>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filteredCards.map(card => <CardItem key={card.id} card={card} players={players} />)}
+          {filteredCards.map(card => <CardItem key={card.id} card={card} members={members} />)}
         </div>
       )}
     </div>

@@ -4,12 +4,12 @@ import { fmt$ } from '../../utils/format'
 
 export default function SeniorIncomeWidget() {
   const { state, dispatch } = useChurn()
-  const seniors = (state.players ?? []).filter(p => p.role === 'senior')
+  const seniors = (state.members ?? []).filter(p => p.role === 'senior')
   const report = getSeniorIncomeReport(state.seniorIncome)
 
-  function updateIncome(playerId, field, val) {
-    const current = state.seniorIncome?.[playerId] ?? { ssMonthly: 0, accessibleSupport: 0 }
-    dispatch({ type: 'UPDATE_SENIOR_INCOME', playerId, payload: { ...current, [field]: parseFloat(val) || 0 } })
+  function updateIncome(memberId, field, val) {
+    const current = state.seniorIncome?.[memberId] ?? { ssMonthly: 0, accessibleSupport: 0 }
+    dispatch({ type: 'UPDATE_SENIOR_INCOME', memberId, payload: { ...current, [field]: parseFloat(val) || 0 } })
   }
 
   const inp = 'w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors'

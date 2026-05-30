@@ -107,7 +107,7 @@ export default function DashboardView() {
       <section>
         <h2 className="text-base font-semibold text-white mb-3">Individual Summary</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {(state.players ?? []).map(player => (
+          {(state.members ?? []).map(player => (
             <PlayerSummaryCard key={player.id} player={player} />
           ))}
         </div>

@@ -142,11 +142,11 @@ function PlayerEligibility({ player, allCards }) {
 
 export default function EligibilitySection() {
   const { state } = useChurn()
-  const players = state.players ?? []
+  const players = state.members ?? []
   const allCards = state.creditCards ?? []
 
   const active = players.filter(p =>
-    allCards.some(c => c.playerId === p.id && c.status !== 'Closed')
+    allCards.some(c => c.memberId === p.id && c.status !== 'Closed')
   )
   if (active.length === 0) return null
 

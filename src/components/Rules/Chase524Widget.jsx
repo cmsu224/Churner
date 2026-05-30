@@ -4,7 +4,7 @@ import { fmtDate } from '../../utils/format'
 
 export default function Chase524Widget() {
   const { state } = useChurn()
-  const churners = (state.players ?? []).filter(p => p.role === 'churner')
+  const churners = (state.members ?? []).filter(p => p.role === 'churner')
 
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5">

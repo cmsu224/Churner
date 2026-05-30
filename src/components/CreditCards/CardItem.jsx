@@ -58,7 +58,7 @@ function getQuickActions(card) {
   }
 }
 
-export default function CardItem({ card, players }) {
+export default function CardItem({ card, members }) {
   const { dispatch } = useChurn()
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
@@ -172,7 +172,7 @@ export default function CardItem({ card, players }) {
                 {card.issuer && <span className="text-zinc-500 text-xs">{card.issuer}</span>}
               </div>
               <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
-                <PlayerBadge playerId={card.playerId} players={players} />
+                <PlayerBadge memberId={card.memberId} members={members} />
                 <StatusBadge status={card.status} />
                 {age && (
                   <span className="text-zinc-500 text-xs bg-zinc-800 px-1.5 py-0.5 rounded">
@@ -258,8 +258,8 @@ export default function CardItem({ card, players }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-400 block mb-1">Person</label>
-              <select className={inp} value={draft.playerId ?? ''} onChange={e => set('playerId', e.target.value)}>
-                {(players ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              <select className={inp} value={draft.memberId ?? ''} onChange={e => set('memberId', e.target.value)}>
+                {(members ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>

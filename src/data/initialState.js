@@ -1,4 +1,4 @@
-export const DEFAULT_PLAYERS = [
+export const DEFAULT_MEMBERS = [
   { id: 'p1', name: 'Me', role: 'churner', hex: '#3b82f6' },
   { id: 'p2', name: 'Wife', role: 'churner', hex: '#8b5cf6' },
   { id: 'p3', name: 'Mom', role: 'senior', hex: '#f59e0b' },
@@ -7,7 +7,7 @@ export const DEFAULT_PLAYERS = [
 
 export const INITIAL_STATE = {
   version: 2,
-  players: DEFAULT_PLAYERS,
+  members: DEFAULT_MEMBERS,
   creditCards: [],
   bankAccounts: [],
   seniorIncome: {},

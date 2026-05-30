@@ -37,9 +37,9 @@ function daysBetween(a, b) {
   return Math.ceil((a - b) / 86400000)
 }
 
-// One eligibility row per bank the player has touched.
-export function getBankEligibility(playerId, allBankAccounts) {
-  const accounts = (allBankAccounts ?? []).filter(a => a.playerId === playerId)
+// One eligibility row per bank the member has touched.
+export function getBankEligibility(memberId, allBankAccounts) {
+  const accounts = (allBankAccounts ?? []).filter(a => a.memberId === memberId)
   const byBank = {}
 
   for (const acct of accounts) {

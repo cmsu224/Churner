@@ -2,11 +2,11 @@
 // - Max 2 BofA cards in last 2 months
 // - Max 3 BofA cards in last 12 months
 // - Max 4 BofA cards in last 24 months
-export function getBofAStatus(playerId, allCreditCards) {
+export function getBofAStatus(memberId, allCreditCards) {
   const now = new Date()
   const bofaCards = (allCreditCards ?? []).filter(c => {
     const iss = c.issuer?.toLowerCase() ?? ''
-    return c.playerId === playerId && (iss.includes('bank of america') || iss.includes('bofa') || iss.includes('boa'))
+    return c.memberId === memberId && (iss.includes('bank of america') || iss.includes('bofa') || iss.includes('boa'))
   })
 
   const cutoff2m = new Date(now); cutoff2m.setMonth(cutoff2m.getMonth() - 2)

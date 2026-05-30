@@ -3,7 +3,7 @@ import { getBofAStatus } from '../../engines/bofa'
 
 export default function BofAWidget() {
   const { state } = useChurn()
-  const players = (state.players ?? []).filter(p => p.role === 'churner')
+  const players = (state.members ?? []).filter(p => p.role === 'churner')
 
   if (players.length === 0) return null
 

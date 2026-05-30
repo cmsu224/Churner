@@ -4,10 +4,32 @@ import { useGist } from '../hooks/useGist'
 
 const ChurnContext = createContext(null)
 
+// One-time migration: rename players→members, playerId→memberId in Gist data
+function migrateState(raw) {
+  if (!raw || raw.members !== undefined) return raw
+  const { players, ...rest } = raw
+  return {
+    ...rest,
+    members: players ?? [],
+    creditCards: (raw.creditCards ?? []).map(c => {
+      if ('playerId' in c) { const { playerId, ...r } = c; return { ...r, memberId: playerId } }
+      return c
+    }),
+    bankAccounts: (raw.bankAccounts ?? []).map(a => {
+      if ('playerId' in a) { const { playerId, ...r } = a; return { ...r, memberId: playerId } }
+      return a
+    }),
+    externalPayments: (raw.externalPayments ?? []).map(p => {
+      if ('payerPlayerId' in p) { const { payerPlayerId, ...r } = p; return { ...r, payerMemberId: payerPlayerId } }
+      return p
+    }),
+  }
+}
+
 function reducer(state, action) {
   switch (action.type) {
     case 'LOAD_STATE':
-      return { ...INITIAL_STATE, ...action.payload }
+      return { ...INITIAL_STATE, ...migrateState(action.payload) }
 
     case 'ADD_CARD':
       return { ...state, creditCards: [...state.creditCards, { ...action.payload, id: crypto.randomUUID() }] }
@@ -23,17 +45,17 @@ function reducer(state, action) {
     case 'DELETE_ACCOUNT':
       return { ...state, bankAccounts: state.bankAccounts.filter(a => a.id !== action.id) }
 
-    case 'ADD_PLAYER':
-      return { ...state, players: [...state.players, { ...action.payload, id: crypto.randomUUID() }] }
-    case 'UPDATE_PLAYER':
-      return { ...state, players: state.players.map(p => p.id === action.payload.id ? action.payload : p) }
-    case 'DELETE_PLAYER': {
-      if (state.players.length <= 1) return state
-      return { ...state, players: state.players.filter(p => p.id !== action.id) }
+    case 'ADD_MEMBER':
+      return { ...state, members: [...state.members, { ...action.payload, id: crypto.randomUUID() }] }
+    case 'UPDATE_MEMBER':
+      return { ...state, members: state.members.map(p => p.id === action.payload.id ? action.payload : p) }
+    case 'DELETE_MEMBER': {
+      if (state.members.length <= 1) return state
+      return { ...state, members: state.members.filter(p => p.id !== action.id) }
     }
 
     case 'UPDATE_SENIOR_INCOME':
-      return { ...state, seniorIncome: { ...state.seniorIncome, [action.playerId]: action.payload } }
+      return { ...state, seniorIncome: { ...state.seniorIncome, [action.memberId]: action.payload } }
 
     case 'ADD_EXTERNAL_PAYMENT':
       return { ...state, externalPayments: [...state.externalPayments, { ...action.payload, id: crypto.randomUUID() }] }

@@ -4,7 +4,7 @@ import Modal from '../shared/Modal'
 import PlayerBadge from '../shared/PlayerBadge'
 import { Plus, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react'
 
-const EMPTY_PMT = { cardId: '', payerPlayerId: 'p1', payerAccountLast4: '', usePortal: true, notes: '' }
+const EMPTY_PMT = { cardId: '', payerMemberId: 'p1', payerAccountLast4: '', usePortal: true, notes: '' }
 
 export default function ExternalPayerMonitor() {
   const { state, dispatch } = useChurn()
@@ -12,8 +12,8 @@ export default function ExternalPayerMonitor() {
   const [form, setForm] = useState({ ...EMPTY_PMT })
 
   const seniorCards = (state.creditCards ?? []).filter(c => {
-    const player = (state.players ?? []).find(p => p.id === c.playerId)
-    return player?.role === 'senior'
+    const member = (state.members ?? []).find(p => p.id === c.memberId)
+    return member?.role === 'senior'
   })
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
@@ -39,7 +39,7 @@ export default function ExternalPayerMonitor() {
         </button>
       </div>
       <p className="text-xs text-zinc-400 mb-4">
-        Track when Players 1/2 pay Mom or Dad&apos;s credit cards externally. Always use the card&apos;s online portal — never bank bill-pay.
+        Track when churners pay senior members&apos; credit cards externally. Always use the card&apos;s online portal — never bank bill-pay.
       </p>
 
       {(state.externalPayments ?? []).length === 0 ? (
@@ -48,7 +48,7 @@ export default function ExternalPayerMonitor() {
         <div className="space-y-2">
           {(state.externalPayments ?? []).map(pmt => {
             const card = seniorCards.find(c => c.id === pmt.cardId)
-            const cardPlayer = card ? (state.players ?? []).find(p => p.id === card.playerId) : null
+            const cardMember = card ? (state.members ?? []).find(p => p.id === card.memberId) : null
             return (
               <div
                 key={pmt.id}
@@ -59,10 +59,10 @@ export default function ExternalPayerMonitor() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-0.5">
                     <span className="text-sm text-white font-medium">{card?.cardName ?? 'Unknown card'}</span>
-                    {cardPlayer && <PlayerBadge playerId={cardPlayer.id} />}
+                    {cardMember && <PlayerBadge memberId={cardMember.id} />}
                   </div>
                   <div className="text-xs text-zinc-400">
-                    Paid by: <PlayerBadge playerId={pmt.payerPlayerId} /> acct ···{pmt.payerAccountLast4}
+                    Paid by: <PlayerBadge memberId={pmt.payerMemberId} /> acct ···{pmt.payerAccountLast4}
                   </div>
                   <div className={`flex items-center gap-1 mt-1 text-xs ${pmt.usePortal ? 'text-emerald-400' : 'text-red-400 font-semibold'}`}>
                     {pmt.usePortal ? <CheckCircle size={11} /> : <AlertTriangle size={11} />}
@@ -89,19 +89,19 @@ export default function ExternalPayerMonitor() {
               <select className={inp} value={form.cardId} onChange={e => set('cardId', e.target.value)}>
                 <option value="">Select card...</option>
                 {seniorCards.map(c => {
-                  const p = (state.players ?? []).find(pl => pl.id === c.playerId)
+                  const m = (state.members ?? []).find(ml => ml.id === c.memberId)
                   return (
                     <option key={c.id} value={c.id}>
-                      {c.cardName} ···{c.last4} ({p?.name ?? c.playerId})
+                      {c.cardName} ···{c.last4} ({m?.name ?? c.memberId})
                     </option>
                   )
                 })}
               </select>
             </div>
             <div>
-              <label className="text-xs text-zinc-300 block mb-1">Payer (Player 1 or 2)</label>
-              <select className={inp} value={form.payerPlayerId} onChange={e => set('payerPlayerId', e.target.value)}>
-                {(state.players ?? []).filter(p => p.role === 'churner').map(p => (
+              <label className="text-xs text-zinc-300 block mb-1">Payer (Churner)</label>
+              <select className={inp} value={form.payerMemberId} onChange={e => set('payerMemberId', e.target.value)}>
+                {(state.members ?? []).filter(p => p.role === 'churner').map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>

@@ -2,22 +2,19 @@
 // - 1 new Amex card per 5 days
 // - 2 new Amex cards per 90 days
 // - Lifetime language: once per lifetime on many cards (tracked manually via bonusReceived history)
-export function getAmexStatus(playerId, allCreditCards) {
+export function getAmexStatus(memberId, allCreditCards) {
   const now = new Date()
-  const amexCards = (allCreditCards ?? []).filter(c => c.playerId === playerId && c.issuer?.toLowerCase().includes('amex'))
+  const amexCards = (allCreditCards ?? []).filter(c => c.memberId === memberId && c.issuer?.toLowerCase().includes('amex'))
 
-  // 5-day rule
   const cutoff5d = new Date(now); cutoff5d.setDate(cutoff5d.getDate() - 5)
   const last5days = amexCards.filter(c => c.openDate && new Date(c.openDate) >= cutoff5d)
 
-  // 90-day rule
   const cutoff90d = new Date(now); cutoff90d.setDate(cutoff90d.getDate() - 90)
   const last90days = amexCards.filter(c => c.openDate && new Date(c.openDate) >= cutoff90d)
 
   const blocked5d = last5days.length >= 1
   const blocked90d = last90days.length >= 2
 
-  // Next eligible dates
   const sorted = [...amexCards].filter(c => c.openDate).sort((a, b) => new Date(b.openDate) - new Date(a.openDate))
   let nextEligible5d = null, nextEligible90d = null
   if (sorted.length > 0) {

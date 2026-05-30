@@ -37,7 +37,7 @@ function intOpt(v) {
   return isNaN(n) ? undefined : n
 }
 
-export default function AccountItem({ account, players }) {
+export default function AccountItem({ account, members }) {
   const { dispatch } = useChurn()
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
@@ -157,7 +157,7 @@ export default function AccountItem({ account, players }) {
                 )}
               </div>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
-                <PlayerBadge playerId={account.playerId} players={players} />
+                <PlayerBadge memberId={account.memberId} members={members} />
                 <StatusBadge status={account.status} />
                 {account.isTaxable && (
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
@@ -224,8 +224,8 @@ export default function AccountItem({ account, players }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-500 block mb-1">Person</label>
-              <select className={inp} value={draft.playerId ?? ''} onChange={e => set('playerId', e.target.value)}>
-                {(players ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              <select className={inp} value={draft.memberId ?? ''} onChange={e => set('memberId', e.target.value)}>
+                {(members ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>

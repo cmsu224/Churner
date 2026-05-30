@@ -1,9 +1,9 @@
 // Citi rules:
 // - 1 new Citi card per 8 days
 // - 2 new Citi cards per 65 days
-export function getCitiStatus(playerId, allCreditCards) {
+export function getCitiStatus(memberId, allCreditCards) {
   const now = new Date()
-  const citiCards = (allCreditCards ?? []).filter(c => c.playerId === playerId && c.issuer?.toLowerCase().includes('citi'))
+  const citiCards = (allCreditCards ?? []).filter(c => c.memberId === memberId && c.issuer?.toLowerCase().includes('citi'))
 
   const cutoff8d = new Date(now); cutoff8d.setDate(cutoff8d.getDate() - 8)
   const cutoff65d = new Date(now); cutoff65d.setDate(cutoff65d.getDate() - 65)

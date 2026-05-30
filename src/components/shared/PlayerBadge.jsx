@@ -1,21 +1,21 @@
 import { useChurn } from '../../store/ChurnContext'
 
-export default function PlayerBadge({ playerId, showName = true, players: playersProp }) {
-  let players = playersProp
+export default function MemberBadge({ memberId, showName = true, members: membersProp }) {
+  let members = membersProp
   try {
-    if (!players) {
+    if (!members) {
       const ctx = useChurn()
-      players = ctx?.state?.players
+      members = ctx?.state?.members
     }
   } catch {
-    players = []
+    members = []
   }
-  const player = (players ?? []).find(p => p.id === playerId)
-  if (!player) return null
+  const member = (members ?? []).find(p => p.id === memberId)
+  if (!member) return null
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: player.hex }} />
-      {showName && <span className="text-xs font-medium text-zinc-300">{player.name}</span>}
+      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: member.hex }} />
+      {showName && <span className="text-xs font-medium text-zinc-300">{member.name}</span>}
     </span>
   )
 }

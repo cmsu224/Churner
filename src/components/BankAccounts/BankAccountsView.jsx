@@ -39,11 +39,11 @@ function groupByBank(accounts) {
 
 export default function BankAccountsView() {
   const { state, dispatch } = useChurn()
-  const players = state.players ?? []
+  const members = state.members ?? []
   const allAccounts = state.bankAccounts ?? []
   const [adding, setAdding] = useState(false)
   const [newAcct, setNewAcct] = useState(null)
-  const [filterPlayer, setFilterPlayer] = useState('all')
+  const [filterMember, setFilterMember] = useState('all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [sortBy, setSortBy] = useState('newest')
 
@@ -74,7 +74,7 @@ export default function BankAccountsView() {
 
   function applyFiltersAndSort(accounts) {
     let result = accounts.filter(a => {
-      if (filterPlayer !== 'all' && a.playerId !== filterPlayer) return false
+      if (filterMember !== 'all' && a.memberId !== filterMember) return false
       if (filters.statuses.length && !filters.statuses.includes(a.status)) return false
       if (filters.banks.length) {
         const name = getIssuerMeta(a.bankName).name
@@ -102,7 +102,7 @@ export default function BankAccountsView() {
 
   function startAdd() {
     setNewAcct({
-      playerId: players[0]?.id ?? 'p1',
+      memberId: members[0]?.id ?? 'p1',
       bankName: '', accountType: 'Checking', last4: '',
       openedDate: '', status: 'Opened', currentBalance: '',
       requiredDD: '', requiredDDCount: '', ddsMade: '', ddDeadlineDays: '',
@@ -168,13 +168,13 @@ export default function BankAccountsView() {
 
       {/* Person filter */}
       <div className="flex gap-2 mb-3 flex-wrap">
-        <Pill active={filterPlayer === 'all'} onClick={() => setFilterPlayer('all')}>All</Pill>
-        {players.map(p => (
+        <Pill active={filterMember === 'all'} onClick={() => setFilterMember('all')}>All</Pill>
+        {members.map(p => (
           <button
             key={p.id}
-            onClick={() => setFilterPlayer(p.id)}
+            onClick={() => setFilterMember(p.id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
-              filterPlayer === p.id ? 'bg-zinc-700 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-300'
+              filterMember === p.id ? 'bg-zinc-700 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-300'
             }`}
           >
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.hex }} />
@@ -226,8 +226,8 @@ export default function BankAccountsView() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-zinc-500 block mb-1">Person</label>
-                <select className={inp} value={newAcct.playerId} onChange={e => setN('playerId', e.target.value)}>
-                  {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                <select className={inp} value={newAcct.memberId} onChange={e => setN('memberId', e.target.value)}>
+                  {members.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>
@@ -355,7 +355,7 @@ export default function BankAccountsView() {
             </>
           ) : (
             <>
-              <div className="text-base font-medium text-zinc-400 mb-1">No accounts{filterPlayer !== 'all' ? ' for this person' : ''}</div>
+              <div className="text-base font-medium text-zinc-400 mb-1">No accounts{filterMember !== 'all' ? ' for this person' : ''}</div>
               <div className="text-sm">Click &ldquo;Add Account&rdquo; to track a bank bonus.</div>
             </>
           )}
@@ -370,14 +370,14 @@ export default function BankAccountsView() {
                 <span className="text-xs text-zinc-500">{group.accounts.length}</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {group.accounts.map(acct => <AccountItem key={acct.id} account={acct} players={players} />)}
+                {group.accounts.map(acct => <AccountItem key={acct.id} account={acct} members={members} />)}
               </div>
             </section>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filteredAccounts.map(acct => <AccountItem key={acct.id} account={acct} players={players} />)}
+          {filteredAccounts.map(acct => <AccountItem key={acct.id} account={acct} members={members} />)}
         </div>
       )}
     </div>
