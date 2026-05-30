@@ -14,9 +14,19 @@ import ResourcesView from '../Resources/ResourcesView'
 import ImportExportView from '../ImportExport/ImportExportView'
 
 export default function AppShell() {
-  const { gist } = useChurn()
+  const { gist, dispatch } = useChurn()
   const { theme, toggle: toggleTheme } = useTheme()
   const [collapsed, setCollapsed] = useState(false)
+
+  async function retrySync() {
+    const data = await gist.loadFromGist()
+    if (data) dispatch({ type: 'LOAD_STATE', payload: data })
+  }
+
+  function reconnect() {
+    gist.disconnect()
+    window.location.reload()
+  }
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024)
 
   useEffect(() => {
@@ -79,9 +89,25 @@ export default function AppShell() {
               {syncIcon}
               <span>{syncLabel}</span>
               {gist.error && (
-                <span className="text-red-400 ml-1 truncate max-w-[200px]" title={gist.error}>
-                  — {gist.error}
-                </span>
+                <>
+                  <span className="text-red-400 ml-1 truncate max-w-[160px]" title={gist.error}>
+                    — {gist.error}
+                  </span>
+                  <button
+                    onClick={retrySync}
+                    className="text-xs text-blue-400 hover:text-blue-300 underline ml-1"
+                    title="Retry sync"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    onClick={reconnect}
+                    className="text-xs text-zinc-400 hover:text-white underline ml-1"
+                    title="Disconnect and re-enter PAT"
+                  >
+                    Reconnect
+                  </button>
+                </>
               )}
             </div>
           </div>

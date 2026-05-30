@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
 import { INITIAL_STATE } from '../data/initialState'
 import { useGist } from '../hooks/useGist'
 
@@ -77,12 +77,16 @@ function reducer(state, action) {
 export function ChurnProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE)
   const gist = useGist()
+  const loadDone = useRef(false)
 
   useEffect(() => {
     if (gist.isConfigured) {
       gist.loadFromGist().then(data => {
         if (data) dispatch({ type: 'LOAD_STATE', payload: data })
+        loadDone.current = true
       })
+    } else {
+      loadDone.current = true
     }
   }, [gist.isConfigured])
 
@@ -91,7 +95,8 @@ export function ChurnProvider({ children }) {
   }, [gist.saveToGist])
 
   useEffect(() => {
-    if (gist.isConfigured) save(state)
+    if (!gist.isConfigured || !loadDone.current) return
+    save(state)
   }, [state])
 
   return (
