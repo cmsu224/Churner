@@ -5,6 +5,7 @@ import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
 import { getIssuerMeta } from '../../utils/issuers'
 import { CARD_STATUSES } from '../../utils/statusMeta'
+import { getSmartCardStatus } from '../../engines/lifecycle'
 import { Plus, X } from 'lucide-react'
 
 const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
@@ -42,6 +43,7 @@ export default function CreditCardsView() {
       playerId: players[0]?.id ?? 'p1',
       cardName: '', issuer: '', last4: '',
       openDate: '', lastUsedDate: '', status: 'Active Churn',
+      _statusSet: false, // tracks whether the user explicitly picked a status
       spendRequirement: '', spendDeadlineDays: '', currentSpend: '',
       currentBalance: '', creditLimit: '',
       bonusValue: '', bonusType: 'cashback', bonusReceived: false, bonusReceivedDate: '',
@@ -57,21 +59,27 @@ export default function CreditCardsView() {
 
   function saveAdd() {
     if (!newCard?.cardName?.trim()) return
-    dispatch({
-      type: 'ADD_CARD', payload: {
-        ...newCard,
-        spendRequirement: newCard.spendRequirement !== '' && newCard.spendRequirement != null ? parseFloat(newCard.spendRequirement) : undefined,
-        spendDeadlineDays: newCard.spendDeadlineDays !== '' && newCard.spendDeadlineDays != null ? parseInt(newCard.spendDeadlineDays) : undefined,
-        currentSpend: parseFloat(newCard.currentSpend) || 0,
-        currentBalance: parseFloat(newCard.currentBalance) || 0,
-        creditLimit: parseFloat(newCard.creditLimit) || 0,
-        bonusValue: newCard.bonusValue !== '' && newCard.bonusValue != null ? parseFloat(newCard.bonusValue) : undefined,
-        annualFee: parseFloat(newCard.annualFee) || 0,
-        openDate: newCard.openDate || null,
-        lastUsedDate: newCard.lastUsedDate || null,
-        bonusReceivedDate: newCard.bonusReceivedDate || null,
-      }
-    })
+    const payload = {
+      ...newCard,
+      spendRequirement: newCard.spendRequirement !== '' && newCard.spendRequirement != null ? parseFloat(newCard.spendRequirement) : undefined,
+      spendDeadlineDays: newCard.spendDeadlineDays !== '' && newCard.spendDeadlineDays != null ? parseInt(newCard.spendDeadlineDays) : undefined,
+      currentSpend: parseFloat(newCard.currentSpend) || 0,
+      currentBalance: parseFloat(newCard.currentBalance) || 0,
+      creditLimit: parseFloat(newCard.creditLimit) || 0,
+      bonusValue: newCard.bonusValue !== '' && newCard.bonusValue != null ? parseFloat(newCard.bonusValue) : undefined,
+      annualFee: parseFloat(newCard.annualFee) || 0,
+      openDate: newCard.openDate || null,
+      lastUsedDate: newCard.lastUsedDate || null,
+      bonusReceivedDate: newCard.bonusReceivedDate || null,
+    }
+    delete payload._statusSet
+    // Auto-compute status from age when the user left it at the default
+    if (!newCard._statusSet) {
+      const smart = getSmartCardStatus(payload)
+      payload.status = smart.status
+      if (smart.bonusReceived) payload.bonusReceived = true
+    }
+    dispatch({ type: 'ADD_CARD', payload })
     cancelAdd()
   }
 
@@ -131,7 +139,7 @@ export default function CreditCardsView() {
               </div>
               <div>
                 <label className="text-xs text-zinc-500 block mb-1">Status</label>
-                <select className={inp} value={newCard.status} onChange={e => setN('status', e.target.value)}>
+                <select className={inp} value={newCard.status} onChange={e => { setN('status', e.target.value); setN('_statusSet', true) }}>
                   {CARD_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>

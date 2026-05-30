@@ -7,7 +7,7 @@ import BalanceBar from '../shared/BalanceBar'
 import DateField from '../shared/DateField'
 import { getSpendDeadlineInfo, getCardNextStatus } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
-import { CARD_STATUSES } from '../../utils/statusMeta'
+import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
 import { fmt$ } from '../../utils/format'
 import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw } from 'lucide-react'
 
@@ -24,15 +24,17 @@ const btnColors = {
 
 function getQuickActions(card) {
   const today = new Date().toISOString().slice(0, 10)
+  const hasBonus = Number(card.spendRequirement) > 0 || Number(card.bonusValue) > 0
   switch (card.status) {
     case 'Applied':
       return [
         { label: 'Card Arrived', color: 'blue', payload: { status: 'Active Churn' } },
       ]
     case 'Active Churn':
-      return [
-        { label: '✓ Bonus Received', color: 'emerald', payload: { bonusReceived: true, status: 'Bonus Met', bonusReceivedDate: today } },
-      ]
+      // Only show bonus button if card actually has a sign-up bonus
+      return hasBonus
+        ? [{ label: '✓ Bonus Received', color: 'emerald', payload: { bonusReceived: true, status: 'Bonus Met', bonusReceivedDate: today } }]
+        : [{ label: '→ Keep Alive', color: 'zinc', payload: { status: 'Keep Alive' } }]
     case 'Bonus Met':
       return [
         { label: 'Annual Fee Decision', color: 'amber', payload: { status: 'Retention Call Due' } },
@@ -167,6 +169,11 @@ export default function CardItem({ card, players }) {
                     {age.label}
                   </span>
                 )}
+                {card.annualFee > 0 && (
+                  <span className="text-zinc-400 text-xs bg-zinc-800 px-1.5 py-0.5 rounded">
+                    ${Math.round(card.annualFee)}/yr
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -200,7 +207,7 @@ export default function CardItem({ card, players }) {
         <BalanceBar balance={card.currentBalance ?? 0} limit={card.creditLimit ?? 0} kind="card" />
 
         {nextStatus && !expanded && (
-          <div className="mt-1.5 text-xs text-amber-400">→ Suggest: {nextStatus}</div>
+          <div className="mt-1.5 text-xs text-amber-400">→ {statusLabel(nextStatus)}</div>
         )}
       </div>
 

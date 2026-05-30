@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { useChurn } from '../../store/ChurnContext'
+import { getSmartCardStatus } from '../../engines/lifecycle'
 import { Download, Upload, Copy, Check, AlertTriangle, ExternalLink } from 'lucide-react'
 
 const AI_PROMPT = `Convert the following into JSON for my Churner tracking app. I'm giving you EITHER a credit report, OR screenshots / a list of my credit cards and bank accounts.
@@ -69,27 +70,39 @@ function parseImport(text) {
 }
 
 function mergeAiImport(state, aiData, defaultPlayerId) {
-  const newCards = (aiData.creditCards ?? []).map(c => ({
-    id: crypto.randomUUID(),
-    playerId: defaultPlayerId,
-    cardName: c.cardName ?? '',
-    issuer: c.issuer ?? '',
-    last4: c.last4 ?? '',
-    openDate: c.openDate ?? null,
-    lastUsedDate: c.lastUsedDate ?? null,
-    status: c.status ?? 'Active Churn',
-    spendRequirement: c.spendRequirement ?? undefined,
-    spendDeadlineDays: c.spendDeadlineDays ?? undefined,
-    currentSpend: c.currentSpend ?? 0,
-    bonusValue: c.bonusValue ?? undefined,
-    bonusType: c.bonusType ?? 'cashback',
-    bonusReceived: c.bonusReceived ?? false,
-    bonusReceivedDate: c.bonusReceivedDate ?? null,
-    annualFee: c.annualFee ?? 0,
-    isBusiness: c.isBusiness ?? false,
-    isAuthorizedUser: c.isAuthorizedUser ?? false,
-    notes: c.notes ?? '',
-  }))
+  const newCards = (aiData.creditCards ?? []).map(c => {
+    const base = {
+      id: crypto.randomUUID(),
+      playerId: defaultPlayerId,
+      cardName: c.cardName ?? '',
+      issuer: c.issuer ?? '',
+      last4: c.last4 ?? '',
+      openDate: c.openDate ?? null,
+      lastUsedDate: c.lastUsedDate ?? null,
+      spendRequirement: c.spendRequirement ?? undefined,
+      spendDeadlineDays: c.spendDeadlineDays ?? undefined,
+      currentSpend: c.currentSpend ?? 0,
+      bonusValue: c.bonusValue ?? undefined,
+      bonusType: c.bonusType ?? 'cashback',
+      bonusReceived: c.bonusReceived ?? false,
+      bonusReceivedDate: c.bonusReceivedDate ?? null,
+      annualFee: c.annualFee ?? 0,
+      isBusiness: c.isBusiness ?? false,
+      isAuthorizedUser: c.isAuthorizedUser ?? false,
+      notes: c.notes ?? '',
+    }
+    // Apply age-based smart status unless explicit bonus data says otherwise.
+    // Credit reports don't include bonus info, so the AI's status guess is unreliable.
+    const hasExplicitBonus = c.bonusReceived || c.bonusReceivedDate
+    if (!hasExplicitBonus) {
+      const smart = getSmartCardStatus(base)
+      base.status = smart.status
+      base.bonusReceived = smart.bonusReceived
+    } else {
+      base.status = c.status ?? 'Active Churn'
+    }
+    return base
+  })
 
   const newAccounts = (aiData.bankAccounts ?? []).map(a => {
     const openedDate = a.openedDate ?? null

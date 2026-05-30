@@ -55,14 +55,39 @@ export function getSpendDeadlineInfo(card) {
 
 export function getCardNextStatus(card) {
   if (!card) return null
-  const { status, bonusReceived, openDate } = card
-  if (status === 'Active Churn' && bonusReceived) return 'Bonus Met'
-  if ((status === 'Bonus Met' || status === 'Retention Call Due') && openDate) {
+  const { status, openDate } = card
+  // Only age-based suggestions — bonus-received transition is handled by quick-action buttons
+  if (status === 'Bonus Met' && openDate) {
     const months = monthsDiff(new Date(openDate), new Date())
     if (months >= 13) return 'Downgrade/Close Due'
     if (months >= 11) return 'Retention Call Due'
   }
   return null
+}
+
+// Infer the most appropriate status from a card's age and bonus configuration.
+// Used when importing cards from a credit report (where bonus status is unknown)
+// and when saving a manually-entered card whose status wasn't explicitly chosen.
+export function getSmartCardStatus(card) {
+  const openDate = card.openDate ? new Date(card.openDate) : null
+  const hasBonus = Number(card.spendRequirement) > 0 || Number(card.bonusValue) > 0
+
+  if (!openDate) {
+    return { status: hasBonus ? 'Active Churn' : 'Keep Alive', bonusReceived: false }
+  }
+
+  const months = monthsDiff(openDate, new Date())
+
+  if (!hasBonus) {
+    // Points/perks card with no sign-up bonus — keep it alive
+    return { status: 'Keep Alive', bonusReceived: false }
+  }
+
+  // Bonus card: map age to lifecycle stage
+  if (months < 6)  return { status: 'Active Churn',        bonusReceived: false }
+  if (months < 11) return { status: 'Bonus Met',            bonusReceived: true  }
+  if (months < 14) return { status: 'Retention Call Due',   bonusReceived: true  }
+  return               { status: 'Keep Alive',             bonusReceived: true  }
 }
 
 function monthsDiff(from, to) {
