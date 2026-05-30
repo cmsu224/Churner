@@ -125,6 +125,8 @@ Page: `/rules`. Each issuer has a dedicated engine and a dashboard widget, evalu
 
 A compact **Application Eligibility** section also appears on the Dashboard showing per-person mini-bars for every issuer window that has at least one card actively counted. Only shows issuers with current activity — if all windows are empty, the section stays hidden.
 
+**Bank bonus eligibility** (`bankEligibility.js`) — the bank equivalent of card re-eligibility. For each bank a person has used, it shows when they can earn that bank's new-account bonus again, based on a per-bank cooldown measured from the last bonus received (or last account opened if none yet). Known windows include Chase ~24mo, Wells Fargo ~12mo, Capital One/TD ~12mo, and once-per-lifetime banks like Discover and SoFi; unknown banks default to a conservative 24 months. Windows are estimates flagged to verify on Doctor of Credit. Shown per person on the Eligibility page as **Bank Bonus Eligibility** (eligible now / cooldown countdown + date / lifetime).
+
 Also on the Eligibility page: the [Senior Income](#8-senior-income-tracking) widget and the [External Payer Monitor](#9-external-payer-monitor).
 
 ### 6. Card Lifecycle: Annual Fees, Retention & Re-Eligibility
