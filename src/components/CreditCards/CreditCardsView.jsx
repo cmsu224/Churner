@@ -224,7 +224,7 @@ export default function CreditCardsView() {
           <Chip active={filters.hasBalance}    onClick={() => setFilters(f => ({ ...f, hasBalance: !f.hasBalance }))}>Has balance</Chip>
           <Chip active={filters.hasAnnualFee}  onClick={() => setFilters(f => ({ ...f, hasAnnualFee: !f.hasAnnualFee }))}>Has annual fee</Chip>
           <Chip active={filters.bonusPending}  onClick={() => setFilters(f => ({ ...f, bonusPending: !f.bonusPending }))}>Bonus pending</Chip>
-          <Chip active={filters.hideClosed}    onClick={() => setFilters(f => ({ ...f, hideClosed: !f.hideClosed }))}>Hide closed</Chip>
+          <Chip active={filters.hideClosed}    onClick={() => setFilters(f => ({ ...f, hideClosed: !f.hideClosed }))}>Hide closed/downgraded</Chip>
         </FilterRow>
       </FilterBar>
 

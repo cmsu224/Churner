@@ -2,6 +2,7 @@ import { getSpendDeadlineInfo, getAnnualFeeInfo, getReeligibilityInfo } from './
 import { getClawbackStatus } from './clawbackShield'
 import { getKeepAliveCards } from './creditAge'
 import { fmt$ } from '../utils/format'
+import { isRetired } from '../utils/statusMeta'
 
 function mName(members, memberId) {
   return (members ?? []).find(p => p.id === memberId)?.name ?? ''
@@ -21,7 +22,7 @@ export function generateActionItems(state) {
 
   // ── CREDIT CARDS ──────────────────────────────────────────────────────────
   for (const card of (state.creditCards ?? [])) {
-    if (card.status === 'Closed') continue
+    if (isRetired(card)) continue
     const n = cardLabel(card)
     const pn = mName(members, card.memberId)
 
@@ -73,7 +74,7 @@ export function generateActionItems(state) {
     if (card.openDate && (card.annualFee ?? 0) > 0) {
       const open = new Date(card.openDate)
       const months = (new Date().getFullYear() - open.getFullYear()) * 12 + (new Date().getMonth() - open.getMonth())
-      if (months >= 10 && months <= 12 && card.status !== 'Downgrade/Close Due' && card.status !== 'Closed') {
+      if (months >= 10 && months <= 12 && card.status !== 'Downgrade/Close Due' && !isRetired(card)) {
         const alreadyHasFeeAlert = items.some(i => i.cardId === card.id && i.category === 'annual_fee')
         if (!alreadyHasFeeAlert) {
           items.push({ id: `retention-${card.id}`, type: 'info', category: 'annual_fee', cardId: card.id, memberId: card.memberId,

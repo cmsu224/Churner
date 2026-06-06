@@ -7,7 +7,7 @@ export default function PlayerSummaryCard({ player }) {
   const { state } = useChurn()
   const cards = (state.creditCards ?? []).filter(c => c.memberId === player.id)
   const accounts = (state.bankAccounts ?? []).filter(a => a.memberId === player.id)
-  const activeCards = cards.filter(c => c.status !== 'Closed')
+  const activeCards = cards.filter(c => c.status !== 'Closed' && c.status !== 'Downgraded')
   const cardPipeline = cards
     .filter(c => !c.bonusReceived && (c.bonusValue ?? 0) > 0)
     .reduce((s, c) => s + (c.bonusValue ?? 0), 0)

@@ -160,7 +160,8 @@ function mergeAiImport(state, aiData, members, fallbackMemberId) {
       base.status = smart.status
       base.bonusReceived = smart.bonusReceived
     } else {
-      base.status = c.status ?? 'Active Churn'
+      const VALID_STATUSES = ['Applied', 'Active Churn', 'Bonus Met', 'Keep Alive', 'Downgrade/Close Due', 'Closed']
+      base.status = VALID_STATUSES.includes(c.status) ? c.status : 'Active Churn'
     }
     return base
   })

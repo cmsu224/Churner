@@ -1,3 +1,5 @@
+import { isRetired } from '../utils/statusMeta'
+
 // Credit age & keep-alive engine.
 // Length of credit history is ~15% of a FICO score, and issuers typically close
 // cards after 12+ months of inactivity — which can shorten your history and drop
@@ -35,7 +37,7 @@ export function daysSinceUsed(card) {
 
 // Average Age of Accounts across a player's OPEN, dated cards.
 export function getAccountAgeStats(cards) {
-  const dated = (cards ?? []).filter(c => c.status !== 'Closed' && c.openDate)
+  const dated = (cards ?? []).filter(c => !isRetired(c) && c.openDate)
   if (dated.length === 0) return { count: 0, aaoaMonths: 0, aaoaLabel: '—', oldest: null }
   const totalMonths = dated.reduce((s, c) => s + (getCardAge(c)?.totalMonths ?? 0), 0)
   const aaoaMonths = Math.round(totalMonths / dated.length)
@@ -55,7 +57,7 @@ function usageStatusFor(dsu) {
 // ALL open cards for a player, oldest first, each with age + usage status.
 // The first OLDEST_PRIORITY_COUNT cards are flagged isOldest (highest priority).
 export function getKeepAliveCards(playerCards) {
-  const open = (playerCards ?? []).filter(c => c.status !== 'Closed')
+  const open = (playerCards ?? []).filter(c => !isRetired(c))
   // Dated cards sorted oldest-first, then undated cards at the end.
   const dated = open.filter(c => c.openDate).sort((a, b) => new Date(a.openDate) - new Date(b.openDate))
   const undated = open.filter(c => !c.openDate)

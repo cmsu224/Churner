@@ -27,3 +27,7 @@ for (const s of [...CARD_STATUSES, ...ACCOUNT_STATUSES]) LABELS[s.value] = s.lab
 export function statusLabel(value) {
   return LABELS[value] ?? value ?? 'Unknown'
 }
+
+export function isRetired(card) {
+  return card?.status === 'Closed' || card?.status === 'Downgraded'
+}

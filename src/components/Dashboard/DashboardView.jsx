@@ -42,7 +42,7 @@ export default function DashboardView() {
   const [order, setOrder] = useState(loadOrder)
   const [customizing, setCustomizing] = useState(false)
 
-  const activeCards = (state.creditCards ?? []).filter(c => c.status !== 'Closed')
+  const activeCards = (state.creditCards ?? []).filter(c => c.status !== 'Closed' && c.status !== 'Downgraded')
   const activeAccounts = (state.bankAccounts ?? []).filter(a => a.status !== 'Closed')
 
   const cashPipeline =
@@ -54,7 +54,7 @@ export default function DashboardView() {
       .reduce((s, a) => s + (a.bonusAmount ?? 0), 0)
 
   const pendingSpend = (state.creditCards ?? []).filter(c => {
-    if (c.status === 'Closed') return false
+    if (c.status === 'Closed' || c.status === 'Downgraded') return false
     return (c.spendRequirement ?? 0) > 0 && (c.currentSpend ?? 0) < (c.spendRequirement ?? 0)
   })
 

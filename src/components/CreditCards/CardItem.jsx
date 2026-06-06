@@ -60,8 +60,9 @@ export default function CardItem({ card, members }) {
   const [confirming, setConfirming] = useState(false)
   const [undoSnapshot, setUndoSnapshot] = useState(null)
   const [showDowngradeInput, setShowDowngradeInput] = useState(false)
-  const [downgradingTo, setDowgradingTo] = useState('')
+  const [downgradingTo, setDowngradingTo] = useState('')
   const undoTimerRef = useRef(null)
+
 
   const info = getSpendDeadlineInfo(card)
   const nextStatus = getCardNextStatus(card)
@@ -71,6 +72,7 @@ export default function CardItem({ card, members }) {
   const reeligibility = isClosed ? getReeligibilityInfo(card) : null
 
   useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
+  useEffect(() => { setShowDowngradeInput(false) }, [card.status])
 
   function startEdit() {
     setDraft({ ...card })
@@ -133,14 +135,18 @@ export default function CardItem({ card, members }) {
 
   function confirmDowngrade(e) {
     e.stopPropagation()
+    if (card.status !== 'Downgrade/Close Due') return
     if (!downgradingTo.trim()) return
+    // Clear any stale undo snapshot so it can't leave an orphan Keep Alive card
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    setUndoSnapshot(null)
     dispatch({ type: 'UPDATE_CARD', payload: { ...card, status: 'Downgraded', downgradedToCard: downgradingTo.trim() } })
     dispatch({ type: 'ADD_CARD', payload: {
       memberId: card.memberId,
       cardName: downgradingTo.trim(),
       issuer: card.issuer,
       last4: card.last4,
-      openDate: card.openDate,
+      openDate: null, // user fills in — avoids inheriting original card's 5/24-counted open date
       status: 'Keep Alive',
       currentBalance: 0,
       creditLimit: card.creditLimit ?? 0,
@@ -149,7 +155,7 @@ export default function CardItem({ card, members }) {
       isAuthorizedUser: card.isAuthorizedUser,
     }})
     setShowDowngradeInput(false)
-    setDowgradingTo('')
+    setDowngradingTo('')
   }
 
   // Edit form section visibility
@@ -263,7 +269,9 @@ export default function CardItem({ card, members }) {
             )
           ) : reeligibility && !reeligibility.months ? (
             <div className="mt-1.5 text-xs text-zinc-600">{reeligibility.note}</div>
-          ) : null
+          ) : (
+            <div className="mt-1.5 text-xs text-zinc-600">Re-eligibility tracked after bonus is earned</div>
+          )
         ) : (
           <>
             <BalanceBar balance={card.currentBalance ?? 0} limit={card.creditLimit ?? 0} kind="card" />
@@ -275,14 +283,14 @@ export default function CardItem({ card, members }) {
       </div>
 
       {/* Quick action buttons — only shown when collapsed */}
-      {!expanded && (quickActions.length > 0 || undoSnapshot || card.status === 'Downgrade/Close Due') && (
+      {!expanded && (quickActions.length > 0 || undoSnapshot) && (
         <div className="px-4 pb-3 pt-0 flex gap-2 flex-wrap items-center border-t border-zinc-800">
           {showDowngradeInput ? (
             <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center" onClick={e => e.stopPropagation()}>
               <input
                 autoFocus
                 value={downgradingTo}
-                onChange={e => setDowgradingTo(e.target.value)}
+                onChange={e => setDowngradingTo(e.target.value)}
                 placeholder="New free card name (e.g. Freedom)"
                 className="flex-1 min-w-0 bg-zinc-800 border border-zinc-600 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
                 onKeyDown={e => { if (e.key === 'Enter') confirmDowngrade(e); if (e.key === 'Escape') { e.stopPropagation(); setShowDowngradeInput(false) } }}

@@ -7,6 +7,7 @@ const COLOR_MAP = {
   'Keep Alive': 'bg-teal-500/20 text-teal-300 border-teal-500/30',
   'Retention Call Due': 'bg-orange-500/20 text-orange-300 border-orange-500/30',
   'Downgrade/Close Due': 'bg-red-500/20 text-red-300 border-red-500/30',
+  'Downgraded': 'bg-violet-500/20 text-violet-300 border-violet-500/30',
   'Closed': 'bg-zinc-600/20 text-zinc-400 border-zinc-600/30',
   'Opened': 'bg-sky-500/20 text-sky-300 border-sky-500/30',
   'DD Linked': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
