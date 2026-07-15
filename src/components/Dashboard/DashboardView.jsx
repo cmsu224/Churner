@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
-import { generateActionItems } from '../../engines/actionItems'
+import { useActionItems } from '../../hooks/useActionItems'
 import ActionQueue from './ActionQueue'
 import PlayerSummaryCard from './PlayerSummaryCard'
 import SpendProgress from './SpendProgress'
@@ -38,7 +38,7 @@ function loadOrder() {
 
 export default function DashboardView() {
   const { state } = useChurn()
-  const items = generateActionItems(state)
+  const { active: actionItems } = useActionItems()
   const [order, setOrder] = useState(loadOrder)
   const [customizing, setCustomizing] = useState(false)
 
@@ -123,8 +123,8 @@ export default function DashboardView() {
         </div>
       </section>
     ) : null,
-    actions: items.length > 0 ? (
-      <ActionQueue items={items} state={state} />
+    actions: actionItems.length > 0 ? (
+      <ActionQueue members={state.members ?? []} />
     ) : (
       <div className="bg-surface border border-success/20 rounded-xl p-5 flex items-center gap-3">
         <CheckCircle size={18} className="text-success-ink flex-shrink-0" />

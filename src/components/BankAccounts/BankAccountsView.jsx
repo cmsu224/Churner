@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
+import { useHighlight } from '../../hooks/useHighlight'
 import AccountItem from './AccountItem'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
@@ -46,6 +48,16 @@ export default function BankAccountsView() {
   const [filterMember, setFilterMember] = useState('all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [sortBy, setSortBy] = useState('newest')
+
+  // Deep links from the command palette: ?add=1 opens the add form,
+  // ?highlight=<id> scrolls to and flashes an account.
+  const location = useLocation()
+  const wantsAdd = new URLSearchParams(location.search).get('add') === '1'
+  useHighlight()
+  useEffect(() => {
+    if (wantsAdd) startAdd()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per deep-link navigation
+  }, [wantsAdd, location.key])
 
   const availableBanks = [...new Set(
     allAccounts.map(a => getIssuerMeta(a.bankName).name).filter(n => n && n !== 'Other')
@@ -107,7 +119,7 @@ export default function BankAccountsView() {
       openedDate: '', status: 'Opened', currentBalance: '',
       requiredDD: '', requiredDDCount: '', ddsMade: '', ddDeadlineDays: '',
       ddSourceDescription: '', ddLinkedDate: '',
-      minimumBalance: '', bonusDeadlineDays: '',
+      minimumBalance: '', bonusDeadlineDays: '', etfDays: '',
       bonusAmount: '', bonusReceivedDate: '', isTaxable: true,
       offerUrl: '', notes: '',
     })
@@ -139,6 +151,7 @@ export default function BankAccountsView() {
         requiredDDCount: intOpt(newAcct.requiredDDCount),
         ddsMade: intOpt(newAcct.ddsMade),
         bonusDeadlineDays: intOpt(newAcct.bonusDeadlineDays),
+        etfDays: intOpt(newAcct.etfDays),
         last4: newAcct.last4 ? String(newAcct.last4).slice(-4) : undefined,
         openedDate,
         ddLinkedDate: newAcct.ddLinkedDate || null,

@@ -1,19 +1,41 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
 import { useTheme } from '../../hooks/useTheme'
-import { Sun, Moon, Users, Link2, ArrowDownUp, CheckCircle, AlertCircle } from 'lucide-react'
+import { Sun, Moon, Users, Link2, ArrowDownUp, CheckCircle, AlertCircle, Bell, BellOff } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 
 export default function SettingsView() {
-  const { gist } = useChurn()
+  const { gist, state, dispatch } = useChurn()
   const { theme, toggle: toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const [pat, setPat] = useState('')
   const [gistId, setGistId] = useState(gist.getGistId())
   const [saveStatus, setSaveStatus] = useState(null)
+
+  const notifyEnabled = !!state.settings?.notifyEnabled
+  const notifSupported = typeof window !== 'undefined' && 'Notification' in window
+  const [permission, setPermission] = useState(notifSupported ? Notification.permission : 'unsupported')
+  const pointValueCents = state.settings?.pointValueCents ?? 1
+
+  async function toggleNotifications() {
+    if (notifyEnabled) {
+      dispatch({ type: 'SET_SETTING', key: 'notifyEnabled', value: false })
+      return
+    }
+    if (!notifSupported) return
+    let perm = Notification.permission
+    if (perm === 'default') perm = await Notification.requestPermission()
+    setPermission(perm)
+    if (perm === 'granted') {
+      dispatch({ type: 'SET_SETTING', key: 'notifyEnabled', value: true })
+      try {
+        new Notification('Churner', { body: 'Notifications are on — you’ll hear about newly critical items while the app is open.' })
+      } catch { /* ignore */ }
+    }
+  }
 
   function currentPat() {
     return localStorage.getItem('churner_pat') ?? ''
@@ -47,6 +69,63 @@ export default function SettingsView() {
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             Switch to {theme === 'dark' ? 'light' : 'dark'} mode
           </button>
+        </div>
+      </section>
+
+      {/* Notifications */}
+      <section className="bg-surface border border-edge rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-ink mb-1">Notifications</h2>
+        <p className="text-xs text-ink-tertiary mb-4">
+          While the app is open, get a browser notification the moment an action item turns critical.
+          For reminders when the app is <em>closed</em>, use <Link to="/timeline" className="text-accent-ink hover:underline">Export .ics on the Timeline page</Link> and
+          subscribe in Google/Apple Calendar — that's the reliable channel for a static app like this one.
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm text-ink font-medium">Browser notifications</div>
+            <div className="text-xs text-ink-tertiary mt-0.5">
+              {!notifSupported
+                ? 'Not supported by this browser.'
+                : permission === 'denied'
+                ? 'Blocked by the browser — allow notifications for this site in your browser settings, then try again.'
+                : notifyEnabled
+                ? 'On — fires for newly critical items while the app is open.'
+                : 'Off. This device will ask for permission when you enable it.'}
+            </div>
+          </div>
+          <button
+            onClick={toggleNotifications}
+            disabled={!notifSupported || permission === 'denied'}
+            className="flex items-center gap-2 bg-raised hover:bg-overlay border border-edge-strong text-ink-secondary hover:text-ink disabled:opacity-40 text-sm font-medium px-4 py-2 rounded-lg transition-colors flex-shrink-0"
+          >
+            {notifyEnabled ? <BellOff size={15} /> : <Bell size={15} />}
+            {notifyEnabled ? 'Turn off' : 'Turn on'}
+          </button>
+        </div>
+      </section>
+
+      {/* Earnings valuation */}
+      <section className="bg-surface border border-edge rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-ink mb-1">Earnings Valuation</h2>
+        <p className="text-xs text-ink-tertiary mb-4">
+          The Earnings page values points/miles bonuses at this rate unless a card has its own cash value set. Cash bonuses always count at face value.
+        </p>
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-ink font-medium" htmlFor="point-value">Point value</label>
+          <input
+            id="point-value"
+            type="number"
+            min="0.1"
+            max="10"
+            step="0.1"
+            value={pointValueCents}
+            onChange={e => {
+              const v = parseFloat(e.target.value)
+              if (!Number.isNaN(v) && v > 0) dispatch({ type: 'SET_SETTING', key: 'pointValueCents', value: v })
+            }}
+            className={`${inp} w-24`}
+          />
+          <span className="text-sm text-ink-muted">¢ per point</span>
         </div>
       </section>
 

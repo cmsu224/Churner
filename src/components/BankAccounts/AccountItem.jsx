@@ -74,6 +74,7 @@ export default function AccountItem({ account, members }) {
         requiredDDCount: intOpt(draft.requiredDDCount),
         ddsMade: intOpt(draft.ddsMade),
         bonusDeadlineDays: intOpt(draft.bonusDeadlineDays),
+        etfDays: intOpt(draft.etfDays),
         last4: draft.last4 ? String(draft.last4).slice(-4) : undefined,
         openedDate,
         ddLinkedDate: draft.ddLinkedDate || null,
@@ -130,7 +131,7 @@ export default function AccountItem({ account, members }) {
     : false
 
   return (
-    <div className="bg-surface border border-edge-strong rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
+    <div id={`item-${account.id}`} className="bg-surface border border-edge rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
       {/* Collapsed header */}
       <button
         className="w-full text-left p-4"
@@ -278,6 +279,10 @@ export default function AccountItem({ account, members }) {
                   <label className="text-xs text-ink-muted block mb-1">Bonus Deadline (days)</label>
                   <input type="number" min="1" className={inp} value={draft.bonusDeadlineDays ?? ''} onChange={e => set('bonusDeadlineDays', e.target.value)} placeholder="120" />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-ink-muted block mb-1">Early-Termination Fee Window (days)</label>
+                <input type="number" min="1" className={inp} value={draft.etfDays ?? ''} onChange={e => set('etfDays', e.target.value)} placeholder="e.g. 180 — closing before this may cost a fee" />
               </div>
               {showMinBalance && (
                 <div>
