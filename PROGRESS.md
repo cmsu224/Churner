@@ -19,7 +19,7 @@ log — if a session is interrupted, resume from "NEXT STEPS" below.
 - [ ] A3 Earnings (/earnings) + engines/earnings.js + SVG charts (load dataviz skill first)
 - [ ] A4 Notification center (bell in AppShell) + Browser Notification API + Settings section
 - [ ] A5 Command palette (Ctrl/Cmd-K) + highlight-on-jump (?highlight= param in views)
-- [ ] A6 Spend logging (card spend log UI) + engines/burnRate.js + new action-item type `spend_pace`
+- [x] A6 Spend logging (card spend log UI) + engines/burnRate.js + new action-item type `spend_pace`
 - [ ] A7 What-if simulator (/simulator) + engines/whatIf.js (5/24 + velocity forward projection)
 - [ ] B retrofit polish: empty/loading/error states, micro-interactions, reduced-motion, a11y,
       responsive; route transitions; Modal focus trap
@@ -68,10 +68,24 @@ log — if a session is interrupted, resume from "NEXT STEPS" below.
   taxPredictor, seniorIncome.
 - index.html applies `.dark` class pre-render; keep inline fallback colors in sync.
 
-## NEXT STEPS
+## NEXT STEPS (updated after subagents hit usage limits mid-flight)
 
-1. Foundations commit 1: tokens + retrofit + atoms.
-2. Foundations commit 2: state shape + reducer + migration.
-3. Spawn subagents for A1/A2/A3/A7 (new-file features) with specs; do A4/A5/A6 + retrofit
-   serially (they touch shared files: AppShell, Settings, CardItem, Dashboard, actionItems).
-4. Integration, verification, README, delete PROGRESS.md, push, PR.
+Subagents for A1/A2/A3/A7 were killed by session limits; their PARTIAL output is committed:
+- A1: engines/events.js + utils/ics.js + Timeline/TimelineView.jsx exist (agent had smoke-tested
+  events.js; ics.js untested) — REVIEW all three, fix, wire.
+- A2: Applications/RuleCheckPanel.jsx + ApplicationItem.jsx exist; **ApplicationsView.jsx is
+  MISSING — write it** (spec: PageHeader+Add form+member/status filters+pipeline StatCards+
+  in-flight/decided groups, ?add=1 + useHighlight, docs/AGENT_BRIEF.md has full field list).
+- A3: engines/earnings.js + Earnings/charts.jsx exist; **EarningsView.jsx MISSING — write it**
+  (stats row, monthly stacked SVG chart, per-member bars, per-item receipts table).
+- A7: nothing written — build engines/whatIf.js + Simulator/SimulatorView.jsx from scratch
+  (5/24 24-month projection + velocity verdicts; spec in git history / task list).
+- A4 in progress by orchestrator: hooks/useActionItems.js DONE (committed); still need:
+  layout/NotificationCenter.jsx, AppShell bell wiring, Settings notifications+point-value
+  sections, ActionQueue rework onto synced dismiss/snooze.
+- A5 not started: CommandPalette component + AppShell mount + Ctrl/Cmd-K; card/account/app/
+  route/action index; /cards ?add&logspend&highlight deep links ALREADY supported.
+- Then: B polish pass, NavBar/AppShell route integration (routes /applications /timeline
+  /earnings /simulator /more), verification (incl. v2-state backward-compat load via
+  playwright + api.github.com interception), README sync, delete PROGRESS.md + AGENT_BRIEF.md,
+  PR.
