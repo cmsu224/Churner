@@ -20,9 +20,19 @@ export const ACCOUNT_STATUSES = [
   { value: 'Safe to Close',  label: 'Safe to Close' },
 ]
 
+// Application funnel statuses (stored lowercase to stay distinct from the
+// card status 'Applied').
+export const APPLICATION_STATUSES = [
+  { value: 'planned', label: 'Planned' },
+  { value: 'applied', label: 'Applied' },
+  { value: 'pending', label: 'Pending Review' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'denied', label: 'Denied' },
+]
+
 // Keep removed statuses in the label map so existing saved data still displays correctly
 const LABELS = { 'Retention Call Due': 'Annual Fee Decision' }
-for (const s of [...CARD_STATUSES, ...ACCOUNT_STATUSES]) LABELS[s.value] = s.label
+for (const s of [...CARD_STATUSES, ...ACCOUNT_STATUSES, ...APPLICATION_STATUSES]) LABELS[s.value] = s.label
 
 export function statusLabel(value) {
   return LABELS[value] ?? value ?? 'Unknown'

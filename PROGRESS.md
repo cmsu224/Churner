@@ -7,10 +7,10 @@ log — if a session is interrupted, resume from "NEXT STEPS" below.
 ## Status checklist
 
 - [x] Audit of full codebase + README
-- [ ] Foundation 1 (B): design token layer — tailwind.config tokens + CSS custom props,
+- [x] Foundation 1 (B): design token layer — tailwind.config tokens + CSS custom props,
       retrofit all views off zinc classes, shared atoms (Button/EmptyState/Skeleton/Field/StatCard),
       delete index.css override hack + dead files (App.css, assets/hero.png, react.svg, vite.svg)
-- [ ] Foundation 2 (A): state shape — applications[], per-card spendLog[], notifications
+- [x] Foundation 2 (A): state shape — applications[], per-card spendLog[], notifications
       {seen,dismissed,snoozed}, settings.pointValueCents + notifyEnabled, card fields
       (bonusCashValue, feeWaivedFirstYear, closedDate), account field (etfDays), reducer actions
       (APPLICATION CRUD, LOG_SPEND, CONVERT_APPLICATION, notification actions), migrateState v3
