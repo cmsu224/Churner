@@ -173,18 +173,18 @@ export default function ResourcesView() {
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-xl font-bold text-white mb-1">Resources</h1>
-        <p className="text-sm text-zinc-400">Everything you need — no Googling required.</p>
+        <h1 className="text-xl font-bold text-ink mb-1">Resources</h1>
+        <p className="text-sm text-ink-muted">Everything you need — no Googling required.</p>
       </div>
 
       {/* Quick Tips */}
       <section>
-        <h2 className="text-base font-semibold text-white mb-3">Quick Rules to Never Forget</h2>
+        <h2 className="text-base font-semibold text-ink mb-3">Quick Rules to Never Forget</h2>
         <div className="space-y-2">
           {QUICK_TIPS.map((tip, i) => (
-            <div key={i} className="flex gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
-              <span className="text-blue-400 font-bold text-sm flex-shrink-0">{i + 1}.</span>
-              <p className="text-sm text-zinc-300 leading-relaxed">{tip}</p>
+            <div key={i} className="flex gap-3 bg-surface border border-edge rounded-lg px-4 py-3">
+              <span className="text-accent-ink font-bold text-sm flex-shrink-0">{i + 1}.</span>
+              <p className="text-sm text-ink-secondary leading-relaxed">{tip}</p>
             </div>
           ))}
         </div>
@@ -193,7 +193,7 @@ export default function ResourcesView() {
       {/* Link sections */}
       {SECTIONS.map(section => (
         <section key={section.title}>
-          <h2 className="text-base font-semibold text-white mb-3">{section.title}</h2>
+          <h2 className="text-base font-semibold text-ink mb-3">{section.title}</h2>
           <div className="space-y-2">
             {section.items.map(item => (
               <a
@@ -201,16 +201,16 @@ export default function ResourcesView() {
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-start gap-3 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-xl p-4 transition-colors group"
+                className="flex items-start gap-3 bg-surface border border-edge hover:border-edge-strong rounded-xl p-4 transition-colors group"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-sm font-semibold text-white group-hover:text-blue-300 transition-colors">{item.label}</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-500 px-2 py-0.5 rounded-full">{item.source}</span>
+                    <span className="text-sm font-semibold text-ink group-hover:text-accent-ink transition-colors">{item.label}</span>
+                    <span className="text-xs bg-raised text-ink-tertiary px-2 py-0.5 rounded-full">{item.source}</span>
                   </div>
-                  <p className="text-xs text-zinc-400 leading-relaxed">{item.desc}</p>
+                  <p className="text-xs text-ink-muted leading-relaxed">{item.desc}</p>
                 </div>
-                <ExternalLink size={14} className="text-zinc-600 group-hover:text-zinc-400 flex-shrink-0 mt-1 transition-colors" />
+                <ExternalLink size={14} className="text-ink-faint group-hover:text-ink-muted flex-shrink-0 mt-1 transition-colors" />
               </a>
             ))}
           </div>

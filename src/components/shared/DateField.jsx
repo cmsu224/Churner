@@ -5,7 +5,7 @@ import { X } from 'lucide-react'
 // cleared by keyboard in most browsers — this wraps it to fix that.
 export default function DateField({ value, onChange, className }) {
   const v = value ? String(value).slice(0, 10) : ''
-  const base = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors'
+  const base = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent transition-colors'
   return (
     <div className="relative">
       <input
@@ -25,7 +25,7 @@ export default function DateField({ value, onChange, className }) {
           type="button"
           onClick={() => onChange('')}
           title="Clear date"
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-tertiary hover:text-ink transition-colors"
         >
           <X size={14} />
         </button>

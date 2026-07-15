@@ -35,10 +35,10 @@ export default function AppShell() {
   }, [])
 
   const syncIcon = gist.syncing
-    ? <RefreshCw size={13} className="animate-spin text-blue-400" />
+    ? <RefreshCw size={13} className="animate-spin text-accent-ink" />
     : gist.error
-    ? <AlertCircle size={13} className="text-red-400" />
-    : <CheckCircle size={13} className="text-emerald-400" />
+    ? <AlertCircle size={13} className="text-danger-ink" />
+    : <CheckCircle size={13} className="text-success-ink" />
 
   const syncLabel = gist.syncing
     ? 'Syncing...'
@@ -49,18 +49,18 @@ export default function AppShell() {
     : 'Not synced yet'
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex">
+    <div className="min-h-screen bg-base text-ink flex">
       {isDesktop && (
         <aside
-          className={`flex-shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col transition-all duration-200 ${
+          className={`flex-shrink-0 bg-surface border-r border-edge flex flex-col transition-all duration-200 ${
             collapsed ? 'w-16' : 'w-56'
           }`}
         >
-          <div className="flex items-center justify-between px-3 py-4 border-b border-zinc-800">
-            {!collapsed && <span className="font-bold text-white text-base">Churner</span>}
+          <div className="flex items-center justify-between px-3 py-4 border-b border-edge">
+            {!collapsed && <span className="font-bold text-ink text-base">Churner</span>}
             <button
               onClick={() => setCollapsed(c => !c)}
-              className="ml-auto text-zinc-400 hover:text-white transition-colors p-1 rounded"
+              className="ml-auto text-ink-muted hover:text-ink transition-colors p-1 rounded"
             >
               {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             </button>
@@ -70,26 +70,26 @@ export default function AppShell() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between flex-shrink-0">
-          {!isDesktop && <span className="font-bold text-white text-base">Churner</span>}
+        <header className="bg-surface border-b border-edge px-4 py-3 flex items-center justify-between flex-shrink-0">
+          {!isDesktop && <span className="font-bold text-ink text-base">Churner</span>}
           {isDesktop && <div />}
-          <div className="flex items-center gap-1.5 text-xs text-zinc-400 ml-auto">
+          <div className="flex items-center gap-1.5 text-xs text-ink-muted ml-auto">
             {syncIcon}
             <span>{syncLabel}</span>
             {gist.error && (
               <>
-                <span className="text-red-400 ml-1 truncate max-w-[160px]" title={gist.error}>
+                <span className="text-danger-ink ml-1 truncate max-w-[160px]" title={gist.error}>
                   — {gist.error}
                 </span>
                 <button
                   onClick={retrySync}
-                  className="text-xs text-blue-400 hover:text-blue-300 underline ml-1"
+                  className="text-xs text-accent-ink hover:text-accent-ink underline ml-1"
                 >
                   Retry
                 </button>
                 <button
                   onClick={reconnect}
-                  className="text-xs text-zinc-400 hover:text-white underline ml-1"
+                  className="text-xs text-ink-muted hover:text-ink underline ml-1"
                 >
                   Reconnect
                 </button>

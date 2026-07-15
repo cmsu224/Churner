@@ -18,13 +18,13 @@ function chaseNextSlot(cards) {
 
 function MiniBar({ value, max, blocked }) {
   const pct = max > 0 ? Math.min(1, value / max) : 0
-  const color = blocked ? 'bg-red-500' : pct >= 0.8 ? 'bg-amber-500' : 'bg-blue-500'
+  const color = blocked ? 'bg-danger' : pct >= 0.8 ? 'bg-warning' : 'bg-info'
   return (
     <div className="flex items-center gap-1.5 flex-1 min-w-0">
-      <div className="flex-1 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-overlay rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct * 100}%` }} />
       </div>
-      <span className={`text-xs font-mono flex-shrink-0 ${blocked ? 'text-red-400' : 'text-zinc-400'}`}>
+      <span className={`text-xs font-mono flex-shrink-0 ${blocked ? 'text-danger-ink' : 'text-ink-muted'}`}>
         {value}/{max}
       </span>
     </div>
@@ -34,11 +34,11 @@ function MiniBar({ value, max, blocked }) {
 function IssuerRow({ label, value, max, blocked, nextDate }) {
   return (
     <div className="flex items-center gap-2 py-1">
-      <span className="text-xs text-zinc-500 w-24 flex-shrink-0">{label}</span>
+      <span className="text-xs text-ink-tertiary w-24 flex-shrink-0">{label}</span>
       <MiniBar value={value} max={max} blocked={blocked} />
       {blocked && nextDate
-        ? <span className="text-xs text-zinc-500 flex-shrink-0">next: {fmtDateShort(nextDate)}</span>
-        : <span className="text-xs text-zinc-600 flex-shrink-0">{max - value} open</span>
+        ? <span className="text-xs text-ink-tertiary flex-shrink-0">next: {fmtDateShort(nextDate)}</span>
+        : <span className="text-xs text-ink-faint flex-shrink-0">{max - value} open</span>
       }
     </div>
   )
@@ -130,10 +130,10 @@ function PlayerEligibility({ player, allCards }) {
   if (rows.length === 0) return null
 
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4">
+    <div className="bg-surface border border-edge-strong rounded-xl p-4">
       <div className="flex items-center gap-2 mb-2">
         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: player.hex }} />
-        <span className="font-semibold text-white text-sm">{player.name}</span>
+        <span className="font-semibold text-ink text-sm">{player.name}</span>
       </div>
       <div>{rows}</div>
     </div>
@@ -160,8 +160,8 @@ export default function EligibilitySection() {
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-semibold text-white">Application Eligibility</h2>
-        <span className="text-xs text-zinc-500">Active issuer windows</span>
+        <h2 className="text-base font-semibold text-ink">Application Eligibility</h2>
+        <span className="text-xs text-ink-tertiary">Active issuer windows</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {panels}

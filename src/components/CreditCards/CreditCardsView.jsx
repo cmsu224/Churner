@@ -5,7 +5,7 @@ import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
 import FilterBar, { Pill, MultiPill, Chip, FilterRow } from '../shared/FilterBar'
 import { getIssuerMeta } from '../../utils/issuers'
-import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
+import { CARD_STATUSES } from '../../utils/statusMeta'
 import { getSmartCardStatus } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { Plus, X } from 'lucide-react'
@@ -26,8 +26,8 @@ const AGE_RANGES = [
 ]
 const DEFAULT_FILTERS = { statuses: [], issuers: [], ageRange: 'any', hasBalance: false, hasAnnualFee: false, bonusPending: false, hideClosed: false }
 
-const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
-const inpRequired = 'w-full bg-zinc-800 border border-blue-500/60 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400 transition-colors'
+const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
+const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 
 // Group cards by issuer; "Other" bucket last.
 function groupByIssuer(cards) {
@@ -167,11 +167,11 @@ export default function CreditCardsView() {
   return (
     <div className="p-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-white">Credit Cards</h1>
+        <h1 className="text-xl font-bold text-ink">Credit Cards</h1>
         {!adding && (
           <button
             onClick={startAdd}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-ink text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
           >
             <Plus size={14} />Add Card
           </button>
@@ -186,7 +186,7 @@ export default function CreditCardsView() {
             key={p.id}
             onClick={() => setFilterMember(p.id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
-              filterMember === p.id ? 'bg-zinc-700 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-300'
+              filterMember === p.id ? 'bg-overlay text-ink' : 'bg-raised text-ink-muted hover:text-ink-secondary'
             }`}
           >
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.hex }} />
@@ -230,21 +230,21 @@ export default function CreditCardsView() {
 
       {/* Add Card inline form */}
       {adding && newCard && (
-        <div className="bg-zinc-900 border border-blue-500/40 rounded-xl overflow-hidden mb-4">
+        <div className="bg-surface border border-accent/40 rounded-xl overflow-hidden mb-4">
           <div className="flex items-center justify-between p-4 pb-2">
-            <span className="text-sm font-semibold text-white">New Card</span>
-            <button onClick={cancelAdd} className="text-zinc-500 hover:text-zinc-300 transition-colors"><X size={15} /></button>
+            <span className="text-sm font-semibold text-ink">New Card</span>
+            <button onClick={cancelAdd} className="text-ink-tertiary hover:text-ink-secondary transition-colors"><X size={15} /></button>
           </div>
           <div className="p-4 pt-2 space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Person</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Person</label>
                 <select className={inp} value={newCard.memberId} onChange={e => setN('memberId', e.target.value)}>
                   {members.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Status</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Status</label>
                 <select className={inp} value={newCard.status} onChange={e => { setN('status', e.target.value); setN('_statusSet', true) }}>
                   {CARD_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
@@ -252,68 +252,68 @@ export default function CreditCardsView() {
             </div>
 
             <div>
-              <label className="text-xs text-blue-400 block mb-1 font-medium">Card Name <span className="text-blue-400">*required</span></label>
+              <label className="text-xs text-accent-ink block mb-1 font-medium">Card Name <span className="text-accent-ink">*required</span></label>
               <input className={inpRequired} value={newCard.cardName} onChange={e => setN('cardName', e.target.value)} placeholder="e.g. Sapphire Preferred" autoFocus />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Issuer</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Issuer</label>
                 <input list="new-issuers" className={inp} value={newCard.issuer} onChange={e => setN('issuer', e.target.value)} placeholder="Chase" />
                 <datalist id="new-issuers">
                   {['Chase', 'Amex', 'Capital One', 'Citi', 'Bank of America', 'Barclays', 'Wells Fargo', 'US Bank', 'Discover'].map(i => <option key={i} value={i} />)}
                 </datalist>
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Last 4</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Last 4</label>
                 <input className={inp} value={newCard.last4} onChange={e => setN('last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="optional" maxLength={4} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Open Date</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Open Date</label>
                 <DateField value={newCard.openDate} onChange={v => setN('openDate', v)} />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Last Used</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Last Used</label>
                 <DateField value={newCard.lastUsedDate} onChange={v => setN('lastUsedDate', v)} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Current Balance ($)</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
                 <input type="number" min="0" className={inp} value={newCard.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Credit Limit ($)</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Credit Limit ($)</label>
                 <input type="number" min="0" className={inp} value={newCard.creditLimit} onChange={e => setN('creditLimit', e.target.value)} placeholder="optional" />
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Spend Req ($)</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Spend Req ($)</label>
                 <input type="number" min="0" className={inp} value={newCard.spendRequirement} onChange={e => setN('spendRequirement', e.target.value)} placeholder="4000" />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Days</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Days</label>
                 <input type="number" min="1" className={inp} value={newCard.spendDeadlineDays} onChange={e => setN('spendDeadlineDays', e.target.value)} placeholder="90" />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Spent ($)</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Spent ($)</label>
                 <input type="number" min="0" className={inp} value={newCard.currentSpend} onChange={e => setN('currentSpend', e.target.value)} placeholder="0" />
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Bonus</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Bonus</label>
                 <input type="number" min="0" className={inp} value={newCard.bonusValue} onChange={e => setN('bonusValue', e.target.value)} placeholder="pts/$" />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Type</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Type</label>
                 <select className={inp} value={newCard.bonusType} onChange={e => setN('bonusType', e.target.value)}>
                   <option value="points">Points</option>
                   <option value="cashback">Cash</option>
@@ -321,42 +321,42 @@ export default function CreditCardsView() {
                 </select>
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Annual Fee</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Annual Fee</label>
                 <input type="number" min="0" className={inp} value={newCard.annualFee} onChange={e => setN('annualFee', e.target.value)} placeholder="0" />
               </div>
             </div>
 
             <div className="flex flex-wrap gap-x-4 gap-y-2">
-              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
                 <input type="checkbox" checked={!!newCard.isBusiness} onChange={e => setN('isBusiness', e.target.checked)} />
                 Business card
               </label>
-              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
                 <input type="checkbox" checked={!!newCard.isAuthorizedUser} onChange={e => setN('isAuthorizedUser', e.target.checked)} />
                 Authorized user
               </label>
             </div>
-            <p className="text-xs text-zinc-600 -mt-1">Personal cards count toward Chase 5/24. Check these only to exclude a card.</p>
+            <p className="text-xs text-ink-faint -mt-1">Personal cards count toward Chase 5/24. Check these only to exclude a card.</p>
 
             <div className="flex gap-2 pt-1">
-              <button onClick={cancelAdd} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors">Cancel</button>
-              <button onClick={saveAdd} disabled={!newCard.cardName?.trim()} className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Add Card</button>
+              <button onClick={cancelAdd} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
+              <button onClick={saveAdd} disabled={!newCard.cardName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-ink font-semibold py-2 rounded-lg text-sm transition-colors">Add Card</button>
             </div>
           </div>
         </div>
       )}
 
       {filteredCards.length === 0 && closedCards.length === 0 && !adding ? (
-        <div className="text-center py-12 text-zinc-500">
+        <div className="text-center py-12 text-ink-tertiary">
           <div className="text-4xl mb-3">💳</div>
           {activeCount > 0 ? (
             <>
-              <div className="text-base font-medium text-zinc-400 mb-1">No cards match these filters</div>
-              <button onClick={clearFilters} className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Clear filters</button>
+              <div className="text-base font-medium text-ink-muted mb-1">No cards match these filters</div>
+              <button onClick={clearFilters} className="text-sm text-accent-ink hover:text-accent-ink transition-colors">Clear filters</button>
             </>
           ) : (
             <>
-              <div className="text-base font-medium text-zinc-400 mb-1">No cards{filterMember !== 'all' ? ' for this person' : ''}</div>
+              <div className="text-base font-medium text-ink-muted mb-1">No cards{filterMember !== 'all' ? ' for this person' : ''}</div>
               <div className="text-sm">Click &ldquo;Add Card&rdquo; to get started.</div>
             </>
           )}
@@ -369,8 +369,8 @@ export default function CreditCardsView() {
                 <section key={group.meta.key}>
                   <div className="flex items-center gap-2 mb-2">
                     <IssuerLogo name={group.meta.key === 'other' ? '' : group.meta.name} size={22} />
-                    <h2 className="text-sm font-semibold text-white">{group.meta.name}</h2>
-                    <span className="text-xs text-zinc-500">{group.cards.length}</span>
+                    <h2 className="text-sm font-semibold text-ink">{group.meta.name}</h2>
+                    <span className="text-xs text-ink-tertiary">{group.cards.length}</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {group.cards.map(card => <CardItem key={card.id} card={card} members={members} />)}
@@ -386,9 +386,9 @@ export default function CreditCardsView() {
 
           {closedCards.length > 0 && (
             <section>
-              <div className="flex items-center gap-2 mt-2 mb-2 pt-4 border-t border-zinc-800">
-                <h2 className="text-sm font-semibold text-zinc-500">Closed & Downgraded</h2>
-                <span className="text-xs text-zinc-600">{closedCards.length}</span>
+              <div className="flex items-center gap-2 mt-2 mb-2 pt-4 border-t border-edge">
+                <h2 className="text-sm font-semibold text-ink-tertiary">Closed & Downgraded</h2>
+                <span className="text-xs text-ink-faint">{closedCards.length}</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {closedCards.map(card => <CardItem key={card.id} card={card} members={members} />)}

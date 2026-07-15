@@ -28,8 +28,8 @@ const BOTTOM_NAV = [
 function navClass(isActive) {
   return `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
     isActive
-      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-      : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+      ? 'bg-accent/20 text-accent-ink border border-accent/20'
+      : 'text-ink-muted hover:text-ink hover:bg-raised'
   }`
 }
 
@@ -46,8 +46,8 @@ export function SidebarNav({ collapsed }) {
 
         {/* Settings section divider */}
         {collapsed
-          ? <div className="my-2 border-t border-zinc-800" />
-          : <div className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider px-3 pt-4 pb-1 select-none">
+          ? <div className="my-2 border-t border-edge" />
+          : <div className="text-[10px] font-semibold text-ink-faint uppercase tracking-wider px-3 pt-4 pb-1 select-none">
               Settings
             </div>
         }
@@ -65,7 +65,7 @@ export function SidebarNav({ collapsed }) {
 
 export function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-700 flex z-40">
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-edge-strong flex z-40">
       {BOTTOM_NAV.map(({ to, icon: Icon, label }) => (
         <NavLink
           key={to}
@@ -73,7 +73,7 @@ export function BottomNav() {
           end={to === '/'}
           className={({ isActive }) =>
             `flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
-              isActive ? 'text-blue-400' : 'text-zinc-500 hover:text-zinc-300'
+              isActive ? 'text-accent-ink' : 'text-ink-tertiary hover:text-ink-secondary'
             }`
           }
         >

@@ -3,7 +3,7 @@ import { ChurnProvider } from './store/ChurnContext'
 import { useGist } from './hooks/useGist'
 import GistSetup from './components/Setup/GistSetup'
 import AppShell from './components/layout/AppShell'
-import { useState, useEffect, Component } from 'react'
+import { useState, Component } from 'react'
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -16,12 +16,12 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: '2rem', fontFamily: 'monospace', color: '#f87171', background: '#09090b', minHeight: '100vh' }}>
-          <h2 style={{ color: '#fff', marginBottom: '1rem' }}>Something went wrong</h2>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem' }}>{String(this.state.error)}</pre>
+        <div className="min-h-screen bg-base p-8 font-mono text-danger-ink">
+          <h2 className="text-ink font-sans font-bold mb-4">Something went wrong</h2>
+          <pre className="whitespace-pre-wrap text-sm">{String(this.state.error)}</pre>
           <button
             onClick={() => this.setState({ error: null })}
-            style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}
+            className="mt-4 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg font-sans text-sm font-medium transition-colors"
           >
             Try again
           </button>
@@ -34,11 +34,9 @@ class ErrorBoundary extends Component {
 
 function AppInner() {
   const gist = useGist()
+  // isConfigured reads localStorage on each render; state only forces the
+  // re-render after GistSetup finishes.
   const [configured, setConfigured] = useState(gist.isConfigured)
-
-  useEffect(() => {
-    setConfigured(gist.isConfigured)
-  }, [gist.isConfigured])
 
   if (!configured) {
     return <GistSetup onConfigured={() => setConfigured(true)} />

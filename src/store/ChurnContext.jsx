@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
+/* eslint-disable react-refresh/only-export-components -- context + hook live beside the provider by design */
+import { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
 import { INITIAL_STATE } from '../data/initialState'
 import { useGist } from '../hooks/useGist'
 
-const ChurnContext = createContext(null)
+export const ChurnContext = createContext(null)
 
 // One-time migration: rename players→members, playerId→memberId in Gist data
 function migrateState(raw) {
