@@ -14,16 +14,16 @@ log — if a session is interrupted, resume from "NEXT STEPS" below.
       {seen,dismissed,snoozed}, settings.pointValueCents + notifyEnabled, card fields
       (bonusCashValue, feeWaivedFirstYear, closedDate), account field (etfDays), reducer actions
       (APPLICATION CRUD, LOG_SPEND, CONVERT_APPLICATION, notification actions), migrateState v3
-- [ ] A1 Timeline/Calendar (/timeline) + engines/events.js + utils/ics.js + .ics export
-- [ ] A2 Application tracker (/applications) + before-you-apply verdicts + convert-to-card
-- [ ] A3 Earnings (/earnings) + engines/earnings.js + SVG charts (load dataviz skill first)
-- [ ] A4 Notification center (bell in AppShell) + Browser Notification API + Settings section
-- [ ] A5 Command palette (Ctrl/Cmd-K) + highlight-on-jump (?highlight= param in views)
+- [x] A1 Timeline/Calendar (/timeline) + engines/events.js + utils/ics.js + .ics export
+- [x] A2 Application tracker (/applications) + before-you-apply verdicts + convert-to-card
+- [x] A3 Earnings (/earnings) + engines/earnings.js + SVG charts (load dataviz skill first)
+- [x] A4 Notification center (bell in AppShell) + Browser Notification API + Settings section
+- [x] A5 Command palette (Ctrl/Cmd-K) + highlight-on-jump (?highlight= param in views)
 - [x] A6 Spend logging (card spend log UI) + engines/burnRate.js + new action-item type `spend_pace`
-- [ ] A7 What-if simulator (/simulator) + engines/whatIf.js (5/24 + velocity forward projection)
+- [x] A7 What-if simulator (/simulator) + engines/whatIf.js (5/24 + velocity forward projection)
 - [ ] B retrofit polish: empty/loading/error states, micro-interactions, reduced-motion, a11y,
       responsive; route transitions; Modal focus trap
-- [ ] Integration: NavBar (desktop groups; mobile bottom nav Dashboard/Cards/Accounts/Timeline/More
+- [x] Integration: NavBar (desktop groups; mobile bottom nav Dashboard/Cards/Accounts/Timeline/More
       + new /more hub page), AppShell routes, palette index
 - [ ] Verification: lint + build clean; manual feature walk; backward-compat load test (old v2
       state object without new fields)
@@ -68,7 +68,19 @@ log — if a session is interrupted, resume from "NEXT STEPS" below.
   taxPredictor, seniorIncome.
 - index.html applies `.dark` class pre-render; keep inline fallback colors in sync.
 
-## NEXT STEPS (updated after subagents hit usage limits mid-flight)
+## NEXT STEPS (all features built — verification phase)
+
+Remaining: (1) playwright walk of every route in BOTH themes incl. v1-state
+backward-compat via api.github.com interception + feature exercising (palette,
+application convert, spend log, .ics export, notifications); fix findings;
+(2) remaining B polish from findings; (3) README sync (Feature Catalog for
+Timeline/Applications/Earnings/Simulator/Notifications/Palette/Spend log,
+Data Model: applications[], spendLog[], notifications{}, settings fields, card
+fields bonusCashValue/feeWaivedFirstYear/closedDate, account etfDays, new
+action-item type spend_pace, member default color change); (4) delete
+PROGRESS.md + docs/AGENT_BRIEF.md, push, open PR.
+
+## OLD NEXT STEPS (done)
 
 Subagents for A1/A2/A3/A7 were killed by session limits; their PARTIAL output is committed:
 - A1: engines/events.js + utils/ics.js + Timeline/TimelineView.jsx exist (agent had smoke-tested
