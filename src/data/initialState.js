@@ -1,8 +1,11 @@
+// Default identity colors are a CVD-validated categorical set (checked with
+// the dataviz palette validator on both light and dark surfaces) since they
+// drive the badges AND the earnings charts. Users can still pick any color.
 export const DEFAULT_MEMBERS = [
-  { id: 'p1', name: 'Me', role: 'churner', hex: '#3b82f6' },
-  { id: 'p2', name: 'Wife', role: 'churner', hex: '#8b5cf6' },
-  { id: 'p3', name: 'Mom', role: 'senior', hex: '#f59e0b' },
-  { id: 'p4', name: 'Dad', role: 'senior', hex: '#10b981' },
+  { id: 'p1', name: 'Me', role: 'churner', hex: '#2563eb' },
+  { id: 'p2', name: 'Wife', role: 'churner', hex: '#e11d48' },
+  { id: 'p3', name: 'Mom', role: 'senior', hex: '#d97706' },
+  { id: 'p4', name: 'Dad', role: 'senior', hex: '#059669' },
 ]
 
 export const INITIAL_STATE = {

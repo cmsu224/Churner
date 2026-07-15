@@ -10,14 +10,17 @@ export function useActionItems() {
   const items = useMemo(() => generateActionItems(state), [state])
   const { dismissed = {}, snoozed = {}, seen = [] } = state.notifications ?? {}
 
-  const now = Date.now()
-  const isSnoozed = (id) => !!snoozed[id] && new Date(snoozed[id]).getTime() > now
-
-  const active = items.filter(i => !dismissed[i.id] && !isSnoozed(i.id))
-  const snoozedItems = items.filter(i => !dismissed[i.id] && isSnoozed(i.id))
-  const dismissedItems = items.filter(i => !!dismissed[i.id])
-  const seenSet = new Set(seen)
-  const unread = active.filter(i => !seenSet.has(i.id))
+  const { active, snoozedItems, dismissedItems, unread } = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity -- deliberate clock read: snooze expiry compares against the current time
+    const now = Date.now()
+    const isSnoozed = (id) => !!snoozed[id] && new Date(snoozed[id]).getTime() > now
+    const active = items.filter(i => !dismissed[i.id] && !isSnoozed(i.id))
+    const snoozedItems = items.filter(i => !dismissed[i.id] && isSnoozed(i.id))
+    const dismissedItems = items.filter(i => !!dismissed[i.id])
+    const seenSet = new Set(seen)
+    const unread = active.filter(i => !seenSet.has(i.id))
+    return { active, snoozedItems, dismissedItems, unread }
+  }, [items, dismissed, snoozed, seen])
 
   return {
     items,
