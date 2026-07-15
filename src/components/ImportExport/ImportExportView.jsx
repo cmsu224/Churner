@@ -514,7 +514,7 @@ export default function ImportExportView() {
 
             <button
               onClick={handleImport}
-              className="w-full bg-accent hover:bg-accent-hover text-ink font-semibold py-2.5 rounded-lg text-sm transition-colors"
+              className="w-full bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
             >
               {preview.mode === 'full' ? 'Restore Full Backup' : `Import ${visibleCards.length + previewAccounts.length} Records`}
             </button>

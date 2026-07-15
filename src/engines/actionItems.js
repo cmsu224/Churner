@@ -1,6 +1,7 @@
 import { getSpendDeadlineInfo, getAnnualFeeInfo, getReeligibilityInfo } from './lifecycle'
 import { getClawbackStatus } from './clawbackShield'
 import { getKeepAliveCards } from './creditAge'
+import { getBurnRate } from './burnRate'
 import { fmt$ } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
 
@@ -47,6 +48,24 @@ export function generateActionItems(state) {
           title: `${d}d left on spend: ${n}`,
           detail: `$${remaining.toLocaleString()} remaining of $${card.spendRequirement?.toLocaleString()} requirement. Deadline: ${deadline}. ${pn}'s card.`,
           dueDate: si.deadline, action: 'Track spending' })
+      }
+    }
+
+    // Spend pace (burn rate) — fires when the current pace will miss the
+    // deadline. Only outside the ≤7-day window (the critical items above own
+    // the endgame) and once the card is 2+ weeks old, so day-one cards don't
+    // alarm before spending has started.
+    if (si && !si.met && si.daysLeft > 7 && card.openDate) {
+      const daysOpen = Math.floor((new Date() - new Date(card.openDate)) / 86400000)
+      const br = getBurnRate(card)
+      if (br && !br.onTrack && daysOpen >= 14) {
+        const deadline = new Date(si.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        items.push({ id: `spend-pace-${card.id}`, type: 'warning', category: 'spend', cardId: card.id, memberId: card.memberId,
+          title: `Off pace on spend: ${n}`,
+          detail: br.stalled
+            ? `Little to no recent spend on this card. You need ~${fmt$(br.neededPerWeek)}/week from here to hit the $${card.spendRequirement?.toLocaleString()} requirement by ${deadline}. ${pn}'s card.`
+            : `At the current pace (~${fmt$(br.perWeek)}/week) you'd finish around ${new Date(br.projectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — after the ${deadline} deadline. Step up to ~${fmt$(br.neededPerWeek)}/week to stay on track. ${pn}'s card.`,
+          dueDate: si.deadline, action: 'Pick up the pace' })
       }
     }
 

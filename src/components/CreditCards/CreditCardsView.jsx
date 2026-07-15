@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
+import { useHighlight } from '../../hooks/useHighlight'
 import CardItem from './CardItem'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
@@ -53,6 +55,18 @@ export default function CreditCardsView() {
   const [filterMember, setFilterMember] = useState('all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [sortBy, setSortBy] = useState('newest')
+
+  // Deep links from the command palette: ?add=1 opens the add form,
+  // ?logspend=<cardId> opens that card's log-spend row, ?highlight=<id> flashes.
+  const location = useLocation()
+  const params = new URLSearchParams(location.search)
+  const logSpendCardId = params.get('logspend')
+  const wantsAdd = params.get('add') === '1'
+  useHighlight()
+  useEffect(() => {
+    if (wantsAdd) startAdd()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per deep-link navigation
+  }, [wantsAdd, location.key])
 
   // Unique issuer names present in the data (for the issuer filter pills).
   const availableIssuers = [...new Set(
@@ -171,7 +185,7 @@ export default function CreditCardsView() {
         {!adding && (
           <button
             onClick={startAdd}
-            className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-ink text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
           >
             <Plus size={14} />Add Card
           </button>
@@ -340,7 +354,7 @@ export default function CreditCardsView() {
 
             <div className="flex gap-2 pt-1">
               <button onClick={cancelAdd} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
-              <button onClick={saveAdd} disabled={!newCard.cardName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-ink font-semibold py-2 rounded-lg text-sm transition-colors">Add Card</button>
+              <button onClick={saveAdd} disabled={!newCard.cardName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Add Card</button>
             </div>
           </div>
         </div>
@@ -373,14 +387,14 @@ export default function CreditCardsView() {
                     <span className="text-xs text-ink-tertiary">{group.cards.length}</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {group.cards.map(card => <CardItem key={card.id} card={card} members={members} />)}
+                    {group.cards.map(card => <CardItem key={card.id} card={card} members={members} autoOpenLogSpend={logSpendCardId === card.id} />)}
                   </div>
                 </section>
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {filteredCards.map(card => <CardItem key={card.id} card={card} members={members} />)}
+              {filteredCards.map(card => <CardItem key={card.id} card={card} members={members} autoOpenLogSpend={logSpendCardId === card.id} />)}
             </div>
           ))}
 
@@ -391,7 +405,7 @@ export default function CreditCardsView() {
                 <span className="text-xs text-ink-faint">{closedCards.length}</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {closedCards.map(card => <CardItem key={card.id} card={card} members={members} />)}
+                {closedCards.map(card => <CardItem key={card.id} card={card} members={members} autoOpenLogSpend={logSpendCardId === card.id} />)}
               </div>
             </section>
           )}

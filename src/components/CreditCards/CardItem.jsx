@@ -7,9 +7,10 @@ import BalanceBar from '../shared/BalanceBar'
 import DateField from '../shared/DateField'
 import { getSpendDeadlineInfo, getCardNextStatus, getReeligibilityInfo } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
+import { getBurnRate } from '../../engines/burnRate'
 import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
-import { fmt$ } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw } from 'lucide-react'
+import { fmt$, fmtDate } from '../../utils/format'
+import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -53,7 +54,7 @@ function getQuickActions(card) {
   }
 }
 
-export default function CardItem({ card, members }) {
+export default function CardItem({ card, members, autoOpenLogSpend = false }) {
   const { dispatch } = useChurn()
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
@@ -61,10 +62,20 @@ export default function CardItem({ card, members }) {
   const [undoSnapshot, setUndoSnapshot] = useState(null)
   const [showDowngradeInput, setShowDowngradeInput] = useState(false)
   const [downgradingTo, setDowngradingTo] = useState('')
+  const [showLogSpend, setShowLogSpend] = useState(autoOpenLogSpend)
+  const [logDraft, setLogDraft] = useState({ amount: '', note: '', date: new Date().toISOString().slice(0, 10) })
   const undoTimerRef = useRef(null)
 
+  // Open the log-spend row when the command palette deep-links to it
+  // (render-time state adjustment; no effect needed).
+  const [prevAutoLog, setPrevAutoLog] = useState(autoOpenLogSpend)
+  if (prevAutoLog !== autoOpenLogSpend) {
+    setPrevAutoLog(autoOpenLogSpend)
+    if (autoOpenLogSpend) setShowLogSpend(true)
+  }
 
   const info = getSpendDeadlineInfo(card)
+  const burn = getBurnRate(card)
   const nextStatus = getCardNextStatus(card)
   const age = getCardAge(card)
   const quickActions = getQuickActions(card)
@@ -117,6 +128,23 @@ export default function CardItem({ card, members }) {
   function markUsedToday(e) {
     e.stopPropagation()
     dispatch({ type: 'UPDATE_CARD', payload: { ...card, lastUsedDate: new Date().toISOString().slice(0, 10) } })
+  }
+
+  function submitLogSpend(e) {
+    e.stopPropagation()
+    const amount = parseFloat(logDraft.amount)
+    if (!amount || amount <= 0) return
+    dispatch({ type: 'LOG_SPEND', cardId: card.id, entry: { amount, note: logDraft.note.trim(), date: logDraft.date || new Date().toISOString().slice(0, 10) } })
+    setLogDraft({ amount: '', note: '', date: new Date().toISOString().slice(0, 10) })
+    setShowLogSpend(false)
+  }
+
+  function deleteLogEntry(entry) {
+    dispatch({ type: 'DELETE_SPEND_ENTRY', cardId: card.id, entryId: entry.id })
+    // Keep the open edit form's total in step with the card
+    if (draft) {
+      setDraft(d => ({ ...d, currentSpend: Math.max(0, (parseFloat(d.currentSpend) || 0) - (Number(entry.amount) || 0)) }))
+    }
   }
 
   function applyQuickAction(e, payload) {
@@ -177,7 +205,7 @@ export default function CardItem({ card, members }) {
     || !!draft?.bonusReceived
 
   return (
-    <div className="bg-surface border border-edge-strong rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
+    <div id={`item-${card.id}`} className="bg-surface border border-edge rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
       {/* Collapsed header */}
       <div
         className="w-full p-4 cursor-pointer select-none"
@@ -219,6 +247,17 @@ export default function CardItem({ card, members }) {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+            {/* Quick spend logging for cards with an open spend requirement */}
+            {burn && !expanded && (
+              <button
+                onClick={e => { e.stopPropagation(); setShowLogSpend(s => !s) }}
+                title="Log spend"
+                className="flex items-center gap-1 bg-raised hover:bg-accent text-ink-secondary hover:text-white text-xs px-2 py-1 rounded-md transition-colors"
+              >
+                <Plus size={11} />
+                <span>Log</span>
+              </button>
+            )}
             {/* Only show for Keep Alive cards — confirms card is still being used */}
             {card.status === 'Keep Alive' && (
               <button
@@ -245,6 +284,15 @@ export default function CardItem({ card, members }) {
               <span>{fmt$(card.currentSpend ?? 0)} / {fmt$(card.spendRequirement ?? 0)} spend</span>
               <span className={info.daysLeft < 14 ? 'text-danger-ink font-medium' : ''}>{info.daysLeft}d left</span>
             </div>
+            {burn && (
+              <div className={`text-[11px] mt-1 ${burn.onTrack ? 'text-success-ink' : 'text-warning-ink'}`}>
+                {burn.onTrack && burn.projectedDate
+                  ? `On pace — projected done ${new Date(burn.projectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                  : burn.stalled
+                  ? `No recent spend — need ${fmt$(burn.neededPerWeek)}/wk`
+                  : `Off pace — need ${fmt$(burn.neededPerWeek)}/wk (current ~${fmt$(burn.perWeek)}/wk)`}
+              </div>
+            )}
           </div>
         )}
 
@@ -290,9 +338,43 @@ export default function CardItem({ card, members }) {
       </div>
 
       {/* Quick action buttons — only shown when collapsed */}
-      {!expanded && (quickActions.length > 0 || undoSnapshot) && (
+      {!expanded && (quickActions.length > 0 || undoSnapshot || showLogSpend) && (
         <div className="px-4 pb-3 pt-0 flex gap-2 flex-wrap items-center border-t border-edge">
-          {showDowngradeInput ? (
+          {showLogSpend ? (
+            <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center" onClick={e => e.stopPropagation()}>
+              <span className="text-[10px] text-ink-faint uppercase tracking-wider font-medium flex-shrink-0">Log spend</span>
+              <input
+                autoFocus
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={logDraft.amount}
+                onChange={e => setLogDraft(d => ({ ...d, amount: e.target.value }))}
+                placeholder="$ amount"
+                aria-label="Spend amount"
+                className="w-24 bg-raised border border-edge-strong rounded-lg px-2.5 py-1.5 text-xs text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent"
+                onKeyDown={e => { if (e.key === 'Enter') submitLogSpend(e); if (e.key === 'Escape') { e.stopPropagation(); setShowLogSpend(false) } }}
+              />
+              <input
+                value={logDraft.note}
+                onChange={e => setLogDraft(d => ({ ...d, note: e.target.value }))}
+                placeholder="note (optional)"
+                aria-label="Spend note"
+                className="flex-1 min-w-[90px] bg-raised border border-edge-strong rounded-lg px-2.5 py-1.5 text-xs text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent"
+                onKeyDown={e => { if (e.key === 'Enter') submitLogSpend(e); if (e.key === 'Escape') { e.stopPropagation(); setShowLogSpend(false) } }}
+              />
+              <input
+                type="date"
+                value={logDraft.date}
+                onChange={e => setLogDraft(d => ({ ...d, date: e.target.value }))}
+                aria-label="Spend date"
+                className="bg-raised border border-edge-strong rounded-lg px-2 py-1.5 text-xs text-ink focus:outline-none focus:border-accent"
+              />
+              <button onClick={e => { e.stopPropagation(); setShowLogSpend(false) }} aria-label="Cancel logging spend" className={`text-xs px-2 py-1.5 rounded-lg transition-colors ${btnColors.zinc}`}><X size={12} /></button>
+              <button onClick={submitLogSpend} disabled={!(parseFloat(logDraft.amount) > 0)} className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40 ${btnColors.emerald}`}>Add</button>
+            </div>
+          ) : showDowngradeInput ? (
             <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center" onClick={e => e.stopPropagation()}>
               <input
                 autoFocus
@@ -327,7 +409,7 @@ export default function CardItem({ card, members }) {
               )}
             </div>
           )}
-          {!showDowngradeInput && undoSnapshot && (
+          {!showDowngradeInput && !showLogSpend && undoSnapshot && (
             <button
               onClick={undoAction}
               className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium bg-raised hover:bg-overlay border border-edge-strong text-ink-muted hover:text-ink transition-colors mt-2.5 ml-auto flex-shrink-0"
@@ -345,7 +427,7 @@ export default function CardItem({ card, members }) {
           <p className="text-sm text-ink-secondary mb-3">Delete <strong className="text-ink">{card.cardName}</strong>? This cannot be undone.</p>
           <div className="flex gap-2">
             <button onClick={() => setConfirming(false)} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
-            <button onClick={handleDelete} className="flex-1 bg-danger hover:bg-danger/85 text-ink py-2 rounded-lg text-sm font-semibold transition-colors">Delete</button>
+            <button onClick={handleDelete} className="flex-1 bg-danger hover:bg-danger/85 text-white py-2 rounded-lg text-sm font-semibold transition-colors">Delete</button>
           </div>
         </div>
       )}
@@ -433,6 +515,30 @@ export default function CardItem({ card, members }) {
                   <input type="number" min="0" className={inp} value={draft.currentSpend ?? ''} onChange={e => set('currentSpend', e.target.value)} placeholder="0" />
                 </div>
               </div>
+              {(card.spendLog ?? []).length > 0 ? (
+                <div className="pt-1">
+                  <div className="text-xs text-ink-tertiary mb-1.5">Spend log</div>
+                  <ul className="space-y-1">
+                    {[...card.spendLog].sort((a, b) => new Date(b.date) - new Date(a.date)).map(entry => (
+                      <li key={entry.id} className="flex items-center gap-2 text-xs bg-raised/60 rounded-md px-2 py-1.5">
+                        <span className="text-ink-tertiary w-20 flex-shrink-0">{fmtDate(entry.date)}</span>
+                        <span className="text-ink font-medium tabular-nums">{fmt$(entry.amount)}</span>
+                        {entry.note && <span className="text-ink-muted truncate flex-1">{entry.note}</span>}
+                        <button
+                          onClick={() => deleteLogEntry(entry)}
+                          aria-label={`Delete ${fmt$(entry.amount)} entry`}
+                          className="ml-auto text-ink-faint hover:text-danger-ink transition-colors flex-shrink-0"
+                        >
+                          <X size={12} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-ink-faint mt-1.5">Deleting an entry subtracts it from the total. The Spent field still works for manual totals.</p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-ink-faint">Tip: the “+ Log” button on the collapsed card itemizes spend and powers the pace projection.</p>
+              )}
             </div>
           )}
 
@@ -495,7 +601,7 @@ export default function CardItem({ card, members }) {
               <Trash2 size={15} />
             </button>
             <button onClick={cancelEdit} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
-            <button onClick={saveEdit} disabled={!draft.cardName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-ink font-semibold py-2 rounded-lg text-sm transition-colors">Save</button>
+            <button onClick={saveEdit} disabled={!draft.cardName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Save</button>
           </div>
         </div>
       )}

@@ -91,7 +91,7 @@ export default function SettingsView() {
             <button
               onClick={saveSync}
               disabled={!gistId.trim()}
-              className="bg-accent hover:bg-accent-hover disabled:opacity-40 text-ink text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              className="bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
             >
               Save &amp; Reload
             </button>

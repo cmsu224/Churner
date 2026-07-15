@@ -143,7 +143,7 @@ export default function DashboardView() {
         <button
           onClick={() => setCustomizing(c => !c)}
           className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
-            customizing ? 'bg-accent text-ink' : 'bg-raised text-ink-muted hover:text-ink'
+            customizing ? 'bg-accent text-white' : 'bg-raised text-ink-muted hover:text-ink'
           }`}
         >
           <SlidersHorizontal size={13} />

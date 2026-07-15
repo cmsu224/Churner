@@ -1,9 +1,11 @@
 import { getSpendDeadlineInfo } from '../../engines/lifecycle'
+import { getBurnRate } from '../../engines/burnRate'
 import { fmt$ } from '../../utils/format'
 import PlayerBadge from '../shared/PlayerBadge'
 
 export default function SpendProgress({ card }) {
   const info = getSpendDeadlineInfo(card)
+  const burn = getBurnRate(card)
   if (!info) return null
 
   const urgency =
@@ -45,6 +47,15 @@ export default function SpendProgress({ card }) {
           </span>
         )}
       </div>
+      {burn && (
+        <div className={`text-[11px] mt-1.5 ${burn.onTrack ? 'text-success-ink' : 'text-warning-ink'}`}>
+          {burn.onTrack && burn.projectedDate
+            ? `On pace — projected done ${new Date(burn.projectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+            : burn.stalled
+            ? `No recent spend — need ${fmt$(burn.neededPerWeek)}/wk`
+            : `Off pace — need ${fmt$(burn.neededPerWeek)}/wk (current ~${fmt$(burn.perWeek)}/wk)`}
+        </div>
+      )}
     </div>
   )
 }

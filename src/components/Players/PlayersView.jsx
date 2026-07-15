@@ -84,7 +84,7 @@ function PlayerForm({ initial, onSave, onCancel }) {
           type="button"
           onClick={() => name.trim() && onSave({ name: name.trim(), role, hex })}
           disabled={!name.trim()}
-          className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-ink font-semibold py-2 rounded-lg text-sm transition-colors"
+          className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
         >
           {initial ? 'Save Changes' : 'Add Member'}
         </button>
@@ -123,7 +123,7 @@ export default function PlayersView() {
         {!adding && (
           <button
             onClick={() => setAdding(true)}
-            className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-ink text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
           >
             <Plus size={15} />
             Add Member
@@ -167,7 +167,7 @@ export default function PlayersView() {
                   <button
                     onClick={() => deletePlayer(player.id)}
                     disabled={players.length <= 1}
-                    className="flex-1 bg-danger hover:bg-danger/85 disabled:opacity-40 text-ink font-semibold py-2 rounded-lg text-sm transition-colors"
+                    className="flex-1 bg-danger hover:bg-danger/85 disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
                   >
                     Delete
                   </button>

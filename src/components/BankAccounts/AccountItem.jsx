@@ -99,7 +99,7 @@ export default function AccountItem({ account, members }) {
         <p className="text-sm text-ink-secondary mb-3">Delete <strong className="text-ink">{account.bankName}</strong>?</p>
         <div className="flex gap-2">
           <button onClick={() => setConfirming(false)} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
-          <button onClick={handleDelete} className="flex-1 bg-danger hover:bg-danger/85 text-ink py-2 rounded-lg text-sm font-semibold transition-colors">Delete</button>
+          <button onClick={handleDelete} className="flex-1 bg-danger hover:bg-danger/85 text-white py-2 rounded-lg text-sm font-semibold transition-colors">Delete</button>
         </div>
       </div>
     )
@@ -349,7 +349,7 @@ export default function AccountItem({ account, members }) {
               <Trash2 size={15} />
             </button>
             <button onClick={cancelEdit} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
-            <button onClick={saveEdit} disabled={!draft.bankName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-ink font-semibold py-2 rounded-lg text-sm transition-colors">Save</button>
+            <button onClick={saveEdit} disabled={!draft.bankName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Save</button>
           </div>
         </div>
       )}

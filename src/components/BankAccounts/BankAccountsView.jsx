@@ -159,7 +159,7 @@ export default function BankAccountsView() {
         {!adding && (
           <button
             onClick={startAdd}
-            className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-ink text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
           >
             <Plus size={14} />Add Account
           </button>
@@ -339,7 +339,7 @@ export default function BankAccountsView() {
 
             <div className="flex gap-2 pt-1">
               <button onClick={cancelAdd} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
-              <button onClick={saveAdd} disabled={!newAcct.bankName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-ink font-semibold py-2 rounded-lg text-sm transition-colors">Add Account</button>
+              <button onClick={saveAdd} disabled={!newAcct.bankName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Add Account</button>
             </div>
           </div>
         </div>

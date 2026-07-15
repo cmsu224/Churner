@@ -85,7 +85,7 @@ export default function GistSetup({ onConfigured }) {
                 onClick={() => setMode('existing')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
                   mode === 'existing'
-                    ? 'bg-accent border-accent text-ink'
+                    ? 'bg-accent border-accent text-white'
                     : 'bg-raised border-edge-strong text-ink-muted hover:border-edge-strong'
                 }`}
               >
@@ -95,7 +95,7 @@ export default function GistSetup({ onConfigured }) {
                 onClick={() => setMode('new')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
                   mode === 'new'
-                    ? 'bg-accent border-accent text-ink'
+                    ? 'bg-accent border-accent text-white'
                     : 'bg-raised border-edge-strong text-ink-muted hover:border-edge-strong'
                 }`}
               >
@@ -135,7 +135,7 @@ export default function GistSetup({ onConfigured }) {
             <button
               onClick={handleConnect}
               disabled={loading}
-              className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-ink font-semibold py-2.5 rounded-lg text-sm transition-colors"
+              className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
             >
               {loading ? 'Connecting...' : mode === 'new' ? 'Create & Connect' : 'Connect'}
             </button>

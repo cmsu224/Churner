@@ -124,7 +124,7 @@ export default function ExternalPayerMonitor() {
               <button onClick={() => setAdding(false)} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">
                 Cancel
               </button>
-              <button onClick={handleAdd} className="flex-1 bg-accent hover:bg-accent-hover text-ink py-2 rounded-lg text-sm font-semibold transition-colors">
+              <button onClick={handleAdd} className="flex-1 bg-accent hover:bg-accent-hover text-white py-2 rounded-lg text-sm font-semibold transition-colors">
                 Add
               </button>
             </div>
