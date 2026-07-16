@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, Info, CreditCard, Calendar, Scissors, Gift, Shield, RefreshCw, Heart, ChevronDown, ChevronUp, X, RotateCcw, Clock } from 'lucide-react'
+import { AlertTriangle, Info, CreditCard, Calendar, Scissors, Gift, Shield, RefreshCw, Heart, ChevronDown, ChevronUp, X, RotateCcw, Clock, CheckCircle } from 'lucide-react'
 import { useActionItems } from '../../hooks/useActionItems'
 import { fmtDate } from '../../utils/format'
 
@@ -143,6 +143,13 @@ export default function ActionQueue({ members }) {
           )}
         </div>
       </div>
+
+      {active.length === 0 && muted.length > 0 && (
+        <div className="bg-surface border border-success/20 rounded-xl p-4 flex items-center gap-3 mb-2">
+          <CheckCircle size={16} className="text-success-ink flex-shrink-0" />
+          <div className="text-sm text-ink-secondary">You're all caught up — everything below is snoozed or dismissed.</div>
+        </div>
+      )}
 
       <div className="space-y-2">
         {active.map(item => (

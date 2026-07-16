@@ -159,7 +159,7 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
 - The **spend log** is visible in the card's edit form; deleting an entry subtracts it from the total. **Plain-total editing still works** — the "Spent ($)" field is untouched for people who don't want itemization.
 - **Burn-rate projection** on every card with an open spend requirement:
   - Pace = spend-log dollars over the last 30 days when entries exist (recent behavior), otherwise total ÷ days-since-open.
-  - Shows **on pace** (projected completion date before the deadline), **off pace** (projected date after the deadline, plus "need $X/week from here"), or **stalled** (no meaningful recent spend).
+  - Shows **on pace** (projected completion date before the deadline), **off pace** (projected date after the deadline, plus "need $X/week from here"), **stalled** (no meaningful recent spend), or **past deadline** (once the deadline has passed unmet — no weekly target is shown; the critical "spend deadline missed" action item takes over).
   - Surfaces in the collapsed card, the Dashboard's Active Spend Challenges, and as the **`spend_pace` action item** ([see Action Engine](#2-action-engine-the-brain)).
 
 ### 7. Application Tracker

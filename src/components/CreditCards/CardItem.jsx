@@ -119,6 +119,10 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
         lastUsedDate: draft.lastUsedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
         closedDate: draft.closedDate || null,
+        // spendLog is managed only via LOG_SPEND / DELETE_SPEND_ENTRY, never in
+        // this form. Take it from the live card, not the draft snapshot, so a
+        // log entry deleted while the form is open isn't resurrected on save.
+        spendLog: card.spendLog ?? [],
       }
     })
     setDraft(null)
@@ -288,7 +292,9 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
             </div>
             {burn && (
               <div className={`text-[11px] mt-1 ${burn.onTrack ? 'text-success-ink' : 'text-warning-ink'}`}>
-                {burn.onTrack && burn.projectedDate
+                {burn.overdue
+                  ? 'Past deadline — call the issuer about an extension'
+                  : burn.onTrack && burn.projectedDate
                   ? `On pace — projected done ${new Date(burn.projectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                   : burn.stalled
                   ? `No recent spend — need ${fmt$(burn.neededPerWeek)}/wk`

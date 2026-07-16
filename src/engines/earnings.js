@@ -70,6 +70,17 @@ function ymKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
+// Parse a stored 'YYYY-MM-DD' date as LOCAL midnight. `new Date('2026-07-01')`
+// parses as UTC, so in negative-UTC-offset timezones getMonth()/getFullYear()
+// would report the previous day — pushing a 1st-of-month bonus into the wrong
+// month bucket or a Jan-1 bonus into the prior year. Parsing the parts locally
+// keeps period bucketing correct everywhere.
+function parseLocalDate(str) {
+  if (!str) return null
+  const [y, m, d] = String(str).slice(0, 10).split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+
 export function getEarningsSummary(state) {
   const members = state.members ?? []
   const cards = state.creditCards ?? []
@@ -93,7 +104,7 @@ export function getEarningsSummary(state) {
 
   function inTrailing12(row) {
     if (!row.realizedDate) return false
-    const d = new Date(row.realizedDate)
+    const d = parseLocalDate(row.realizedDate)
     return d >= trailing12Cutoff && d <= now
   }
 
@@ -112,7 +123,7 @@ export function getEarningsSummary(state) {
     const byYear = {}
     for (const r of myAll) {
       if (!r.realizedDate) continue // undated items count toward lifetime only
-      const y = new Date(r.realizedDate).getFullYear()
+      const y = parseLocalDate(r.realizedDate).getFullYear()
       byYear[y] = (byYear[y] ?? 0) + r.realized
     }
 
@@ -126,7 +137,7 @@ export function getEarningsSummary(state) {
   const householdByYear = {}
   for (const r of allRows) {
     if (!r.realizedDate) continue
-    const y = new Date(r.realizedDate).getFullYear()
+    const y = parseLocalDate(r.realizedDate).getFullYear()
     householdByYear[y] = (householdByYear[y] ?? 0) + r.realized
   }
   const household = {
@@ -163,7 +174,7 @@ export function getEarningsSummary(state) {
   }
   for (const r of allRows) {
     if (!r.realizedDate || r.realized === 0) continue
-    const idx = monthIndex.get(ymKey(new Date(r.realizedDate)))
+    const idx = monthIndex.get(ymKey(parseLocalDate(r.realizedDate)))
     if (idx == null) continue // outside the 24-month window
     const bucket = monthly[idx]
     bucket.total += r.realized

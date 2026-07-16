@@ -49,7 +49,9 @@ export default function SpendProgress({ card }) {
       </div>
       {burn && (
         <div className={`text-[11px] mt-1.5 ${burn.onTrack ? 'text-success-ink' : 'text-warning-ink'}`}>
-          {burn.onTrack && burn.projectedDate
+          {burn.overdue
+            ? 'Past deadline — call the issuer about an extension'
+            : burn.onTrack && burn.projectedDate
             ? `On pace — projected done ${new Date(burn.projectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
             : burn.stalled
             ? `No recent spend — need ${fmt$(burn.neededPerWeek)}/wk`

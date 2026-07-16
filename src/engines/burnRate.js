@@ -44,9 +44,13 @@ export function getBurnRate(card) {
   }
 
   const deadline = new Date(info.deadline)
-  const onTrack = remaining === 0 || (!stalled && projectedDate && new Date(projectedDate) <= deadline)
-  const weeksLeft = Math.max(info.daysLeft, 1) / 7
-  const neededPerWeek = remaining / weeksLeft
+  // Past the deadline there's no meaningful weekly target — clamping daysLeft to
+  // 1 would report an absurd figure (remaining × 7). The overdue case is owned
+  // by the critical "spend deadline missed" action item; callers show a plain
+  // "past deadline" note instead of a $/week number.
+  const overdue = info.daysLeft <= 0
+  const onTrack = remaining === 0 || (!overdue && !stalled && projectedDate && new Date(projectedDate) <= deadline)
+  const neededPerWeek = overdue ? null : remaining / (info.daysLeft / 7)
 
   return {
     remaining,
@@ -56,6 +60,7 @@ export function getBurnRate(card) {
     perWeek: perDay * 7,
     paceSource,
     stalled,
+    overdue,
     projectedDate,
     onTrack,
     neededPerWeek,

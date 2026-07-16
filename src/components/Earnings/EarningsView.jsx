@@ -169,8 +169,8 @@ export default function EarningsView() {
             <h2 className="text-base font-semibold text-ink">The Receipts</h2>
             <div className="hidden sm:flex text-[10px] uppercase tracking-wider text-ink-faint px-3 gap-3">
               <span className="flex-1 basis-48">Item</span>
-              <span className="w-24">Realized</span>
-              <span className="w-24 text-right">Bonus</span>
+              <span className="w-24">Date</span>
+              <span className="w-24 text-right">Realized</span>
               <span className="w-20 text-right">Fees</span>
               <span className="w-24 text-right">Net</span>
             </div>
