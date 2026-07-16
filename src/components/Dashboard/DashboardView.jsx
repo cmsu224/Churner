@@ -38,7 +38,11 @@ function loadOrder() {
 
 export default function DashboardView() {
   const { state } = useChurn()
-  const { active: actionItems } = useActionItems()
+  const { active: actionItems, snoozedItems, dismissedItems } = useActionItems()
+  // Any item at all — active, snoozed, or dismissed. When everything is muted,
+  // ActionQueue must still render so its "Snoozed & dismissed" restore drawer
+  // stays reachable from the Dashboard.
+  const hasAnyActionItems = actionItems.length + snoozedItems.length + dismissedItems.length > 0
   const [order, setOrder] = useState(loadOrder)
   const [customizing, setCustomizing] = useState(false)
 
@@ -123,7 +127,7 @@ export default function DashboardView() {
         </div>
       </section>
     ) : null,
-    actions: actionItems.length > 0 ? (
+    actions: hasAnyActionItems ? (
       <ActionQueue members={state.members ?? []} />
     ) : (
       <div className="bg-surface border border-success/20 rounded-xl p-5 flex items-center gap-3">
