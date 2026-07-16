@@ -71,11 +71,9 @@ export default function NotificationCenter() {
   }, [open])
 
   function toggle() {
-    setOpen(o => {
-      const next = !o
-      if (next) markAllSeen()
-      return next
-    })
+    const next = !open
+    setOpen(next)
+    if (next) markAllSeen()
   }
 
   function go(route) {

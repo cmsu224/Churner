@@ -114,9 +114,11 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
         creditLimit: draft.creditLimit !== '' && draft.creditLimit != null ? parseFloat(draft.creditLimit) || 0 : 0,
         bonusValue: draft.bonusValue !== '' && draft.bonusValue != null ? parseFloat(draft.bonusValue) || 0 : 0,
         annualFee: draft.annualFee !== '' && draft.annualFee != null ? parseFloat(draft.annualFee) || 0 : 0,
+        bonusCashValue: draft.bonusCashValue !== '' && draft.bonusCashValue != null ? parseFloat(draft.bonusCashValue) : undefined,
         openDate: draft.openDate || null,
         lastUsedDate: draft.lastUsedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
+        closedDate: draft.closedDate || null,
       }
     })
     setDraft(null)
@@ -574,6 +576,28 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                   <DateField value={draft.bonusReceivedDate} onChange={v => set('bonusReceivedDate', v)} />
                 </div>
               )}
+              {draft.bonusReceived && draft.bonusType !== 'cashback' && (
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1">Bonus Cash Value ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.bonusCashValue ?? ''} onChange={e => set('bonusCashValue', e.target.value)} placeholder="what the points were worth" />
+                  <p className="text-[11px] text-ink-faint mt-1">Used by Earnings. Blank = valued at the default rate in Settings.</p>
+                </div>
+              )}
+              {Number(draft.annualFee) > 0 && (
+                <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
+                  <input type="checkbox" checked={!!draft.feeWaivedFirstYear} onChange={e => set('feeWaivedFirstYear', e.target.checked)} />
+                  First-year fee waived
+                </label>
+              )}
+            </div>
+          )}
+
+          {/* Closed date — for accurate fee history on retired cards */}
+          {(draft.status === 'Closed' || draft.status === 'Downgraded' || !!draft.closedDate) && (
+            <div>
+              <label className="text-xs text-ink-tertiary block mb-1">Closed / Downgraded Date</label>
+              <DateField value={draft.closedDate} onChange={v => set('closedDate', v)} />
+              <p className="text-[11px] text-ink-faint mt-1">Stops the Earnings fee estimate at this date.</p>
             </div>
           )}
 
