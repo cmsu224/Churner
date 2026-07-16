@@ -8,7 +8,12 @@
 // carries `estimated: true` whenever bonusCashValue is absent and the bonus
 // isn't cashback (points/miles valued off the household's default cents-per-point).
 
-function cardValuation(card, settings) {
+// Dollar value of a card's sign-up bonus, regardless of whether it's been
+// received yet. Cashback is a $ figure already; points/miles use the card's
+// own cash value if set, otherwise the household's cents-per-point rate (an
+// estimate). Exported so pipelines and summaries value points the same way
+// the Earnings page does — never counting raw points as dollars.
+export function valueCardBonus(card, settings) {
   const bonusValue = card.bonusValue ?? 0
   if (card.bonusType === 'cashback') return { value: bonusValue, estimated: false }
   if (card.bonusCashValue != null) return { value: card.bonusCashValue, estimated: false }
@@ -46,7 +51,7 @@ function computeFeesPaid(card) {
 }
 
 export function getCardEarnings(card, settings) {
-  const { value, estimated } = cardValuation(card, settings)
+  const { value, estimated } = valueCardBonus(card, settings)
   const realized = card.bonusReceived ? value : 0
   const realizedDate = card.bonusReceivedDate ?? null
   const feesPaid = computeFeesPaid(card)

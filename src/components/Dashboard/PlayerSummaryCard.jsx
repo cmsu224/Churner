@@ -1,16 +1,21 @@
 import { useChurn } from '../../store/ChurnContext'
 import { getChase524Status } from '../../engines/chase524'
+import { valueCardBonus } from '../../engines/earnings'
 import { fmt$ } from '../../utils/format'
 import { CreditCard, Landmark } from 'lucide-react'
 
 export default function PlayerSummaryCard({ player }) {
   const { state } = useChurn()
+  const settings = state.settings ?? {}
   const cards = (state.creditCards ?? []).filter(c => c.memberId === player.id)
   const accounts = (state.bankAccounts ?? []).filter(a => a.memberId === player.id)
   const activeCards = cards.filter(c => c.status !== 'Closed' && c.status !== 'Downgraded')
-  const cardPipeline = cards
-    .filter(c => !c.bonusReceived && (c.bonusValue ?? 0) > 0)
-    .reduce((s, c) => s + (c.bonusValue ?? 0), 0)
+  // Value each pending card bonus in dollars — cashback at face value,
+  // points/miles at their cash value or the household point rate. Summing raw
+  // bonusValue here counted a 75k-point bonus as $75,000.
+  const pendingCardBonuses = cards.filter(c => !c.bonusReceived && (c.bonusValue ?? 0) > 0)
+  const cardPipeline = pendingCardBonuses.reduce((s, c) => s + valueCardBonus(c, settings).value, 0)
+  const pipelineEstimated = pendingCardBonuses.some(c => valueCardBonus(c, settings).estimated)
   const bankPipeline = accounts
     .filter(a => !a.bonusReceivedDate && (a.bonusAmount ?? 0) > 0)
     .reduce((s, a) => s + (a.bonusAmount ?? 0), 0)
@@ -62,7 +67,10 @@ export default function PlayerSummaryCard({ player }) {
       {(cardPipeline + bankPipeline) > 0 && (
         <div className="bg-raised rounded-lg px-3 py-2 flex items-center justify-between">
           <span className="text-xs text-ink-muted">Bonus Pipeline</span>
-          <span className="text-sm font-semibold text-success-ink">{fmt$(cardPipeline + bankPipeline)}</span>
+          <span className="text-sm font-semibold text-success-ink">
+            {fmt$(cardPipeline + bankPipeline)}
+            {pipelineEstimated && <span className="text-warning-ink text-[10px] ml-0.5" title="Points/miles bonuses valued at the rate in Settings">est.</span>}
+          </span>
         </div>
       )}
 

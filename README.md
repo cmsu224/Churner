@@ -62,7 +62,7 @@ Members are **fully editable** — none of the names, colors, or roles are hardc
 
 The home screen (`/`) is a prioritized command center, not a passive summary. **Every section is reorderable** — tap **Customize** to move sections up/down; the layout is saved per device (localStorage). Default order: Individual Summary → Application Eligibility → Credit Age & Usage → Spend Challenges → Action Items → Stats.
 
-- **Individual Summary** — per-person rollup of activity.
+- **Individual Summary** — per-person rollup of activity, including a **Bonus Pipeline** (dollar value of not-yet-received card and bank bonuses; points/miles are valued at their cash value or the household point rate, never counted as raw dollars, and flagged `est.` when estimated).
 - **Application Eligibility** — compact per-member issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
 - **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#12-credit-age--keep-alive-tracker)).
 - **Active Spend Challenges** — live progress bars for every card with an open minimum-spend requirement, showing dollars spent vs. required, days remaining, and the **burn-rate projection** (on pace / off pace — need $X/week).
