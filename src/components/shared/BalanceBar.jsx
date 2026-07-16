@@ -19,24 +19,24 @@ export default function BalanceBar({ balance = 0, limit = 0, kind = 'card' }) {
   // Colors
   let barColor, textColor, label
   if (!hasBalance) {
-    barColor = 'bg-zinc-700'
-    textColor = 'text-emerald-400'
+    barColor = 'bg-overlay'
+    textColor = 'text-success-ink'
     label = kind === 'account' ? '$0 — empty' : '$0 — paid off'
   } else {
     const util = lim > 0 ? bal / lim : 0
-    if (kind === 'card' && util >= 0.5) { barColor = 'bg-red-500'; textColor = 'text-red-400' }
-    else if (kind === 'card' && util >= 0.3) { barColor = 'bg-amber-500'; textColor = 'text-amber-400' }
-    else { barColor = 'bg-amber-500'; textColor = 'text-amber-400' }
+    if (kind === 'card' && util >= 0.5) { barColor = 'bg-danger'; textColor = 'text-danger-ink' }
+    else if (kind === 'card' && util >= 0.3) { barColor = 'bg-warning'; textColor = 'text-warning-ink' }
+    else { barColor = 'bg-warning'; textColor = 'text-warning-ink' }
     label = lim > 0 ? `${fmt$(bal)} / ${fmt$(lim)} · ${pct}%` : fmt$(bal)
   }
 
   return (
     <div className="mt-2">
       <div className="flex justify-between items-center text-xs mb-1">
-        <span className="text-zinc-500">Balance</span>
+        <span className="text-ink-tertiary">Balance</span>
         <span className={`font-medium ${textColor}`}>{label}</span>
       </div>
-      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-raised rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
       </div>
     </div>

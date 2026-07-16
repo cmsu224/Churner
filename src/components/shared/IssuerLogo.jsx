@@ -33,7 +33,7 @@ export default function IssuerLogo({ name, size = 28, rounded = 'rounded-md' }) 
 
   return (
     <span
-      className={`inline-flex items-center justify-center ${rounded} flex-shrink-0 font-bold text-white`}
+      className={`inline-flex items-center justify-center ${rounded} flex-shrink-0 font-bold text-ink`}
       style={{ width: px, height: px, backgroundColor: meta.color, fontSize: size * 0.36 }}
     >
       {monogram(name)}

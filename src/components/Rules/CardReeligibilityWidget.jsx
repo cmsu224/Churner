@@ -7,16 +7,16 @@ import { CheckCircle, Clock, Lock } from 'lucide-react'
 function Row({ row }) {
   let icon, color, right
   if (row.lifetime) {
-    icon = <Lock size={13} className="text-zinc-500 flex-shrink-0" />
-    color = 'text-zinc-500'
+    icon = <Lock size={13} className="text-ink-tertiary flex-shrink-0" />
+    color = 'text-ink-tertiary'
     right = 'Once per lifetime'
   } else if (row.eligible) {
-    icon = <CheckCircle size={13} className="text-emerald-400 flex-shrink-0" />
-    color = 'text-emerald-400'
+    icon = <CheckCircle size={13} className="text-success-ink flex-shrink-0" />
+    color = 'text-success-ink'
     right = 'Eligible now'
   } else {
-    icon = <Clock size={13} className="text-amber-400 flex-shrink-0" />
-    color = 'text-amber-400'
+    icon = <Clock size={13} className="text-warning-ink flex-shrink-0" />
+    color = 'text-warning-ink'
     right = `${row.daysUntil}d · ${fmtDate(row.eligibleDate)}`
   }
 
@@ -24,8 +24,8 @@ function Row({ row }) {
     <div className="flex items-center gap-2 py-1.5">
       <IssuerLogo name={row.anchorCard?.issuer || row.anchorCard?.cardName || ''} size={20} />
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-white truncate">{row.label}</div>
-        <div className="text-xs text-zinc-500">
+        <div className="text-xs font-medium text-ink truncate">{row.label}</div>
+        <div className="text-xs text-ink-tertiary">
           {row.lifetime ? 'lifetime rule' : `~${row.months}mo window`}
           {row.anchor && ` · bonus ${fmtDate(row.anchor)}`}
         </div>
@@ -54,9 +54,9 @@ export default function CardReeligibilityWidget() {
   if (allRows.length === 0) return null
 
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5">
-      <h3 className="text-base font-semibold text-white mb-1">Card Sign-up Bonus Re-eligibility</h3>
-      <p className="text-xs text-zinc-400 mb-4">
+    <div className="bg-surface border border-edge-strong rounded-xl p-5">
+      <h3 className="text-base font-semibold text-ink mb-1">Card Sign-up Bonus Re-eligibility</h3>
+      <p className="text-xs text-ink-muted mb-4">
         When each person can earn a card&apos;s sign-up bonus again. Measured from the date the
         bonus was received. Chase Sapphire Preferred and Reserve share the same 48-month window.
         Amex personal cards use once-per-lifetime language. Verify current terms before applying.
@@ -66,9 +66,9 @@ export default function CardReeligibilityWidget() {
           <div key={player.id}>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: player.hex }} />
-              <span className="text-sm font-medium text-white">{player.name}</span>
+              <span className="text-sm font-medium text-ink">{player.name}</span>
             </div>
-            <div className="divide-y divide-zinc-800">
+            <div className="divide-y divide-edge">
               {rows.map(row => <Row key={row.key} row={row} />)}
             </div>
           </div>

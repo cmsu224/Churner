@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
-import { generateActionItems } from '../../engines/actionItems'
+import { useActionItems } from '../../hooks/useActionItems'
 import ActionQueue from './ActionQueue'
 import PlayerSummaryCard from './PlayerSummaryCard'
 import SpendProgress from './SpendProgress'
@@ -38,7 +38,7 @@ function loadOrder() {
 
 export default function DashboardView() {
   const { state } = useChurn()
-  const items = generateActionItems(state)
+  const { active: actionItems } = useActionItems()
   const [order, setOrder] = useState(loadOrder)
   const [customizing, setCustomizing] = useState(false)
 
@@ -78,9 +78,9 @@ export default function DashboardView() {
 
   if (isEmpty) {
     return (
-      <div className="p-4 max-w-5xl mx-auto text-center py-20 text-zinc-500">
+      <div className="p-4 max-w-5xl mx-auto text-center py-20 text-ink-tertiary">
         <div className="text-5xl mb-4">🏦</div>
-        <div className="text-base font-medium text-zinc-400 mb-1">Nothing tracked yet</div>
+        <div className="text-base font-medium text-ink-muted mb-1">Nothing tracked yet</div>
         <div className="text-sm">Add cards under Cards, add bank accounts under Accounts, or use Import to load data in bulk.</div>
       </div>
     )
@@ -89,23 +89,23 @@ export default function DashboardView() {
   const SECTIONS = {
     stats: (
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-center">
-          <div className="text-xs text-zinc-500 mb-1">Cash Pipeline</div>
-          <div className="text-lg font-bold text-emerald-400">{fmt$(cashPipeline)}</div>
+        <div className="bg-surface border border-edge-strong rounded-xl p-3 text-center">
+          <div className="text-xs text-ink-tertiary mb-1">Cash Pipeline</div>
+          <div className="text-lg font-bold text-success-ink">{fmt$(cashPipeline)}</div>
         </div>
-        <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-center">
-          <div className="text-xs text-zinc-500 mb-1">Active Cards</div>
-          <div className="text-lg font-bold text-white">{activeCards.length}</div>
+        <div className="bg-surface border border-edge-strong rounded-xl p-3 text-center">
+          <div className="text-xs text-ink-tertiary mb-1">Active Cards</div>
+          <div className="text-lg font-bold text-ink">{activeCards.length}</div>
         </div>
-        <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-center">
-          <div className="text-xs text-zinc-500 mb-1">Bank Accounts</div>
-          <div className="text-lg font-bold text-white">{activeAccounts.length}</div>
+        <div className="bg-surface border border-edge-strong rounded-xl p-3 text-center">
+          <div className="text-xs text-ink-tertiary mb-1">Bank Accounts</div>
+          <div className="text-lg font-bold text-ink">{activeAccounts.length}</div>
         </div>
       </div>
     ),
     summary: (
       <section>
-        <h2 className="text-base font-semibold text-white mb-3">Individual Summary</h2>
+        <h2 className="text-base font-semibold text-ink mb-3">Individual Summary</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {(state.members ?? []).map(player => (
             <PlayerSummaryCard key={player.id} player={player} />
@@ -117,20 +117,20 @@ export default function DashboardView() {
     usage: <CreditAgeSection />,
     spend: pendingSpend.length > 0 ? (
       <section>
-        <h2 className="text-base font-semibold text-white mb-3">Active Spend Challenges</h2>
+        <h2 className="text-base font-semibold text-ink mb-3">Active Spend Challenges</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {pendingSpend.map(card => <SpendProgress key={card.id} card={card} />)}
         </div>
       </section>
     ) : null,
-    actions: items.length > 0 ? (
-      <ActionQueue items={items} state={state} />
+    actions: actionItems.length > 0 ? (
+      <ActionQueue members={state.members ?? []} />
     ) : (
-      <div className="bg-zinc-900 border border-emerald-500/20 rounded-xl p-5 flex items-center gap-3">
-        <CheckCircle size={18} className="text-emerald-400 flex-shrink-0" />
+      <div className="bg-surface border border-success/20 rounded-xl p-5 flex items-center gap-3">
+        <CheckCircle size={18} className="text-success-ink flex-shrink-0" />
         <div>
-          <div className="text-sm font-semibold text-white">You're all caught up</div>
-          <div className="text-xs text-zinc-400 mt-0.5">No urgent actions. Keep tracking spend and watching for annual fees.</div>
+          <div className="text-sm font-semibold text-ink">You're all caught up</div>
+          <div className="text-xs text-ink-muted mt-0.5">No urgent actions. Keep tracking spend and watching for annual fees.</div>
         </div>
       </div>
     ),
@@ -139,11 +139,11 @@ export default function DashboardView() {
   return (
     <div className="p-4 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Dashboard</h1>
+        <h1 className="text-xl font-bold text-ink">Dashboard</h1>
         <button
           onClick={() => setCustomizing(c => !c)}
           className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
-            customizing ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+            customizing ? 'bg-accent text-white' : 'bg-raised text-ink-muted hover:text-ink'
           }`}
         >
           <SlidersHorizontal size={13} />
@@ -152,18 +152,18 @@ export default function DashboardView() {
       </div>
 
       {customizing && (
-        <div className="bg-zinc-900 border border-blue-500/30 rounded-xl p-3">
+        <div className="bg-surface border border-accent/30 rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-zinc-400">Drag order with the arrows — saved on this device.</span>
-            <button onClick={resetOrder} className="text-xs text-blue-400 hover:underline">Reset</button>
+            <span className="text-xs text-ink-muted">Drag order with the arrows — saved on this device.</span>
+            <button onClick={resetOrder} className="text-xs text-accent-ink hover:underline">Reset</button>
           </div>
           <div className="space-y-1.5">
             {order.map((key, i) => (
-              <div key={key} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
-                <span className="text-sm text-white">{SECTION_LABELS[key]}</span>
+              <div key={key} className="flex items-center justify-between bg-raised rounded-lg px-3 py-2">
+                <span className="text-sm text-ink">{SECTION_LABELS[key]}</span>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => move(key, -1)} disabled={i === 0} className="p-1 text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"><ChevronUp size={15} /></button>
-                  <button onClick={() => move(key, 1)} disabled={i === order.length - 1} className="p-1 text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"><ChevronDown size={15} /></button>
+                  <button onClick={() => move(key, -1)} disabled={i === 0} className="p-1 text-ink-muted hover:text-ink disabled:opacity-30 transition-colors"><ChevronUp size={15} /></button>
+                  <button onClick={() => move(key, 1)} disabled={i === order.length - 1} className="p-1 text-ink-muted hover:text-ink disabled:opacity-30 transition-colors"><ChevronDown size={15} /></button>
                 </div>
               </div>
             ))}

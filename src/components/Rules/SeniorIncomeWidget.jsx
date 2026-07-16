@@ -12,14 +12,14 @@ export default function SeniorIncomeWidget() {
     dispatch({ type: 'UPDATE_SENIOR_INCOME', memberId, payload: { ...current, [field]: parseFloat(val) || 0 } })
   }
 
-  const inp = 'w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors'
+  const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-accent transition-colors'
   const playerReport = { p3: report.mom, p4: report.dad }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5">
-      <h3 className="text-base font-semibold text-white mb-1">Senior Accessible Income</h3>
-      <p className="text-xs text-zinc-400 mb-4">
-        Use <strong className="text-amber-400">Total Accessible Income</strong> on credit applications — NOT Social Security directly.
+    <div className="bg-surface border border-edge-strong rounded-xl p-5">
+      <h3 className="text-base font-semibold text-ink mb-1">Senior Accessible Income</h3>
+      <p className="text-xs text-ink-muted mb-4">
+        Use <strong className="text-warning-ink">Total Accessible Income</strong> on credit applications — NOT Social Security directly.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -27,13 +27,13 @@ export default function SeniorIncomeWidget() {
           const income = state.seniorIncome?.[player.id] ?? { ssMonthly: 0, accessibleSupport: 0 }
           const rpt = playerReport[player.id] ?? { annualSS: 0, annualSupport: 0, totalAccessibleIncome: 0 }
           return (
-            <div key={player.id} className="bg-zinc-800 rounded-lg p-3 space-y-2">
+            <div key={player.id} className="bg-raised rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2 mb-1">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: player.hex }} />
-                <span className="text-sm font-medium text-white">{player.name}</span>
+                <span className="text-sm font-medium text-ink">{player.name}</span>
               </div>
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">Social Security ($/month)</label>
+                <label className="text-xs text-ink-muted block mb-1">Social Security ($/month)</label>
                 <input
                   type="number"
                   min="0"
@@ -43,7 +43,7 @@ export default function SeniorIncomeWidget() {
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">Accessible Household Support ($/month)</label>
+                <label className="text-xs text-ink-muted block mb-1">Accessible Household Support ($/month)</label>
                 <input
                   type="number"
                   min="0"
@@ -52,18 +52,18 @@ export default function SeniorIncomeWidget() {
                   onChange={e => updateIncome(player.id, 'accessibleSupport', e.target.value)}
                 />
               </div>
-              <div className="pt-1 border-t border-zinc-700 text-xs space-y-1">
-                <div className="flex justify-between text-zinc-400">
+              <div className="pt-1 border-t border-edge-strong text-xs space-y-1">
+                <div className="flex justify-between text-ink-muted">
                   <span>Annual SS</span>
-                  <span className="text-white">{fmt$(rpt.annualSS)}</span>
+                  <span className="text-ink">{fmt$(rpt.annualSS)}</span>
                 </div>
-                <div className="flex justify-between text-zinc-400">
+                <div className="flex justify-between text-ink-muted">
                   <span>Annual Support</span>
-                  <span className="text-white">{fmt$(rpt.annualSupport)}</span>
+                  <span className="text-ink">{fmt$(rpt.annualSupport)}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span className="text-amber-400">Total Accessible Income</span>
-                  <span className="text-amber-400">{fmt$(rpt.totalAccessibleIncome)}</span>
+                  <span className="text-warning-ink">Total Accessible Income</span>
+                  <span className="text-warning-ink">{fmt$(rpt.totalAccessibleIncome)}</span>
                 </div>
               </div>
             </div>
@@ -71,11 +71,11 @@ export default function SeniorIncomeWidget() {
         })}
       </div>
 
-      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-xs text-amber-300">
+      <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 text-xs text-warning-ink">
         <strong>Credit Application Guidance:</strong> Enter the Total Accessible Income figure in the
         &ldquo;Annual Income&rdquo; field. Do NOT list Social Security as a separate income source.
         Combined household accessible income:{' '}
-        <strong className="text-amber-200">{fmt$(report.combinedHousehold)}/year</strong>
+        <strong className="text-warning-ink">{fmt$(report.combinedHousehold)}/year</strong>
       </div>
     </div>
   )

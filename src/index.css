@@ -2,6 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =====================================================
+   Design tokens — light values on :root, dark on html.dark.
+   Values are space-separated RGB triplets so Tailwind can
+   apply alpha via rgb(var(--c-x) / <alpha-value>).
+   ===================================================== */
+:root {
+  --c-base: 244 244 245; /* page background */
+  --c-surface: 255 255 255; /* cards, panels */
+  --c-raised: 244 244 245; /* inputs, nested blocks */
+  --c-overlay: 228 228 231; /* hover / active layer */
+  --c-edge: 228 228 231; /* default border */
+  --c-edge-strong: 212 212 216; /* input & emphasized border */
+  --c-ink: 24 24 27;
+  --c-ink-secondary: 63 63 70;
+  --c-ink-muted: 82 82 91;
+  --c-ink-tertiary: 113 113 122;
+  --c-ink-faint: 161 161 170;
+  --c-accent: 37 99 235;
+  --c-accent-hover: 29 78 216;
+  --c-accent-ink: 29 78 216;
+  --c-success: 5 150 105;
+  --c-success-ink: 4 120 87;
+  --c-warning: 217 119 6;
+  --c-warning-ink: 180 83 9;
+  --c-danger: 220 38 38;
+  --c-danger-ink: 185 28 28;
+  --c-info: 37 99 235;
+  --c-info-ink: 29 78 216;
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.06), 0 1px 3px 0 rgb(0 0 0 / 0.04);
+  --shadow-pop: 0 8px 24px -4px rgb(0 0 0 / 0.18);
+  color-scheme: light;
+}
+
+html.dark {
+  --c-base: 9 9 11; /* zinc-950 */
+  --c-surface: 24 24 27; /* zinc-900 */
+  --c-raised: 39 39 42; /* zinc-800 */
+  --c-overlay: 63 63 70; /* zinc-700 */
+  --c-edge: 39 39 42;
+  --c-edge-strong: 63 63 70;
+  --c-ink: 250 250 250;
+  --c-ink-secondary: 212 212 216;
+  --c-ink-muted: 161 161 170;
+  --c-ink-tertiary: 113 113 122;
+  --c-ink-faint: 82 82 91;
+  --c-accent: 37 99 235;
+  --c-accent-hover: 59 130 246;
+  --c-accent-ink: 96 165 250;
+  --c-success: 16 185 129;
+  --c-success-ink: 52 211 153;
+  --c-warning: 245 158 11;
+  --c-warning-ink: 251 191 36;
+  --c-danger: 239 68 68;
+  --c-danger-ink: 248 113 113;
+  --c-info: 59 130 246;
+  --c-info-ink: 96 165 250;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4);
+  --shadow-pop: 0 8px 24px -4px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -10,68 +71,43 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
+  background-color: rgb(var(--c-base));
+  color: rgb(var(--c-ink));
 }
 
-/* =====================================================
-   Light mode overrides — applied when html lacks .dark
-   ===================================================== */
-html:not(.dark),
-html:not(.dark) body {
-  background-color: #f4f4f5;
-  color: #18181b;
+/* Keyboard focus ring — visible in both themes. Elements that opt out via
+   focus:outline-none carry their own focus cue (e.g. focus:border-accent). */
+:focus-visible {
+  outline: 2px solid rgb(var(--c-accent) / 0.65);
+  outline-offset: 2px;
 }
 
-/* Backgrounds */
-html:not(.dark) .bg-zinc-950 { background-color: #f4f4f5; }
-html:not(.dark) .bg-zinc-900 { background-color: #ffffff; }
-html:not(.dark) .bg-zinc-800 { background-color: #e4e4e7; }
-html:not(.dark) .bg-zinc-700 { background-color: #d4d4d8; }
-html:not(.dark) .bg-zinc-800\/50 { background-color: rgb(228 228 231 / 0.7); }
+select option {
+  background-color: rgb(var(--c-surface));
+  color: rgb(var(--c-ink));
+}
 
-/* Hover backgrounds */
-html:not(.dark) .hover\:bg-zinc-700:hover { background-color: #d4d4d8; }
-html:not(.dark) .hover\:bg-zinc-800:hover { background-color: #e4e4e7; }
+/* Brief ring pulse used when the command palette / notifications jump to an item */
+@keyframes highlight-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--c-accent) / 0);
+  }
+  35% {
+    box-shadow: 0 0 0 3px rgb(var(--c-accent) / 0.6);
+  }
+}
+.highlight-flash {
+  animation: highlight-pulse 1.5s ease-out 2;
+}
 
-/* Action button card backgrounds */
-html:not(.dark) .bg-emerald-900\/40 { background-color: rgb(167 243 208 / 0.5); }
-html:not(.dark) .bg-amber-900\/40   { background-color: rgb(253 230 138 / 0.5); }
-html:not(.dark) .bg-blue-900\/40    { background-color: rgb(191 219 254 / 0.5); }
-html:not(.dark) .bg-red-900\/40     { background-color: rgb(254 202 202 / 0.5); }
-html:not(.dark) .bg-blue-600\/20    { background-color: rgb(37 99 235 / 0.15);  }
-
-/* Borders */
-html:not(.dark) .border-zinc-800 { border-color: #e4e4e7; }
-html:not(.dark) .border-zinc-700 { border-color: #d4d4d8; }
-html:not(.dark) .border-zinc-600 { border-color: #a1a1aa; }
-
-/* Hover borders */
-html:not(.dark) .hover\:border-zinc-600:hover { border-color: #a1a1aa; }
-
-/* Text colors */
-html:not(.dark) .text-white   { color: #18181b; }
-html:not(.dark) .text-zinc-300 { color: #3f3f46; }
-html:not(.dark) .text-zinc-400 { color: #52525b; }
-html:not(.dark) .text-zinc-500 { color: #71717a; }
-html:not(.dark) .text-zinc-600 { color: #52525b; }
-
-/* Status/accent text — darken for light bg contrast */
-html:not(.dark) .text-emerald-300 { color: #059669; }
-html:not(.dark) .text-amber-300   { color: #b45309; }
-html:not(.dark) .text-blue-300    { color: #1d4ed8; }
-html:not(.dark) .text-blue-400    { color: #2563eb; }
-html:not(.dark) .text-red-300     { color: #dc2626; }
-html:not(.dark) .text-red-400     { color: #dc2626; }
-
-/* Hover text */
-html:not(.dark) .hover\:text-white:hover   { color: #09090b; }
-html:not(.dark) .hover\:text-zinc-300:hover { color: #3f3f46; }
-
-/* Placeholder */
-html:not(.dark) .placeholder-zinc-500::placeholder { color: #a1a1aa; }
-
-/* Focus */
-html:not(.dark) .focus\:border-zinc-500:focus { border-color: #71717a; }
-
-/* Native select color-scheme */
-html:not(.dark) select { color-scheme: light; }
-html:not(.dark) select option { background-color: #ffffff; color: #18181b; }
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

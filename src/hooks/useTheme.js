@@ -12,7 +12,7 @@ export function useTheme() {
     } else {
       html.classList.remove('dark')
     }
-    try { localStorage.setItem('churner_theme', theme) } catch {}
+    try { localStorage.setItem('churner_theme', theme) } catch { /* ignore */ }
   }, [theme])
 
   return { theme, toggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark') }

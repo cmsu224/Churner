@@ -302,25 +302,25 @@ export default function ImportExportView() {
   const acctDist = memberDistribution(previewAccounts, members, fallbackMemberId)
   const hasUnresolved = cardDist.unresolved > 0 || acctDist.unresolved > 0
 
-  const inp = 'bg-zinc-800 border border-zinc-700 text-sm text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 transition-colors'
+  const inp = 'bg-raised border border-edge-strong text-sm text-ink rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-accent transition-colors'
 
   return (
     <div className="p-4 max-w-3xl mx-auto space-y-8">
       <div>
-        <h1 className="text-xl font-bold text-white mb-1">Import / Export</h1>
-        <p className="text-sm text-zinc-400">Back up your data, restore it, or import a list of cards from Claude AI.</p>
+        <h1 className="text-xl font-bold text-ink mb-1">Import / Export</h1>
+        <p className="text-sm text-ink-muted">Back up your data, restore it, or import a list of cards from Claude AI.</p>
       </div>
 
       {/* EXPORT */}
-      <section className="bg-zinc-900 border border-zinc-700 rounded-xl p-5">
-        <h2 className="text-base font-semibold text-white mb-1">Export Your Data</h2>
-        <p className="text-xs text-zinc-400 mb-4">
+      <section className="bg-surface border border-edge-strong rounded-xl p-5">
+        <h2 className="text-base font-semibold text-ink mb-1">Export Your Data</h2>
+        <p className="text-xs text-ink-muted mb-4">
           Downloads your current Churner data as a JSON file — {(state.creditCards ?? []).length} cards and {(state.bankAccounts ?? []).length} accounts.
           Keep this as a backup or use it to move to a new Gist.
         </p>
         <button
           onClick={handleExport}
-          className="flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+          className="flex items-center gap-2 bg-overlay hover:bg-overlay text-ink text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
         >
           <Download size={15} />
           Download churner-backup.json
@@ -328,13 +328,13 @@ export default function ImportExportView() {
       </section>
 
       {/* AI IMPORT HELPER */}
-      <section className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
+      <section className="bg-surface border border-edge-strong rounded-xl p-5 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-white mb-1">AI Import Helper</h2>
-          <p className="text-xs text-zinc-400 leading-relaxed">
+          <h2 className="text-base font-semibold text-ink mb-1">AI Import Helper</h2>
+          <p className="text-xs text-ink-muted leading-relaxed">
             The fastest way to get all your cards in. Take a screenshot or{' '}
-            <strong className="text-zinc-300">download your credit report (PDF)</strong>, open{' '}
-            <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-0.5">
+            <strong className="text-ink-secondary">download your credit report (PDF)</strong>, open{' '}
+            <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" className="text-accent-ink hover:underline inline-flex items-center gap-0.5">
               claude.ai <ExternalLink size={10} />
             </a>
             {' '}or any AI chat, paste the prompt below + your file, then paste the JSON back here.
@@ -344,27 +344,27 @@ export default function ImportExportView() {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-zinc-300">Step 1 — Copy this prompt into Claude with your data:</span>
+            <span className="text-xs font-medium text-ink-secondary">Step 1 — Copy this prompt into Claude with your data:</span>
             <button
               onClick={handleCopyPrompt}
-              className="flex items-center gap-1.5 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-xs bg-raised hover:bg-overlay text-ink-secondary px-3 py-1.5 rounded-lg transition-colors"
             >
-              {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+              {copied ? <Check size={12} className="text-success-ink" /> : <Copy size={12} />}
               {copied ? 'Copied!' : 'Copy prompt'}
             </button>
           </div>
-          <pre className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 text-xs text-zinc-400 leading-relaxed overflow-auto max-h-56 whitespace-pre-wrap font-mono">
+          <pre className="bg-base border border-edge rounded-lg p-4 text-xs text-ink-muted leading-relaxed overflow-auto max-h-56 whitespace-pre-wrap font-mono">
             {buildPrompt(members)}
           </pre>
         </div>
 
-        <div className="bg-zinc-800/60 border border-zinc-700 rounded-lg px-4 py-3 text-xs text-zinc-400 space-y-1">
-          <div className="font-medium text-zinc-300">How it works:</div>
+        <div className="bg-raised/60 border border-edge-strong rounded-lg px-4 py-3 text-xs text-ink-muted space-y-1">
+          <div className="font-medium text-ink-secondary">How it works:</div>
           <ol className="list-decimal list-inside space-y-1 ml-1">
-            <li>Copy the prompt above (it already has your household members: <span className="text-zinc-300">{members.map(p => p.name).join(', ')}</span>)</li>
+            <li>Copy the prompt above (it already has your household members: <span className="text-ink-secondary">{members.map(p => p.name).join(', ')}</span>)</li>
             <li>Open Claude.ai, paste the prompt + attach your credit report PDF or screenshot</li>
             <li>Tell Claude whose cards you're importing — e.g. <em>"These are Wife's cards"</em> or <em>"Mixed — assign each to the right person"</em></li>
-            <li>Claude outputs JSON with a <code className="text-zinc-300">member</code> field on each item</li>
+            <li>Claude outputs JSON with a <code className="text-ink-secondary">member</code> field on each item</li>
             <li>Paste the JSON in the Import box below — member assignment is automatic</li>
             <li>Review the preview, set a fallback member for any unassigned items, then click Import</li>
           </ol>
@@ -372,11 +372,11 @@ export default function ImportExportView() {
       </section>
 
       {/* IMPORT */}
-      <section className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 space-y-4">
+      <section className="bg-surface border border-edge-strong rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-base font-semibold text-white">Import JSON</h2>
+          <h2 className="text-base font-semibold text-ink">Import JSON</h2>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-400">Fallback member for unassigned items:</span>
+            <span className="text-xs text-ink-muted">Fallback member for unassigned items:</span>
             <select
               className={inp}
               value={fallbackMemberId}
@@ -388,17 +388,17 @@ export default function ImportExportView() {
         </div>
 
         {importDone && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm rounded-lg px-4 py-3">
+          <div className="bg-success/10 border border-success/30 text-success-ink text-sm rounded-lg px-4 py-3">
             Import successful! Your data has been loaded and saved to Gist.
           </div>
         )}
 
         <div>
-          <label className="text-xs text-zinc-400 block mb-2">Paste JSON here, or load a file:</label>
+          <label className="text-xs text-ink-muted block mb-2">Paste JSON here, or load a file:</label>
           <div className="flex gap-2 mb-2">
             <button
               onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-1.5 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-xs bg-raised hover:bg-overlay text-ink-secondary px-3 py-1.5 rounded-lg transition-colors"
             >
               <Upload size={12} />
               Load file
@@ -407,7 +407,7 @@ export default function ImportExportView() {
           </div>
           <textarea
             rows={8}
-            className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 font-mono focus:outline-none focus:border-blue-500 transition-colors"
+            className="w-full bg-base border border-edge-strong rounded-lg px-3 py-2 text-xs text-ink-secondary placeholder-ink-faint font-mono focus:outline-none focus:border-accent transition-colors"
             placeholder={'Paste JSON here...\n\nAccepts:\n• AI import output: { "creditCards": [...], "bankAccounts": [...] }\n• Full backup: the entire Churner state JSON'}
             value={importText}
             onChange={e => handleParsePreview(e.target.value)}
@@ -415,7 +415,7 @@ export default function ImportExportView() {
         </div>
 
         {parseError && (
-          <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-lg px-3 py-2">
+          <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 text-danger-ink text-xs rounded-lg px-3 py-2">
             <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
             <span>{parseError}</span>
           </div>
@@ -423,8 +423,8 @@ export default function ImportExportView() {
 
         {preview && (
           <div className="space-y-3">
-            <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-sm space-y-2">
-              <div className="font-medium text-white">
+            <div className="bg-raised border border-edge-strong rounded-lg px-4 py-3 text-sm space-y-2">
+              <div className="font-medium text-ink">
                 {preview.mode === 'full' ? 'Full backup detected' : 'AI import format detected'}
               </div>
 
@@ -433,29 +433,29 @@ export default function ImportExportView() {
                   {/* Cards */}
                   {previewCards.length > 0 && (
                     <div className="space-y-1">
-                      <div className="text-zinc-400">
-                        <span className="text-zinc-300 font-medium">{visibleCards.length} credit card{visibleCards.length !== 1 ? 's' : ''}</span>
+                      <div className="text-ink-muted">
+                        <span className="text-ink-secondary font-medium">{visibleCards.length} credit card{visibleCards.length !== 1 ? 's' : ''}</span>
                         {' — '}{visibleCards.map(c => c.cardName).filter(Boolean).join(', ')}
                       </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-2">
                         {members.map(p => {
                           const count = visibleCards.filter(c => resolveMemberId(c.member, members, null) === p.id).length
                           if (!count) return null
-                          return <span key={p.id} className="text-emerald-400">{p.name}: {count}</span>
+                          return <span key={p.id} className="text-success-ink">{p.name}: {count}</span>
                         })}
                         {cardDist.unresolved > 0 && (
-                          <span className="text-amber-400">{cardDist.unresolved} unassigned → {members.find(p => p.id === fallbackMemberId)?.name ?? 'fallback'}</span>
+                          <span className="text-warning-ink">{cardDist.unresolved} unassigned → {members.find(p => p.id === fallbackMemberId)?.name ?? 'fallback'}</span>
                         )}
                       </div>
                       {auCardCount > 0 && (
-                        <label className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer mt-1 pl-2">
+                        <label className="flex items-center gap-2 text-xs text-ink-muted cursor-pointer mt-1 pl-2">
                           <input
                             type="checkbox"
                             checked={includeAU}
                             onChange={e => setIncludeAU(e.target.checked)}
                           />
                           Include {auCardCount} authorized user {auCardCount === 1 ? 'card' : 'cards'}
-                          <span className="text-zinc-600">(excluded by default)</span>
+                          <span className="text-ink-faint">(excluded by default)</span>
                         </label>
                       )}
                     </div>
@@ -464,32 +464,32 @@ export default function ImportExportView() {
                   {/* Accounts */}
                   {previewAccounts.length > 0 && (
                     <div className="space-y-1">
-                      <div className="text-zinc-400">
-                        <span className="text-zinc-300 font-medium">{previewAccounts.length} bank account{previewAccounts.length !== 1 ? 's' : ''}</span>
+                      <div className="text-ink-muted">
+                        <span className="text-ink-secondary font-medium">{previewAccounts.length} bank account{previewAccounts.length !== 1 ? 's' : ''}</span>
                         {' — '}{previewAccounts.map(a => a.bankName).filter(Boolean).join(', ')}
                       </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-2">
                         {members.map(p => {
                           const count = previewAccounts.filter(a => resolveMemberId(a.member, members, null) === p.id).length
                           if (!count) return null
-                          return <span key={p.id} className="text-emerald-400">{p.name}: {count}</span>
+                          return <span key={p.id} className="text-success-ink">{p.name}: {count}</span>
                         })}
                         {acctDist.unresolved > 0 && (
-                          <span className="text-amber-400">{acctDist.unresolved} unassigned → {members.find(p => p.id === fallbackMemberId)?.name ?? 'fallback'}</span>
+                          <span className="text-warning-ink">{acctDist.unresolved} unassigned → {members.find(p => p.id === fallbackMemberId)?.name ?? 'fallback'}</span>
                         )}
                       </div>
                     </div>
                   )}
 
                   {hasUnresolved && (
-                    <div className="flex items-start gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-md px-2.5 py-1.5 mt-1">
+                    <div className="flex items-start gap-1.5 bg-warning/10 border border-warning/20 text-warning-ink rounded-md px-2.5 py-1.5 mt-1">
                       <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
                       <span>Some items have no member name — they'll be assigned to the fallback member above. You can change it before importing.</span>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-xs text-zinc-400">
+                <div className="text-xs text-ink-muted">
                   Full state with {preview.data.creditCards?.length ?? 0} cards and {preview.data.bankAccounts?.length ?? 0} accounts. This will REPLACE all existing data.
                 </div>
               )}
@@ -499,13 +499,13 @@ export default function ImportExportView() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setImportMode('append')}
-                  className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${importMode === 'append' ? 'border-blue-500 bg-blue-600/20 text-white' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+                  className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${importMode === 'append' ? 'border-accent bg-accent/20 text-ink' : 'border-edge-strong text-ink-muted hover:border-edge-strong'}`}
                 >
                   Append to existing
                 </button>
                 <button
                   onClick={() => setImportMode('replace')}
-                  className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${importMode === 'replace' ? 'border-red-500 bg-red-600/20 text-white' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+                  className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${importMode === 'replace' ? 'border-danger bg-danger/20 text-ink' : 'border-edge-strong text-ink-muted hover:border-edge-strong'}`}
                 >
                   Replace cards/accounts
                 </button>
@@ -514,7 +514,7 @@ export default function ImportExportView() {
 
             <button
               onClick={handleImport}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+              className="w-full bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
             >
               {preview.mode === 'full' ? 'Restore Full Backup' : `Import ${visibleCards.length + previewAccounts.length} Records`}
             </button>

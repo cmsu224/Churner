@@ -48,22 +48,22 @@ export default function GistSetup({ onConfigured }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-base flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-3xl font-bold text-white mb-1">Churner</div>
-          <div className="text-zinc-400 text-sm">Four-Member Bonus Tracker</div>
+          <div className="text-3xl font-bold text-ink mb-1">Churner</div>
+          <div className="text-ink-muted text-sm">Four-Member Bonus Tracker</div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-xl">
-          <h2 className="text-lg font-semibold text-white mb-1">Connect Your Data</h2>
-          <p className="text-zinc-400 text-sm mb-6">
+        <div className="bg-surface border border-edge-strong rounded-xl p-6 shadow-xl">
+          <h2 className="text-lg font-semibold text-ink mb-1">Connect Your Data</h2>
+          <p className="text-ink-muted text-sm mb-6">
             Your data lives in a private GitHub Gist — only you can see it. No servers required.
           </p>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+              <label className="block text-sm font-medium text-ink-secondary mb-1.5">
                 <KeyRound size={13} className="inline mr-1.5 opacity-70" />
                 GitHub Personal Access Token
               </label>
@@ -72,10 +72,10 @@ export default function GistSetup({ onConfigured }) {
                 value={pat}
                 onChange={e => setPat(e.target.value)}
                 placeholder="ghp_..."
-                className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
+                className="w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors"
               />
-              <p className="text-zinc-500 text-xs mt-1">
-                Needs <code className="text-zinc-300">gist</code> scope at{' '}
+              <p className="text-ink-tertiary text-xs mt-1">
+                Needs <code className="text-ink-secondary">gist</code> scope at{' '}
                 github.com/settings/tokens. Stored in your browser only.
               </p>
             </div>
@@ -85,8 +85,8 @@ export default function GistSetup({ onConfigured }) {
                 onClick={() => setMode('existing')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
                   mode === 'existing'
-                    ? 'bg-blue-600 border-blue-500 text-white'
-                    : 'bg-zinc-800 border-zinc-600 text-zinc-400 hover:border-zinc-500'
+                    ? 'bg-accent border-accent text-white'
+                    : 'bg-raised border-edge-strong text-ink-muted hover:border-edge-strong'
                 }`}
               >
                 <Link2 size={13} className="inline mr-1.5" />Use Existing
@@ -95,8 +95,8 @@ export default function GistSetup({ onConfigured }) {
                 onClick={() => setMode('new')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
                   mode === 'new'
-                    ? 'bg-blue-600 border-blue-500 text-white'
-                    : 'bg-zinc-800 border-zinc-600 text-zinc-400 hover:border-zinc-500'
+                    ? 'bg-accent border-accent text-white'
+                    : 'bg-raised border-edge-strong text-ink-muted hover:border-edge-strong'
                 }`}
               >
                 <Plus size={13} className="inline mr-1.5" />Create New
@@ -105,29 +105,29 @@ export default function GistSetup({ onConfigured }) {
 
             {mode === 'existing' && (
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">Gist ID</label>
+                <label className="block text-sm font-medium text-ink-secondary mb-1.5">Gist ID</label>
                 <input
                   type="text"
                   value={gistId}
                   onChange={e => setGistId(e.target.value)}
                   placeholder="e.g. a1b2c3d4e5f6..."
-                  className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors"
                 />
-                <p className="text-zinc-500 text-xs mt-1">
+                <p className="text-ink-tertiary text-xs mt-1">
                   Found in the URL: gist.github.com/username/<strong>ID</strong>
                 </p>
               </div>
             )}
 
             {mode === 'new' && (
-              <div className="bg-zinc-800 rounded-lg p-3 text-zinc-400 text-xs">
-                A private gist named <code className="text-zinc-300">churner-data.json</code> will be
+              <div className="bg-raised rounded-lg p-3 text-ink-muted text-xs">
+                A private gist named <code className="text-ink-secondary">churner-data.json</code> will be
                 created in your account with your initial data.
               </div>
             )}
 
             {err && (
-              <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              <p className="text-danger-ink text-sm bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">
                 {err}
               </p>
             )}
@@ -135,14 +135,14 @@ export default function GistSetup({ onConfigured }) {
             <button
               onClick={handleConnect}
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+              className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
             >
               {loading ? 'Connecting...' : mode === 'new' ? 'Create & Connect' : 'Connect'}
             </button>
           </div>
         </div>
 
-        <p className="text-center text-zinc-600 text-xs mt-4">
+        <p className="text-center text-ink-faint text-xs mt-4">
           Your PAT is never sent anywhere except GitHub&apos;s API.
         </p>
       </div>

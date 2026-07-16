@@ -7,19 +7,20 @@ import BalanceBar from '../shared/BalanceBar'
 import DateField from '../shared/DateField'
 import { getSpendDeadlineInfo, getCardNextStatus, getReeligibilityInfo } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
+import { getBurnRate } from '../../engines/burnRate'
 import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
-import { fmt$ } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw } from 'lucide-react'
+import { fmt$, fmtDate } from '../../utils/format'
+import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X } from 'lucide-react'
 
-const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors'
-const inpRequired = 'w-full bg-zinc-800 border border-blue-500/60 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400 transition-colors'
+const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
+const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 
 const btnColors = {
-  emerald: 'border border-zinc-700 text-zinc-500 hover:text-emerald-400 hover:border-emerald-800',
-  amber:   'border border-zinc-700 text-zinc-500 hover:text-amber-400 hover:border-amber-800',
-  blue:    'border border-zinc-700 text-zinc-500 hover:text-blue-400 hover:border-blue-800',
-  red:     'border border-zinc-700 text-zinc-500 hover:text-red-400 hover:border-red-800',
-  zinc:    'border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600',
+  emerald: 'border border-edge-strong text-ink-tertiary hover:text-success-ink hover:border-success/50',
+  amber:   'border border-edge-strong text-ink-tertiary hover:text-warning-ink hover:border-warning/50',
+  blue:    'border border-edge-strong text-ink-tertiary hover:text-accent-ink hover:border-accent/50',
+  red:     'border border-edge-strong text-ink-tertiary hover:text-danger-ink hover:border-danger/50',
+  zinc:    'border border-edge-strong text-ink-tertiary hover:text-ink-secondary hover:border-edge-strong',
 }
 
 function getQuickActions(card) {
@@ -53,7 +54,7 @@ function getQuickActions(card) {
   }
 }
 
-export default function CardItem({ card, members }) {
+export default function CardItem({ card, members, autoOpenLogSpend = false }) {
   const { dispatch } = useChurn()
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
@@ -61,10 +62,20 @@ export default function CardItem({ card, members }) {
   const [undoSnapshot, setUndoSnapshot] = useState(null)
   const [showDowngradeInput, setShowDowngradeInput] = useState(false)
   const [downgradingTo, setDowngradingTo] = useState('')
+  const [showLogSpend, setShowLogSpend] = useState(autoOpenLogSpend)
+  const [logDraft, setLogDraft] = useState({ amount: '', note: '', date: new Date().toISOString().slice(0, 10) })
   const undoTimerRef = useRef(null)
 
+  // Open the log-spend row when the command palette deep-links to it
+  // (render-time state adjustment; no effect needed).
+  const [prevAutoLog, setPrevAutoLog] = useState(autoOpenLogSpend)
+  if (prevAutoLog !== autoOpenLogSpend) {
+    setPrevAutoLog(autoOpenLogSpend)
+    if (autoOpenLogSpend) setShowLogSpend(true)
+  }
 
   const info = getSpendDeadlineInfo(card)
+  const burn = getBurnRate(card)
   const nextStatus = getCardNextStatus(card)
   const age = getCardAge(card)
   const quickActions = getQuickActions(card)
@@ -72,7 +83,14 @@ export default function CardItem({ card, members }) {
   const reeligibility = isClosed ? getReeligibilityInfo(card) : null
 
   useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
-  useEffect(() => { setShowDowngradeInput(false) }, [card.status])
+
+  // Close the downgrade input whenever the card's status changes (render-time
+  // state adjustment — avoids an extra effect pass).
+  const [prevStatus, setPrevStatus] = useState(card.status)
+  if (prevStatus !== card.status) {
+    setPrevStatus(card.status)
+    setShowDowngradeInput(false)
+  }
 
   function startEdit() {
     setDraft({ ...card })
@@ -96,9 +114,11 @@ export default function CardItem({ card, members }) {
         creditLimit: draft.creditLimit !== '' && draft.creditLimit != null ? parseFloat(draft.creditLimit) || 0 : 0,
         bonusValue: draft.bonusValue !== '' && draft.bonusValue != null ? parseFloat(draft.bonusValue) || 0 : 0,
         annualFee: draft.annualFee !== '' && draft.annualFee != null ? parseFloat(draft.annualFee) || 0 : 0,
+        bonusCashValue: draft.bonusCashValue !== '' && draft.bonusCashValue != null ? parseFloat(draft.bonusCashValue) : undefined,
         openDate: draft.openDate || null,
         lastUsedDate: draft.lastUsedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
+        closedDate: draft.closedDate || null,
       }
     })
     setDraft(null)
@@ -110,6 +130,23 @@ export default function CardItem({ card, members }) {
   function markUsedToday(e) {
     e.stopPropagation()
     dispatch({ type: 'UPDATE_CARD', payload: { ...card, lastUsedDate: new Date().toISOString().slice(0, 10) } })
+  }
+
+  function submitLogSpend(e) {
+    e.stopPropagation()
+    const amount = parseFloat(logDraft.amount)
+    if (!amount || amount <= 0) return
+    dispatch({ type: 'LOG_SPEND', cardId: card.id, entry: { amount, note: logDraft.note.trim(), date: logDraft.date || new Date().toISOString().slice(0, 10) } })
+    setLogDraft({ amount: '', note: '', date: new Date().toISOString().slice(0, 10) })
+    setShowLogSpend(false)
+  }
+
+  function deleteLogEntry(entry) {
+    dispatch({ type: 'DELETE_SPEND_ENTRY', cardId: card.id, entryId: entry.id })
+    // Keep the open edit form's total in step with the card
+    if (draft) {
+      setDraft(d => ({ ...d, currentSpend: Math.max(0, (parseFloat(d.currentSpend) || 0) - (Number(entry.amount) || 0)) }))
+    }
   }
 
   function applyQuickAction(e, payload) {
@@ -170,7 +207,7 @@ export default function CardItem({ card, members }) {
     || !!draft?.bonusReceived
 
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden hover:border-zinc-600 transition-colors">
+    <div id={`item-${card.id}`} className="bg-surface border border-edge rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
       {/* Collapsed header */}
       <div
         className="w-full p-4 cursor-pointer select-none"
@@ -181,11 +218,11 @@ export default function CardItem({ card, members }) {
             <IssuerLogo name={card.issuer || card.cardName} size={30} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-white text-sm">{card.cardName}</span>
-                {card.last4 && <span className="text-zinc-500 text-xs">···{card.last4}</span>}
-                {card.issuer && <span className="text-zinc-500 text-xs">{card.issuer}</span>}
+                <span className="font-semibold text-ink text-sm">{card.cardName}</span>
+                {card.last4 && <span className="text-ink-tertiary text-xs">···{card.last4}</span>}
+                {card.issuer && <span className="text-ink-tertiary text-xs">{card.issuer}</span>}
                 {card.status === 'Downgraded' && card.downgradedToCard && (
-                  <span className="text-xs text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
+                  <span className="text-xs text-ink-muted bg-raised px-1.5 py-0.5 rounded">
                     → {card.downgradedToCard}
                   </span>
                 )}
@@ -194,17 +231,17 @@ export default function CardItem({ card, members }) {
                 <PlayerBadge memberId={card.memberId} members={members} />
                 <StatusBadge status={card.status} />
                 {card.isAuthorizedUser && (
-                  <span className="text-purple-300 text-xs bg-purple-900/30 border border-purple-700/40 px-1.5 py-0.5 rounded">
+                  <span className="text-purple-700 dark:text-purple-300 text-xs bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 rounded">
                     Auth User
                   </span>
                 )}
                 {age && (
-                  <span className="text-zinc-500 text-xs bg-zinc-800 px-1.5 py-0.5 rounded">
+                  <span className="text-ink-tertiary text-xs bg-raised px-1.5 py-0.5 rounded">
                     {age.label}
                   </span>
                 )}
                 {card.annualFee > 0 && (
-                  <span className="text-zinc-400 text-xs bg-zinc-800 px-1.5 py-0.5 rounded">
+                  <span className="text-ink-muted text-xs bg-raised px-1.5 py-0.5 rounded">
                     ${Math.round(card.annualFee)}/yr
                   </span>
                 )}
@@ -212,18 +249,29 @@ export default function CardItem({ card, members }) {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+            {/* Quick spend logging for cards with an open spend requirement */}
+            {burn && !expanded && (
+              <button
+                onClick={e => { e.stopPropagation(); setShowLogSpend(s => !s) }}
+                title="Log spend"
+                className="flex items-center gap-1 bg-raised hover:bg-accent text-ink-secondary hover:text-white text-xs px-2 py-1 rounded-md transition-colors"
+              >
+                <Plus size={11} />
+                <span>Log</span>
+              </button>
+            )}
             {/* Only show for Keep Alive cards — confirms card is still being used */}
             {card.status === 'Keep Alive' && (
               <button
                 onClick={markUsedToday}
                 title="Mark used today"
-                className="flex items-center gap-1 bg-zinc-700 hover:bg-emerald-700 text-zinc-300 hover:text-white text-xs px-2 py-1 rounded-md transition-colors"
+                className="flex items-center gap-1 bg-raised hover:bg-success text-ink-secondary hover:text-white text-xs px-2 py-1 rounded-md transition-colors"
               >
                 <Zap size={11} />
                 <span>Used</span>
               </button>
             )}
-            <span className="text-zinc-500">
+            <span className="text-ink-tertiary">
               {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
             </span>
           </div>
@@ -231,13 +279,22 @@ export default function CardItem({ card, members }) {
 
         {info && !info.met && (
           <div className="mt-2">
-            <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden mb-1">
-              <div className={`h-full rounded-full ${info.daysLeft < 14 ? 'bg-red-500' : info.daysLeft < 30 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${info.pct}%` }} />
+            <div className="h-1.5 bg-overlay rounded-full overflow-hidden mb-1">
+              <div className={`h-full rounded-full ${info.daysLeft < 14 ? 'bg-danger' : info.daysLeft < 30 ? 'bg-warning' : 'bg-info'}`} style={{ width: `${info.pct}%` }} />
             </div>
-            <div className="flex justify-between text-xs text-zinc-400">
+            <div className="flex justify-between text-xs text-ink-muted">
               <span>{fmt$(card.currentSpend ?? 0)} / {fmt$(card.spendRequirement ?? 0)} spend</span>
-              <span className={info.daysLeft < 14 ? 'text-red-400 font-medium' : ''}>{info.daysLeft}d left</span>
+              <span className={info.daysLeft < 14 ? 'text-danger-ink font-medium' : ''}>{info.daysLeft}d left</span>
             </div>
+            {burn && (
+              <div className={`text-[11px] mt-1 ${burn.onTrack ? 'text-success-ink' : 'text-warning-ink'}`}>
+                {burn.onTrack && burn.projectedDate
+                  ? `On pace — projected done ${new Date(burn.projectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                  : burn.stalled
+                  ? `No recent spend — need ${fmt$(burn.neededPerWeek)}/wk`
+                  : `Off pace — need ${fmt$(burn.neededPerWeek)}/wk (current ~${fmt$(burn.perWeek)}/wk)`}
+              </div>
+            )}
           </div>
         )}
 
@@ -245,54 +302,88 @@ export default function CardItem({ card, members }) {
           reeligibility && reeligibility.months ? (
             reeligibility.reeligible ? (
               <div className="mt-2">
-                <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden mb-1">
-                  <div className="h-full rounded-full bg-emerald-500 w-full" />
+                <div className="h-1.5 bg-overlay rounded-full overflow-hidden mb-1">
+                  <div className="h-full rounded-full bg-success w-full" />
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Re-eligibility</span>
-                  <span className="text-emerald-400 font-medium">Ready to reapply</span>
+                  <span className="text-ink-tertiary">Re-eligibility</span>
+                  <span className="text-success-ink font-medium">Ready to reapply</span>
                 </div>
               </div>
             ) : (
               <div className="mt-2">
-                <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden mb-1">
+                <div className="h-1.5 bg-overlay rounded-full overflow-hidden mb-1">
                   <div
-                    className="h-full rounded-full bg-zinc-500"
+                    className="h-full rounded-full bg-ink-tertiary"
                     style={{ width: `${Math.max(2, Math.round(((reeligibility.months * 30 - reeligibility.daysUntil) / (reeligibility.months * 30)) * 100))}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-zinc-500">
+                <div className="flex justify-between text-xs text-ink-tertiary">
                   <span>Re-eligible in {reeligibility.daysUntil}d</span>
                   <span>{new Date(reeligibility.reeligibleDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
                 </div>
               </div>
             )
           ) : reeligibility && !reeligibility.months ? (
-            <div className="mt-1.5 text-xs text-zinc-600">{reeligibility.note}</div>
+            <div className="mt-1.5 text-xs text-ink-faint">{reeligibility.note}</div>
           ) : (
-            <div className="mt-1.5 text-xs text-zinc-600">Re-eligibility tracked after bonus is earned</div>
+            <div className="mt-1.5 text-xs text-ink-faint">Re-eligibility tracked after bonus is earned</div>
           )
         ) : (
           <>
             <BalanceBar balance={card.currentBalance ?? 0} limit={card.creditLimit ?? 0} kind="card" />
             {nextStatus && !expanded && (
-              <div className="mt-1.5 text-xs text-amber-400">→ {statusLabel(nextStatus)}</div>
+              <div className="mt-1.5 text-xs text-warning-ink">→ {statusLabel(nextStatus)}</div>
             )}
           </>
         )}
       </div>
 
       {/* Quick action buttons — only shown when collapsed */}
-      {!expanded && (quickActions.length > 0 || undoSnapshot) && (
-        <div className="px-4 pb-3 pt-0 flex gap-2 flex-wrap items-center border-t border-zinc-800">
-          {showDowngradeInput ? (
+      {!expanded && (quickActions.length > 0 || undoSnapshot || showLogSpend) && (
+        <div className="px-4 pb-3 pt-0 flex gap-2 flex-wrap items-center border-t border-edge">
+          {showLogSpend ? (
+            <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center" onClick={e => e.stopPropagation()}>
+              <span className="text-[10px] text-ink-faint uppercase tracking-wider font-medium flex-shrink-0">Log spend</span>
+              <input
+                autoFocus
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={logDraft.amount}
+                onChange={e => setLogDraft(d => ({ ...d, amount: e.target.value }))}
+                placeholder="$ amount"
+                aria-label="Spend amount"
+                className="w-24 bg-raised border border-edge-strong rounded-lg px-2.5 py-1.5 text-xs text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent"
+                onKeyDown={e => { if (e.key === 'Enter') submitLogSpend(e); if (e.key === 'Escape') { e.stopPropagation(); setShowLogSpend(false) } }}
+              />
+              <input
+                value={logDraft.note}
+                onChange={e => setLogDraft(d => ({ ...d, note: e.target.value }))}
+                placeholder="note (optional)"
+                aria-label="Spend note"
+                className="flex-1 min-w-[90px] bg-raised border border-edge-strong rounded-lg px-2.5 py-1.5 text-xs text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent"
+                onKeyDown={e => { if (e.key === 'Enter') submitLogSpend(e); if (e.key === 'Escape') { e.stopPropagation(); setShowLogSpend(false) } }}
+              />
+              <input
+                type="date"
+                value={logDraft.date}
+                onChange={e => setLogDraft(d => ({ ...d, date: e.target.value }))}
+                aria-label="Spend date"
+                className="bg-raised border border-edge-strong rounded-lg px-2 py-1.5 text-xs text-ink focus:outline-none focus:border-accent"
+              />
+              <button onClick={e => { e.stopPropagation(); setShowLogSpend(false) }} aria-label="Cancel logging spend" className={`text-xs px-2 py-1.5 rounded-lg transition-colors ${btnColors.zinc}`}><X size={12} /></button>
+              <button onClick={submitLogSpend} disabled={!(parseFloat(logDraft.amount) > 0)} className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40 ${btnColors.emerald}`}>Add</button>
+            </div>
+          ) : showDowngradeInput ? (
             <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center" onClick={e => e.stopPropagation()}>
               <input
                 autoFocus
                 value={downgradingTo}
                 onChange={e => setDowngradingTo(e.target.value)}
                 placeholder="New free card name (e.g. Freedom)"
-                className="flex-1 min-w-0 bg-zinc-800 border border-zinc-600 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                className="flex-1 min-w-0 bg-raised border border-edge-strong rounded-lg px-2.5 py-1.5 text-xs text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent"
                 onKeyDown={e => { if (e.key === 'Enter') confirmDowngrade(e); if (e.key === 'Escape') { e.stopPropagation(); setShowDowngradeInput(false) } }}
               />
               <button onClick={e => { e.stopPropagation(); setShowDowngradeInput(false) }} className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${btnColors.zinc}`}>Cancel</button>
@@ -300,7 +391,7 @@ export default function CardItem({ card, members }) {
             </div>
           ) : (
             <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center">
-              <span className="text-[10px] text-zinc-600 uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
+              <span className="text-[10px] text-ink-faint uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
               {quickActions.map(action => (
                 <button
                   key={action.label}
@@ -320,10 +411,10 @@ export default function CardItem({ card, members }) {
               )}
             </div>
           )}
-          {!showDowngradeInput && undoSnapshot && (
+          {!showDowngradeInput && !showLogSpend && undoSnapshot && (
             <button
               onClick={undoAction}
-              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-400 hover:text-white transition-colors mt-2.5 ml-auto flex-shrink-0"
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium bg-raised hover:bg-overlay border border-edge-strong text-ink-muted hover:text-ink transition-colors mt-2.5 ml-auto flex-shrink-0"
             >
               <RotateCcw size={11} />
               Undo
@@ -334,29 +425,29 @@ export default function CardItem({ card, members }) {
 
       {/* Delete confirmation — shown inline so the card doesn't collapse on mobile */}
       {expanded && confirming && (
-        <div className="border-t border-zinc-700 p-4">
-          <p className="text-sm text-zinc-300 mb-3">Delete <strong className="text-white">{card.cardName}</strong>? This cannot be undone.</p>
+        <div className="border-t border-edge-strong p-4">
+          <p className="text-sm text-ink-secondary mb-3">Delete <strong className="text-ink">{card.cardName}</strong>? This cannot be undone.</p>
           <div className="flex gap-2">
-            <button onClick={() => setConfirming(false)} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors">Cancel</button>
-            <button onClick={handleDelete} className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded-lg text-sm font-semibold transition-colors">Delete</button>
+            <button onClick={() => setConfirming(false)} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
+            <button onClick={handleDelete} className="flex-1 bg-danger hover:bg-danger/85 text-white py-2 rounded-lg text-sm font-semibold transition-colors">Delete</button>
           </div>
         </div>
       )}
 
       {/* Expanded edit form */}
       {expanded && draft && !confirming && (
-        <div className="border-t border-zinc-700 p-4 space-y-3">
+        <div className="border-t border-edge-strong p-4 space-y-3">
 
           {/* Core */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Person</label>
+              <label className="text-xs text-ink-muted block mb-1">Person</label>
               <select className={inp} value={draft.memberId ?? ''} onChange={e => set('memberId', e.target.value)}>
                 {(members ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Status</label>
+              <label className="text-xs text-ink-muted block mb-1">Status</label>
               <select className={inp} value={draft.status ?? 'Active Churn'} onChange={e => set('status', e.target.value)}>
                 {CARD_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
@@ -364,20 +455,20 @@ export default function CardItem({ card, members }) {
           </div>
 
           <div>
-            <label className="text-xs text-blue-400 block mb-1 font-medium">Card Name <span className="text-blue-400">*required</span></label>
+            <label className="text-xs text-accent-ink block mb-1 font-medium">Card Name <span className="text-accent-ink">*required</span></label>
             <input className={inpRequired} value={draft.cardName ?? ''} onChange={e => set('cardName', e.target.value)} placeholder="e.g. Sapphire Preferred" />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-500 block mb-1">Issuer</label>
+              <label className="text-xs text-ink-tertiary block mb-1">Issuer</label>
               <input list="issuers" className={inp} value={draft.issuer ?? ''} onChange={e => set('issuer', e.target.value)} placeholder="Chase" />
               <datalist id="issuers">
                 {['Chase', 'Amex', 'Capital One', 'Citi', 'Bank of America', 'Barclays', 'Wells Fargo', 'US Bank', 'Discover'].map(i => <option key={i} value={i} />)}
               </datalist>
             </div>
             <div>
-              <label className="text-xs text-zinc-500 block mb-1">Last 4</label>
+              <label className="text-xs text-ink-tertiary block mb-1">Last 4</label>
               <input className={inp} value={draft.last4 ?? ''} onChange={e => set('last4', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="optional" maxLength={4} />
             </div>
           </div>
@@ -385,12 +476,12 @@ export default function CardItem({ card, members }) {
           {/* Dates */}
           <div className={`grid gap-2 ${showLastUsed ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <div>
-              <label className="text-xs text-zinc-500 block mb-1">Open Date</label>
+              <label className="text-xs text-ink-tertiary block mb-1">Open Date</label>
               <DateField value={draft.openDate} onChange={v => set('openDate', v)} />
             </div>
             {showLastUsed && (
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Last Used</label>
+                <label className="text-xs text-ink-tertiary block mb-1">Last Used</label>
                 <DateField value={draft.lastUsedDate} onChange={v => set('lastUsedDate', v)} />
               </div>
             )}
@@ -399,47 +490,71 @@ export default function CardItem({ card, members }) {
           {/* Balance */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-500 block mb-1">Current Balance ($)</label>
+              <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
               <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="text-xs text-zinc-500 block mb-1">Credit Limit ($)</label>
+              <label className="text-xs text-ink-tertiary block mb-1">Credit Limit ($)</label>
               <input type="number" min="0" className={inp} value={draft.creditLimit ?? ''} onChange={e => set('creditLimit', e.target.value)} placeholder="optional" />
             </div>
           </div>
 
           {/* Earning Bonus — only shown for Active Churn or when spend data exists */}
           {showEarnBonusSection && (
-            <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
-              <div className="text-xs font-medium text-zinc-300 mb-2">Earning Bonus</div>
+            <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-medium text-ink-secondary mb-2">Earning Bonus</div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-xs text-zinc-400 block mb-1">Spend Req ($)</label>
+                  <label className="text-xs text-ink-muted block mb-1">Spend Req ($)</label>
                   <input type="number" min="0" className={inp} value={draft.spendRequirement ?? ''} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 block mb-1">Days</label>
+                  <label className="text-xs text-ink-muted block mb-1">Days</label>
                   <input type="number" min="1" className={inp} value={draft.spendDeadlineDays ?? ''} onChange={e => set('spendDeadlineDays', e.target.value)} placeholder="90" />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 block mb-1">Spent ($)</label>
+                  <label className="text-xs text-ink-muted block mb-1">Spent ($)</label>
                   <input type="number" min="0" className={inp} value={draft.currentSpend ?? ''} onChange={e => set('currentSpend', e.target.value)} placeholder="0" />
                 </div>
               </div>
+              {(card.spendLog ?? []).length > 0 ? (
+                <div className="pt-1">
+                  <div className="text-xs text-ink-tertiary mb-1.5">Spend log</div>
+                  <ul className="space-y-1">
+                    {[...card.spendLog].sort((a, b) => new Date(b.date) - new Date(a.date)).map(entry => (
+                      <li key={entry.id} className="flex items-center gap-2 text-xs bg-raised/60 rounded-md px-2 py-1.5">
+                        <span className="text-ink-tertiary w-20 flex-shrink-0">{fmtDate(entry.date)}</span>
+                        <span className="text-ink font-medium tabular-nums">{fmt$(entry.amount)}</span>
+                        {entry.note && <span className="text-ink-muted truncate flex-1">{entry.note}</span>}
+                        <button
+                          onClick={() => deleteLogEntry(entry)}
+                          aria-label={`Delete ${fmt$(entry.amount)} entry`}
+                          className="ml-auto text-ink-faint hover:text-danger-ink transition-colors flex-shrink-0"
+                        >
+                          <X size={12} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-ink-faint mt-1.5">Deleting an entry subtracts it from the total. The Spent field still works for manual totals.</p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-ink-faint">Tip: the “+ Log” button on the collapsed card itemizes spend and powers the pace projection.</p>
+              )}
             </div>
           )}
 
           {/* Bonus & Rewards — hidden for Closed cards unless data exists */}
           {showBonusSection && (
-            <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
-              <div className="text-xs font-medium text-zinc-300 mb-2">Bonus & Rewards</div>
+            <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-medium text-ink-secondary mb-2">Bonus & Rewards</div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-xs text-zinc-400 block mb-1">Bonus</label>
+                  <label className="text-xs text-ink-muted block mb-1">Bonus</label>
                   <input type="number" min="0" className={inp} value={draft.bonusValue ?? ''} onChange={e => set('bonusValue', e.target.value)} placeholder="pts/$" />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 block mb-1">Type</label>
+                  <label className="text-xs text-ink-muted block mb-1">Type</label>
                   <select className={inp} value={draft.bonusType ?? 'cashback'} onChange={e => set('bonusType', e.target.value)}>
                     <option value="points">Points</option>
                     <option value="cashback">Cash</option>
@@ -447,48 +562,70 @@ export default function CardItem({ card, members }) {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400 block mb-1">Annual Fee ($)</label>
+                  <label className="text-xs text-ink-muted block mb-1">Annual Fee ($)</label>
                   <input type="number" min="0" className={inp} value={draft.annualFee ?? ''} onChange={e => set('annualFee', e.target.value)} placeholder="0" />
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
                 <input type="checkbox" checked={!!draft.bonusReceived} onChange={e => set('bonusReceived', e.target.checked)} />
                 Bonus received
               </label>
               {draft.bonusReceived && (
                 <div>
-                  <label className="text-xs text-zinc-400 block mb-1">Bonus Received Date</label>
+                  <label className="text-xs text-ink-muted block mb-1">Bonus Received Date</label>
                   <DateField value={draft.bonusReceivedDate} onChange={v => set('bonusReceivedDate', v)} />
                 </div>
               )}
+              {draft.bonusReceived && draft.bonusType !== 'cashback' && (
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1">Bonus Cash Value ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.bonusCashValue ?? ''} onChange={e => set('bonusCashValue', e.target.value)} placeholder="what the points were worth" />
+                  <p className="text-[11px] text-ink-faint mt-1">Used by Earnings. Blank = valued at the default rate in Settings.</p>
+                </div>
+              )}
+              {Number(draft.annualFee) > 0 && (
+                <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
+                  <input type="checkbox" checked={!!draft.feeWaivedFirstYear} onChange={e => set('feeWaivedFirstYear', e.target.checked)} />
+                  First-year fee waived
+                </label>
+              )}
+            </div>
+          )}
+
+          {/* Closed date — for accurate fee history on retired cards */}
+          {(draft.status === 'Closed' || draft.status === 'Downgraded' || !!draft.closedDate) && (
+            <div>
+              <label className="text-xs text-ink-tertiary block mb-1">Closed / Downgraded Date</label>
+              <DateField value={draft.closedDate} onChange={v => set('closedDate', v)} />
+              <p className="text-[11px] text-ink-faint mt-1">Stops the Earnings fee estimate at this date.</p>
             </div>
           )}
 
           {/* Card Type */}
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
               <input type="checkbox" checked={!!draft.isBusiness} onChange={e => set('isBusiness', e.target.checked)} />
               Business card
             </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
               <input type="checkbox" checked={!!draft.isAuthorizedUser} onChange={e => set('isAuthorizedUser', e.target.checked)} />
               Authorized user
             </label>
           </div>
-          <p className="text-xs text-zinc-600 -mt-1">Business & authorized-user cards are excluded from Chase 5/24.</p>
+          <p className="text-xs text-ink-faint -mt-1">Business & authorized-user cards are excluded from Chase 5/24.</p>
 
           {/* Notes */}
           <div>
-            <label className="text-xs text-zinc-500 block mb-1">Notes</label>
+            <label className="text-xs text-ink-tertiary block mb-1">Notes</label>
             <textarea rows={2} className={inp} value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} placeholder="optional" />
           </div>
 
           <div className="flex gap-2 pt-1">
-            <button onClick={() => setConfirming(true)} className="p-2 text-zinc-500 hover:text-red-400 transition-colors">
+            <button onClick={() => setConfirming(true)} className="p-2 text-ink-tertiary hover:text-danger-ink transition-colors">
               <Trash2 size={15} />
             </button>
-            <button onClick={cancelEdit} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors">Cancel</button>
-            <button onClick={saveEdit} disabled={!draft.cardName?.trim()} className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Save</button>
+            <button onClick={cancelEdit} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
+            <button onClick={saveEdit} disabled={!draft.cardName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Save</button>
           </div>
         </div>
       )}
