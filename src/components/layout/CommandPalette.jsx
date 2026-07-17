@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users, Link2,
   ArrowDownUp, Settings, CalendarDays, ClipboardList, TrendingUp, FlaskConical,
-  Plus, DollarSign, CornerDownLeft, Coins,
+  Plus, DollarSign, CornerDownLeft, Coins, Receipt,
 } from 'lucide-react'
 import { useChurn } from '../../store/ChurnContext'
 import { getIssuerMeta } from '../../utils/issuers'
@@ -13,6 +13,7 @@ const PAGES = [
   { label: 'Credit Cards', route: '/cards', icon: CreditCard, keywords: 'cards' },
   { label: 'Bank Accounts', route: '/accounts', icon: Landmark, keywords: 'banks checking savings' },
   { label: 'Points', route: '/points', icon: Coins, keywords: 'loyalty miles rewards balances programs' },
+  { label: 'Annual Fees', route: '/fees', icon: Receipt, keywords: 'annual fee due dates refund window retention cancel' },
   { label: 'Applications', route: '/applications', icon: ClipboardList, keywords: 'apply funnel denials' },
   { label: 'Timeline', route: '/timeline', icon: CalendarDays, keywords: 'calendar deadlines events ics' },
   { label: 'Earnings', route: '/earnings', icon: TrendingUp, keywords: 'roi analytics profit bonuses' },
@@ -140,7 +141,7 @@ export default function CommandPalette({ open, onClose }) {
 
     return [
       build('Actions', actions, 4),
-      build('Pages', PAGES, 14),
+      build('Pages', PAGES, 15),
       build('Cards', cards, q ? 6 : 0),
       build('Accounts', accounts, q ? 6 : 0),
       build('Points', points, q ? 6 : 0),

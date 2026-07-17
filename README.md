@@ -24,15 +24,16 @@ No backend, no subscription, no database server. The whole app is a static singl
   - [10. Issuer Rule Engines](#10-issuer-rule-engines)
   - [11. What-If Eligibility Simulator](#11-what-if-eligibility-simulator)
   - [12. Card Lifecycle: Annual Fees, Retention & Re-Eligibility](#12-card-lifecycle-annual-fees-retention--re-eligibility)
-  - [13. Credit Age & Keep-Alive Tracker](#13-credit-age--keep-alive-tracker)
-  - [14. Earnings & ROI Analytics](#14-earnings--roi-analytics)
-  - [15. Tax Liability Predictor](#15-tax-liability-predictor)
-  - [16. Command Palette & Global Search](#16-command-palette--global-search)
-  - [17. Member Management](#17-member-management)
-  - [18. Resources Hub](#18-resources-hub)
-  - [19. Import / Export & AI Import Helper](#19-import--export--ai-import-helper)
-  - [20. Data Sync (GitHub Gist)](#20-data-sync-github-gist)
-  - [21. UI / UX & Design System](#21-ui--ux--design-system)
+  - [13. Annual Fee Tracker](#13-annual-fee-tracker)
+  - [14. Credit Age & Keep-Alive Tracker](#14-credit-age--keep-alive-tracker)
+  - [15. Earnings & ROI Analytics](#15-earnings--roi-analytics)
+  - [16. Tax Liability Predictor](#16-tax-liability-predictor)
+  - [17. Command Palette & Global Search](#17-command-palette--global-search)
+  - [18. Member Management](#18-member-management)
+  - [19. Resources Hub](#19-resources-hub)
+  - [20. Import / Export & AI Import Helper](#20-import--export--ai-import-helper)
+  - [21. Data Sync (GitHub Gist)](#21-data-sync-github-gist)
+  - [22. UI / UX & Design System](#22-ui--ux--design-system)
 - [Privacy & Security](#privacy--security)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -53,7 +54,7 @@ The household has **four members** by default, each with a role:
 | Mom | `senior` | Retired, on Social Security |
 | Dad | `senior` | Retired, on Social Security |
 
-Members are **fully editable** — none of the names, colors, or roles are hardcoded. Add, rename, recolor, or delete members freely (see [Member Management](#17-member-management)). Every card, account, application, and rule check is attributed to a member. The default member colors are a colorblind-validated categorical set (they double as chart series colors on the Earnings page), but any color can be chosen.
+Members are **fully editable** — none of the names, colors, or roles are hardcoded. Add, rename, recolor, or delete members freely (see [Member Management](#18-member-management)). Every card, account, application, and rule check is attributed to a member. The default member colors are a colorblind-validated categorical set (they double as chart series colors on the Earnings page), but any color can be chosen.
 
 ---
 
@@ -61,11 +62,12 @@ Members are **fully editable** — none of the names, colors, or roles are hardc
 
 ### 1. Command Center Dashboard
 
-The home screen (`/`) is a prioritized command center, not a passive summary. **Every section is reorderable** — tap **Customize** to move sections up/down; the layout is saved per device (localStorage). Default order: Individual Summary → Application Eligibility → Credit Age & Usage → Spend Challenges → Action Items → Stats.
+The home screen (`/`) is a prioritized command center, not a passive summary. **Every section is reorderable** — tap **Customize** to move sections up/down; the layout is saved per device (localStorage). Default order: Individual Summary → Bonus Pipeline → Application Eligibility → Credit Age & Usage → Spend Challenges → Action Items → Stats.
 
-- **Individual Summary** — per-person rollup of activity, including a **Bonus Pipeline** (dollar value of not-yet-received card and bank bonuses; points/miles are valued at their cash value or the household point rate, never counted as raw dollars, and flagged `est.` when estimated).
+- **Individual Summary** — per-person rollup of activity, including a **Bonus Pipeline** (dollar value of not-yet-received card and bank bonuses; points/miles are valued at their cash value or the card's program rate, never counted as raw dollars, and flagged `est.` when estimated).
+- **Bonus Pipeline** — the household's money in flight, itemized: every not-yet-received card and bank bonus as its own line (brand, member, dollar value), sorted by value, with the running total in the header. Card points/miles are valued the same way as everywhere else — the card's program rate (or its bonus cash value), flagged `est.` — so you can see exactly which bonuses make up the pipeline, not just the sum.
 - **Application Eligibility** — compact per-member issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
-- **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#13-credit-age--keep-alive-tracker)).
+- **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#14-credit-age--keep-alive-tracker)).
 - **Active Spend Challenges** — live progress bars for every card with an open minimum-spend requirement, showing dollars spent vs. required, days remaining, and the **burn-rate projection** (on pace / off pace — need $X/week).
 - **Action Queue** — a single ranked list of *everything you need to do*, pulled from every card and account (see [Action Engine](#2-action-engine-the-brain)). Items can be **dismissed or snoozed (1/3/7 days)** — both synced across devices. If nothing is pending, you get an "all caught up" state instead.
 - **Stats bar** — cash pipeline (total tracked bonus value in flight), count of active cards, and count of bank accounts at a glance.
@@ -87,7 +89,7 @@ The engine generates these item types:
 - **Re-eligibility** — tells you when you can earn a card's sign-up bonus again (per-issuer windows).
 
 **Bank-account items**
-- **Direct-deposit deadline** — five tiers (overdue / ≤7d / ≤30d / ≤60d, plus a generic fallback when no DD-deadline is set), each with the required DD amount, source, and exact date.
+- **Direct-deposit deadline** — five tiers (overdue / ≤7d / ≤30d / ≤60d, plus a generic fallback when no DD-deadline is set), each with the required DD amount, source, and exact date. These reminders **clear automatically once the completed direct-deposit count meets the requirement** (or the DD is marked linked / the bonus received) — you don't have to dismiss them by hand.
 - **Multi-DD progress** — when an offer needs multiple qualifying deposits, tracks "X of Y completed" and how many remain.
 - **Minimum-balance reminder** — reminds you to keep the required balance to avoid fees and qualify.
 - **Bonus deadline** — overall offer-window countdown; if it expires, prompts you to call the bank to claim a manually-earned bonus.
@@ -143,7 +145,7 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
 - **Safe-to-close shield** — every open card with an earned bonus shows a shield line on the collapsed card: amber **"Safe to close in Nd (date)"** until 1 year from open, green **"Safe to close — 1 year passed, bonus earned"** after. Closing earlier risks the issuer clawing back the sign-up bonus — this is the card version of the bank accounts' 181-day clawback shield.
 - **Last used + "Used today" ⚡ pill** — Keep Alive cards show their **last-known used date** right on the collapsed card, with a quiet rounded **Used today** pill beside it: one tap sets the last-used date to today. No date picker — built specifically because typing dates is the most painful part of upkeep.
 - **"+ Log" spend button** on cards with an open spend requirement — see [Spend Logging](#6-spend-logging--burn-rate-projection).
-- **Bonus in pipeline** — cards actively earning a bonus show what's at stake right on the collapsed card: cash bonuses as dollars; points/miles as the points figure **plus an estimated cash value** (the card's bonus cash value if set, otherwise the household ¢/pt rate, flagged `est.`). Valued by the same engine rule as the Earnings page and Dashboard pipeline — points are never counted as raw dollars.
+- **Bonus in pipeline** — cards actively earning a bonus show what's at stake right on the collapsed card: cash bonuses as dollars; points/miles as the points figure **plus an estimated cash value** (the card's bonus cash value if set, otherwise its **program rate** — the program is inferred from the card name/issuer, so Hilton points value at Hilton's rate, not a flat 1¢ — flagged `est.`). Valued by the same engine rule as the Earnings page and Dashboard pipeline — points are never counted as raw dollars.
 - **Live spend progress bar** right on the collapsed card, color-coded by urgency, with the pace projection line under it.
 - **Clearable date fields** — press Backspace/Delete or click the × to clear a date (desktop-friendly), plus the native picker for mobile.
 - **Required fields are accent-highlighted**; optional fields are muted so you know what to ignore.
@@ -232,13 +234,23 @@ Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply f
 
 `src/engines/lifecycle.js` powers the time-based intelligence:
 
-- **Annual fee timing** — the fee posts on each anniversary of the **fee anchor**: the card's recorded **Annual Fee Post Date** when set (statement fee dates often lag the open date), otherwise the open date. The engine finds the next fee date, detects whether you're inside the **30-day cancel-for-refund** window, and reports days until fee / refund days left / refund deadline. The anchored dates flow through to the fee reminders and the Timeline/calendar fee events automatically.
+- **Annual fee timing** — the fee posts on each anniversary of the **fee anchor**: the card's recorded **Annual Fee Post Date** when set (statement fee dates often lag the open date), otherwise the open date. The engine finds the next fee date, detects whether you're inside the **30-day cancel-for-refund** window, and reports days until fee / refund days left / refund deadline. The anchored dates flow through to the fee reminders, the Timeline/calendar fee events, and the [Annual Fee Tracker](#13-annual-fee-tracker) automatically.
 - **12-month close shield** (`getCardCloseShield`) — the card version of the bank 181-day clawback rule: a card whose bonus has been earned becomes safe to close **365 days after opening** (closing earlier risks a bonus clawback). Powers the shield label on each card, the primary quick-action flip on Bonus Earned cards, the approaching/cleared reminders, and the Timeline's card safe-to-close events.
 - **Re-eligibility** — per-issuer bonus-again windows: **Amex** = once-per-lifetime (not repeatable on the same product), **Chase Sapphire family** = 48 months, **Chase standard** = 24 months, **Citi** = 24 months, **Capital One** = 24 months. Computes your re-eligible date from the bonus-received date.
 - **Spend-deadline math** — deadline, days left, percent complete, and met/not-met from open date + deadline days + current spend.
 - **Status transitions** — suggests Bonus Met / Retention Call Due / Downgrade-Close Due based on bonus status and card age; the account version uses the 181-day rule.
 
-### 13. Credit Age & Keep-Alive Tracker
+### 13. Annual Fee Tracker
+
+Page: `/fees`. Every annual fee across the household on one screen, sorted by soonest due — so no card's fee ever slips past you. `src/engines/annualFees.js` gathers the per-card date math from the [Card Lifecycle engine](#12-card-lifecycle-annual-fees-retention--re-eligibility) (the same math behind the Timeline fee events and fee action items — no duplicated rules) and adds household totals.
+
+- **At-a-glance totals** that *follow the person filter*, so picking a member shows only their burden: total **fees per year** across all fee cards, the **next fee due** date + card, how many fees fall **within 45 days**, and how many are currently **in the 30-day refund window**.
+- **Per-card rows, soonest first**, each showing the card, member, `$X/yr` fee, and a color-coded due line: a **"Fee posts in Nd"** countdown with the date (amber inside two weeks), or a red/amber **"Fee posted — Nd to cancel for refund"** while the 30-day cancel-for-full-refund clock is running. Each row notes whether the countdown is anchored on the **open-date anniversary** or the card's explicit **Annual Fee Post Date**, and tapping a row jumps to that card.
+- **First-year-waiver aware** — cards flagged *first-year fee waived* skip the waived sign-up fee and show the first fee actually charged, tagged **"1st-year waived."**
+- **Missing a date?** Fee cards with no open date or fee post date can't be scheduled, so they're listed separately with a nudge to add one.
+- Retired (Closed / Downgraded) cards are excluded — this is a forward-looking bill, not history.
+
+### 14. Credit Age & Keep-Alive Tracker
 
 `src/engines/creditAge.js` protects the ~15% of a FICO score driven by length of credit history:
 
@@ -248,11 +260,11 @@ Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply f
 - **"Used Today" ⚡ button** on Keep Alive cards — one tap marks it used, no date entry. Only shown when the card is in Keep Alive status.
 - Inactivity-closure warnings flow into the [Action Queue](#2-action-engine-the-brain).
 
-### 14. Earnings & ROI Analytics
+### 15. Earnings & ROI Analytics
 
 Page: `/earnings`. `src/engines/earnings.js` finally answers *"how much are we actually making?"*:
 
-- **Realized value per card**: bonus counted once received — cash bonuses at face value, points/miles at the card's **bonus cash value** if set, otherwise at the household's **¢/point rate** (Settings, default 1.0¢; estimated values are flagged `est.`). **Fees paid** is estimated from fee postings: one at open (unless first-year waived) plus one per anniversary while open (the closed date stops the clock). **Net = realized − fees.**
+- **Realized value per card**: bonus counted once received — cash bonuses at face value, points/miles at the card's **bonus cash value** if set, otherwise at the card's **program rate** (inferred from the card name/issuer, then valued at the per-program Settings rate or the published default, falling back to the household global ¢/point rate for unknown programs; estimated values are flagged `est.`). **Fees paid** is estimated from fee postings: one at open (unless first-year waived) plus one per anniversary while open (the closed date stops the clock). **Net = realized − fees.**
 - **Realized value per bank account**: the bonus amount once received.
 - **Headline stats**: household lifetime net, trailing 12 months, current year, total fees paid, plus per-calendar-year chips.
 - **Efficiency stats**: $ of bonus per $1 of required spend (over completed card bonuses), average days from open to bonus, bonuses completed.
@@ -260,7 +272,7 @@ Page: `/earnings`. `src/engines/earnings.js` finally answers *"how much are we a
 - **By member** — proportional bars with cards/banks/fees/T12M breakdowns.
 - **The Receipts** — collapsible per-item tables (cards and bank accounts) showing realized bonus, fees, net, and the realization date, newest first.
 
-### 15. Tax Liability Predictor
+### 16. Tax Liability Predictor
 
 Page: `/tax`. `src/engines/taxPredictor.js` summarizes the year's taxable income from churning:
 
@@ -269,7 +281,7 @@ Page: `/tax`. `src/engines/taxPredictor.js` summarizes the year's taxable income
 - Adjustable **federal tax bracket** (stored in settings) produces an **estimated federal tax** on bank bonuses, per member and household-wide.
 - Selectable tax year and a CSV-style export of the table.
 
-### 16. Command Palette & Global Search
+### 17. Command Palette & Global Search
 
 Press **Ctrl/Cmd-K** anywhere (or the search box in the header) to open the command palette:
 
@@ -278,11 +290,11 @@ Press **Ctrl/Cmd-K** anywhere (or the search box in the header) to open the comm
 - **Quick actions**: *Add card*, *Add application*, *Add bank account*, *Add points balance*, *Export calendar (.ics)*, and *Log spend on \<card\>* for every card with an open spend requirement.
 - Fully keyboard driven: type to filter, ↑/↓ to move, Enter to run, Esc to close.
 
-### 17. Member Management
+### 18. Member Management
 
 Page: `/members`. Full CRUD over the household: add a member, rename, change role (churner / senior), and recolor (the color drives the member badges and the Earnings chart series everywhere). The app refuses to delete the last remaining member. No names are hardcoded anywhere.
 
-### 18. Resources Hub
+### 19. Resources Hub
 
 Page: `/resources`. A curated launchpad so you never have to look anything up elsewhere. Sections:
 
@@ -295,7 +307,7 @@ Page: `/resources`. A curated launchpad so you never have to look anything up el
 
 All links open in a new tab.
 
-### 19. Import / Export & AI Import Helper
+### 20. Import / Export & AI Import Helper
 
 Page: `/import`.
 
@@ -307,7 +319,7 @@ Page: `/import`.
   - The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card.
 - **Import** — paste or file-load JSON, preview what will be added (with per-member assignment breakdown and an unassigned-items warning), then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
 
-### 20. Data Sync (GitHub Gist)
+### 21. Data Sync (GitHub Gist)
 
 `src/hooks/useGist.js` + `src/store/ChurnContext.jsx`:
 
@@ -318,7 +330,7 @@ Page: `/import`.
 - **Offline fallback** — a local cache in `localStorage` keeps the app working without a connection and on API errors.
 - A live **sync indicator** in the header shows syncing / synced-at / error states, with retry/reconnect actions on failure.
 
-### 21. UI / UX & Design System
+### 22. UI / UX & Design System
 
 - **Semantic design tokens** — all colors flow through CSS custom properties (light values on `:root`, dark on `html.dark`) exposed as Tailwind classes: surfaces (`base → surface → raised → overlay`), borders (`edge`, `edge-strong`), text emphasis (`ink` → `ink-faint`), brand accent, and status colors (`success/warning/danger/info`, each with a text-legible `-ink` variant). **Both themes are first-class** — no override hacks; components use tokens and the theme flips underneath.
 - **Light / dark mode** — a toggle in Settings switches instantly; the preference persists in localStorage, and the correct theme is applied before first render to prevent flash. Tailwind's `darkMode: 'class'` strategy.
@@ -417,7 +429,7 @@ settings           { taxBracket, pointValueCents, notifyEnabled,
                      programValueCents { programName: centsPerPoint } }
 ```
 
-Engines with no synced state of their own: `events.js` (timeline), `earnings.js`, `burnRate.js`, `whatIf.js` (simulator inputs are deliberately not persisted).
+Engines with no synced state of their own: `events.js` (timeline), `annualFees.js` (fee tracker), `earnings.js`, `burnRate.js`, `whatIf.js` (simulator inputs are deliberately not persisted).
 
 ---
 

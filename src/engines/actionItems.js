@@ -148,6 +148,10 @@ export function generateActionItems(state) {
     const shield = getClawbackStatus(acct)
     const hasBonus = (acct.bonusAmount ?? 0) > 0
     const bonusReceived = !!acct.bonusReceivedDate
+    // Direct-deposit requirement is satisfied once the completed count reaches
+    // the required number (default 1) — the linked-date field is optional, so a
+    // user who only logs "DDs completed" should stop seeing the link-DD nags.
+    const ddComplete = (acct.ddsMade ?? 0) >= (acct.requiredDDCount ?? 1)
 
     if (shield.safe && bonusReceived) {
       items.push({ id: `close-acct-${acct.id}`, type: 'info', category: 'clawback', accountId: acct.id, memberId: acct.memberId,
@@ -156,7 +160,7 @@ export function generateActionItems(state) {
         dueDate: null, action: 'Close account' })
     }
 
-    if (!acct.ddLinkedDate && !bonusReceived) {
+    if (!acct.ddLinkedDate && !bonusReceived && !ddComplete) {
       if (acct.openedDate && (acct.ddDeadlineDays ?? 0) > 0) {
         const deadline = new Date(acct.openedDate)
         deadline.setDate(deadline.getDate() + acct.ddDeadlineDays)
