@@ -5,20 +5,19 @@ import { useHighlight } from '../../hooks/useHighlight'
 import AccountItem from './AccountItem'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
-import FilterBar, { Pill, MultiPill, Chip, FilterRow } from '../shared/FilterBar'
+import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/FilterBar'
 import { getIssuerMeta } from '../../utils/issuers'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Layers, ChevronDown, ChevronUp } from 'lucide-react'
 
 const SORT_OPTIONS = [
   { value: 'newest',  label: 'Newest first' },
   { value: 'oldest',  label: 'Oldest first' },
-  { value: 'balance', label: 'Highest balance' },
   { value: 'bonus',   label: 'Highest bonus' },
   { value: 'name',    label: 'Bank A–Z' },
 ]
 const ACCT_TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
-const DEFAULT_FILTERS = { statuses: [], banks: [], types: [], hasBalance: false, hasBonus: false, bonusPending: false }
+const DEFAULT_FILTERS = { statuses: [], banks: [], types: [], hasBonus: false, bonusPending: false }
 
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -48,6 +47,9 @@ export default function BankAccountsView() {
   const [filterMember, setFilterMember] = useState('all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [sortBy, setSortBy] = useState('newest')
+  // Opt-in grouping, decoupled from sort (see CreditCardsView for the rationale).
+  const [grouped, setGrouped] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   // Deep links from the command palette: ?add=1 opens the add form,
   // ?highlight=<id> scrolls to and flashes an account.
@@ -78,7 +80,6 @@ export default function BankAccountsView() {
     filters.statuses.length > 0,
     filters.banks.length > 0,
     filters.types.length > 0,
-    filters.hasBalance,
     filters.hasBonus,
     filters.bonusPending,
     sortBy !== 'newest',
@@ -93,7 +94,6 @@ export default function BankAccountsView() {
         if (!filters.banks.includes(name)) return false
       }
       if (filters.types.length && !filters.types.includes(a.accountType)) return false
-      if (filters.hasBalance && !(a.currentBalance > 0)) return false
       if (filters.hasBonus && !(a.bonusAmount > 0)) return false
       if (filters.bonusPending && !(a.bonusAmount > 0 && !a.bonusReceivedDate)) return false
       return true
@@ -101,7 +101,6 @@ export default function BankAccountsView() {
     const sortFn = {
       newest:  (a, b) => new Date(b.openedDate || '1970') - new Date(a.openedDate || '1970'),
       oldest:  (a, b) => new Date(a.openedDate || '9999') - new Date(b.openedDate || '9999'),
-      balance: (a, b) => (b.currentBalance ?? 0) - (a.currentBalance ?? 0),
       bonus:   (a, b) => (b.bonusAmount ?? 0) - (a.bonusAmount ?? 0),
       name:    (a, b) => (a.bankName ?? '').localeCompare(b.bankName ?? ''),
     }[sortBy] ?? (() => 0)
@@ -109,7 +108,8 @@ export default function BankAccountsView() {
   }
 
   const filteredAccounts = applyFiltersAndSort(allAccounts)
-  const useGroups = sortBy === 'newest'
+  // Grouping is opt-in; the flat list otherwise honors the sort exactly.
+  const useGroups = grouped
   const groups = useGroups ? groupByBank(filteredAccounts) : null
 
   function startAdd() {
@@ -123,6 +123,7 @@ export default function BankAccountsView() {
       bonusAmount: '', bonusReceivedDate: '', isTaxable: true,
       offerUrl: '', notes: '',
     })
+    setMoreOpen(false)
     setAdding(true)
   }
 
@@ -165,6 +166,12 @@ export default function BankAccountsView() {
 
   function setN(k, v) { setNewAcct(d => ({ ...d, [k]: v })) }
 
+  // Add-form progressive disclosure — mirror the edit form so a new account
+  // starts short and only reveals bonus / direct-deposit fields when relevant.
+  const acctStatus = newAcct?.status
+  const showAddAcctBonus = ['Opened', 'DD Linked', 'Bonus Pending', 'Bonus Received'].includes(acctStatus)
+  const showAddAcctDD = ['Opened', 'DD Linked'].includes(acctStatus)
+
   return (
     <div className="p-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-4">
@@ -203,6 +210,12 @@ export default function BankAccountsView() {
         onSortChange={setSortBy}
         sortOptions={SORT_OPTIONS}
         onClear={clearFilters}
+        trailing={
+          <Toggle active={grouped} onClick={() => setGrouped(g => !g)}>
+            <Layers size={12} />
+            Group by bank
+          </Toggle>
+        }
       >
         <FilterRow label="Status">
           {ACCOUNT_STATUSES.map(s => (
@@ -222,7 +235,6 @@ export default function BankAccountsView() {
           ))}
         </FilterRow>
         <FilterRow label="Show">
-          <Chip active={filters.hasBalance}   onClick={() => setFilters(f => ({ ...f, hasBalance: !f.hasBalance }))}>Has balance</Chip>
           <Chip active={filters.hasBonus}     onClick={() => setFilters(f => ({ ...f, hasBonus: !f.hasBonus }))}>Has bonus offer</Chip>
           <Chip active={filters.bonusPending} onClick={() => setFilters(f => ({ ...f, bonusPending: !f.bonusPending }))}>Bonus pending</Chip>
         </FilterRow>
@@ -269,85 +281,103 @@ export default function BankAccountsView() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Opened Date</label>
-                <DateField value={newAcct.openedDate} onChange={v => setN('openedDate', v)} />
-              </div>
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
-                <input type="number" min="0" className={inp} value={newAcct.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Bonus Amount ($)</label>
-                <input type="number" min="0" className={inp} value={newAcct.bonusAmount} onChange={e => setN('bonusAmount', e.target.value)} placeholder="300" />
-              </div>
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Bonus Received Date</label>
-                <DateField value={newAcct.bonusReceivedDate} onChange={v => setN('bonusReceivedDate', v)} />
-              </div>
-            </div>
-
-            {/* DD Requirements */}
-            <div className="bg-raised/50 rounded-lg p-3 space-y-2">
-              <div className="text-xs font-medium text-ink-secondary mb-2">Direct Deposit Requirements</div>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-xs text-ink-muted block mb-1">DD Amount ($)</label>
-                  <input type="number" min="0" className={inp} value={newAcct.requiredDD} onChange={e => setN('requiredDD', e.target.value)} placeholder="500" />
-                </div>
-                <div>
-                  <label className="text-xs text-ink-muted block mb-1"># Required</label>
-                  <input type="number" min="1" className={inp} value={newAcct.requiredDDCount} onChange={e => setN('requiredDDCount', e.target.value)} placeholder="1" />
-                </div>
-                <div>
-                  <label className="text-xs text-ink-muted block mb-1"># Completed</label>
-                  <input type="number" min="0" className={inp} value={newAcct.ddsMade} onChange={e => setN('ddsMade', e.target.value)} placeholder="0" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs text-ink-muted block mb-1">DD Deadline (days)</label>
-                  <input type="number" min="1" className={inp} value={newAcct.ddDeadlineDays} onChange={e => setN('ddDeadlineDays', e.target.value)} placeholder="90" />
-                </div>
-                <div>
-                  <label className="text-xs text-ink-muted block mb-1">DD Linked Date</label>
-                  <DateField value={newAcct.ddLinkedDate} onChange={v => setN('ddLinkedDate', v)} />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-ink-muted block mb-1">DD Source</label>
-                <input className={inp} value={newAcct.ddSourceDescription} onChange={e => setN('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, Social Security, ACH" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-ink-muted block mb-1">Min Balance ($)</label>
-                <input type="number" min="0" className={inp} value={newAcct.minimumBalance} onChange={e => setN('minimumBalance', e.target.value)} placeholder="0" />
-              </div>
-              <div>
-                <label className="text-xs text-ink-muted block mb-1">Bonus Deadline (days)</label>
-                <input type="number" min="1" className={inp} value={newAcct.bonusDeadlineDays} onChange={e => setN('bonusDeadlineDays', e.target.value)} placeholder="120" />
-              </div>
-            </div>
-
             <div>
-              <label className="text-xs text-ink-muted block mb-1">Offer Link</label>
-              <input className={inp} value={newAcct.offerUrl} onChange={e => setN('offerUrl', e.target.value)} placeholder="https://www.doctorofcredit.com/..." />
+              <label className="text-xs text-ink-tertiary block mb-1">Opened Date</label>
+              <DateField value={newAcct.openedDate} onChange={v => setN('openedDate', v)} />
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-              <input type="checkbox" checked={!!newAcct.isTaxable} onChange={e => setN('isTaxable', e.target.checked)} />
-              Bank bonus is taxable (1099-INT)
-            </label>
+            {/* Sign-Up Bonus — the reason you opened the account */}
+            {showAddAcctBonus && (
+              <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+                <div className="text-xs font-medium text-ink-secondary mb-1">Sign-up bonus</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Bonus Amount ($)</label>
+                    <input type="number" min="0" className={inp} value={newAcct.bonusAmount} onChange={e => setN('bonusAmount', e.target.value)} placeholder="300" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Bonus Deadline (days)</label>
+                    <input type="number" min="1" className={inp} value={newAcct.bonusDeadlineDays} onChange={e => setN('bonusDeadlineDays', e.target.value)} placeholder="120" />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
+                  <input type="checkbox" checked={!!newAcct.isTaxable} onChange={e => setN('isTaxable', e.target.checked)} />
+                  Bank bonus is taxable (1099-INT)
+                </label>
+              </div>
+            )}
 
+            {/* Direct Deposit — shown while the account is still working the bonus */}
+            {showAddAcctDD && (
+              <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+                <div className="text-xs font-medium text-ink-secondary mb-1">Direct deposit requirements</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">DD Amount ($)</label>
+                    <input type="number" min="0" className={inp} value={newAcct.requiredDD} onChange={e => setN('requiredDD', e.target.value)} placeholder="500" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1"># Required</label>
+                    <input type="number" min="1" className={inp} value={newAcct.requiredDDCount} onChange={e => setN('requiredDDCount', e.target.value)} placeholder="1" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1"># Completed</label>
+                    <input type="number" min="0" className={inp} value={newAcct.ddsMade} onChange={e => setN('ddsMade', e.target.value)} placeholder="0" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">DD Deadline (days)</label>
+                    <input type="number" min="1" className={inp} value={newAcct.ddDeadlineDays} onChange={e => setN('ddDeadlineDays', e.target.value)} placeholder="90" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">DD Linked Date</label>
+                    <DateField value={newAcct.ddLinkedDate} onChange={v => setN('ddLinkedDate', v)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1">DD Source</label>
+                  <input className={inp} value={newAcct.ddSourceDescription} onChange={e => setN('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, Social Security, ACH" />
+                </div>
+              </div>
+            )}
+
+            {/* Everything else is optional */}
             <div>
-              <label className="text-xs text-ink-muted block mb-1">Notes</label>
-              <textarea rows={2} className={inp} value={newAcct.notes} onChange={e => setN('notes', e.target.value)} placeholder="Offer terms, expiry date, special requirements..." />
+              <button
+                type="button"
+                onClick={() => setMoreOpen(o => !o)}
+                className="flex items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-ink transition-colors"
+              >
+                {moreOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                More details (optional)
+              </button>
+              {moreOpen && (
+                <div className="mt-2 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
+                      <input type="number" min="0" className={inp} value={newAcct.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-ink-tertiary block mb-1">Min Balance ($)</label>
+                      <input type="number" min="0" className={inp} value={newAcct.minimumBalance} onChange={e => setN('minimumBalance', e.target.value)} placeholder="0" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-tertiary block mb-1">Bonus Received Date</label>
+                    <DateField value={newAcct.bonusReceivedDate} onChange={v => setN('bonusReceivedDate', v)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-tertiary block mb-1">Offer Link</label>
+                    <input className={inp} value={newAcct.offerUrl} onChange={e => setN('offerUrl', e.target.value)} placeholder="https://www.doctorofcredit.com/..." />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-tertiary block mb-1">Notes</label>
+                    <textarea rows={2} className={inp} value={newAcct.notes} onChange={e => setN('notes', e.target.value)} placeholder="Offer terms, expiry date, special requirements..." />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2 pt-1">

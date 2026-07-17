@@ -3,7 +3,6 @@ import { useChurn } from '../../store/ChurnContext'
 import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
-import BalanceBar from '../shared/BalanceBar'
 import DateField from '../shared/DateField'
 import { getSpendDeadlineInfo, getCardNextStatus, getReeligibilityInfo } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
@@ -21,6 +20,16 @@ const btnColors = {
   blue:    'border border-edge-strong text-ink-tertiary hover:text-accent-ink hover:border-accent/50',
   red:     'border border-edge-strong text-ink-tertiary hover:text-danger-ink hover:border-danger/50',
   zinc:    'border border-edge-strong text-ink-tertiary hover:text-ink-secondary hover:border-edge-strong',
+}
+
+// Filled variants for the *primary* next-step action, so advancing a card's
+// status is an obvious one-tap button instead of a faint outline.
+const btnSolid = {
+  emerald: 'bg-success text-white hover:bg-success/85 border border-transparent',
+  amber:   'bg-warning text-black hover:bg-warning/85 border border-transparent',
+  blue:    'bg-accent text-white hover:bg-accent-hover border border-transparent',
+  red:     'bg-danger text-white hover:bg-danger/85 border border-transparent',
+  zinc:    'bg-overlay text-ink hover:bg-overlay/80 border border-edge-strong',
 }
 
 function getQuickActions(card) {
@@ -60,6 +69,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
   const [draft, setDraft] = useState(null)
   const [confirming, setConfirming] = useState(false)
   const [undoSnapshot, setUndoSnapshot] = useState(null)
+  const [showMore, setShowMore] = useState(false)
   const [showDowngradeInput, setShowDowngradeInput] = useState(false)
   const [downgradingTo, setDowngradingTo] = useState('')
   const [showLogSpend, setShowLogSpend] = useState(autoOpenLogSpend)
@@ -94,6 +104,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
 
   function startEdit() {
     setDraft({ ...card })
+    setShowMore(false)
     setExpanded(true)
   }
 
@@ -264,12 +275,12 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 <span>Log</span>
               </button>
             )}
-            {/* Only show for Keep Alive cards — confirms card is still being used */}
+            {/* Only show for Keep Alive cards — one tap to confirm it's still in use */}
             {card.status === 'Keep Alive' && (
               <button
                 onClick={markUsedToday}
                 title="Mark used today"
-                className="flex items-center gap-1 bg-raised hover:bg-success text-ink-secondary hover:text-white text-xs px-2 py-1 rounded-md transition-colors"
+                className="flex items-center gap-1 bg-success hover:bg-success/85 text-white text-xs font-medium px-2 py-1 rounded-md transition-colors"
               >
                 <Zap size={11} />
                 <span>Used</span>
@@ -336,12 +347,9 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
             <div className="mt-1.5 text-xs text-ink-faint">Re-eligibility tracked after bonus is earned</div>
           )
         ) : (
-          <>
-            <BalanceBar balance={card.currentBalance ?? 0} limit={card.creditLimit ?? 0} kind="card" />
-            {nextStatus && !expanded && (
-              <div className="mt-1.5 text-xs text-warning-ink">→ {statusLabel(nextStatus)}</div>
-            )}
-          </>
+          nextStatus && !expanded && (
+            <div className="mt-2 text-xs text-warning-ink">→ {statusLabel(nextStatus)}</div>
+          )
         )}
       </div>
 
@@ -398,11 +406,13 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
           ) : (
             <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center">
               <span className="text-[10px] text-ink-faint uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
-              {quickActions.map(action => (
+              {quickActions.map((action, i) => (
                 <button
                   key={action.label}
                   onClick={e => applyQuickAction(e, action.payload)}
-                  className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${btnColors[action.color] ?? btnColors.zinc}`}
+                  className={`text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors ${
+                    i === 0 ? (btnSolid[action.color] ?? btnSolid.zinc) : (btnColors[action.color] ?? btnColors.zinc)
+                  }`}
                 >
                   {action.label}
                 </button>
@@ -491,18 +501,6 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 <DateField value={draft.lastUsedDate} onChange={v => set('lastUsedDate', v)} />
               </div>
             )}
-          </div>
-
-          {/* Balance */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
-              <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
-            </div>
-            <div>
-              <label className="text-xs text-ink-tertiary block mb-1">Credit Limit ($)</label>
-              <input type="number" min="0" className={inp} value={draft.creditLimit ?? ''} onChange={e => set('creditLimit', e.target.value)} placeholder="optional" />
-            </div>
           </div>
 
           {/* Earning Bonus — only shown for Active Churn or when spend data exists */}
@@ -620,10 +618,35 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
           </div>
           <p className="text-xs text-ink-faint -mt-1">Business & authorized-user cards are excluded from Chase 5/24.</p>
 
-          {/* Notes */}
+          {/* Optional extras — balance, limit, notes. Balance isn't something
+              most churners update often, so it's collapsed by default. */}
           <div>
-            <label className="text-xs text-ink-tertiary block mb-1">Notes</label>
-            <textarea rows={2} className={inp} value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} placeholder="optional" />
+            <button
+              type="button"
+              onClick={() => setShowMore(o => !o)}
+              className="flex items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-ink transition-colors"
+            >
+              {showMore ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              More details (optional)
+            </button>
+            {showMore && (
+              <div className="mt-2 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
+                    <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-tertiary block mb-1">Credit Limit ($)</label>
+                    <input type="number" min="0" className={inp} value={draft.creditLimit ?? ''} onChange={e => set('creditLimit', e.target.value)} placeholder="optional" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-ink-tertiary block mb-1">Notes</label>
+                  <textarea rows={2} className={inp} value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} placeholder="optional" />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 pt-1">

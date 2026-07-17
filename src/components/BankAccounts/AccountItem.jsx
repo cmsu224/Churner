@@ -3,7 +3,6 @@ import { useChurn } from '../../store/ChurnContext'
 import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
-import BalanceBar from '../shared/BalanceBar'
 import DateField from '../shared/DateField'
 import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountNextStatus } from '../../engines/lifecycle'
@@ -209,8 +208,6 @@ export default function AccountItem({ account, members }) {
             <span className={shield.safe ? 'text-success-ink' : 'text-warning-ink'}>{shield.message}</span>
           </div>
         </div>
-
-        <BalanceBar balance={account.currentBalance ?? 0} kind="account" />
 
         {nextStatus && !expanded && (
           <div className="mt-1.5 text-xs text-warning-ink">→ Suggest: {nextStatus}</div>
