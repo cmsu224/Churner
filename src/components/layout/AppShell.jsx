@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, CheckCircle, AlertCircle, Search 
 import DashboardView from '../Dashboard/DashboardView'
 import CreditCardsView from '../CreditCards/CreditCardsView'
 import BankAccountsView from '../BankAccounts/BankAccountsView'
+import PointsView from '../Points/PointsView'
 import ApplicationsView from '../Applications/ApplicationsView'
 import TimelineView from '../Timeline/TimelineView'
 import EarningsView from '../Earnings/EarningsView'
@@ -145,6 +146,7 @@ export default function AppShell() {
                 <Route path="/" element={<DashboardView />} />
                 <Route path="/cards" element={<CreditCardsView />} />
                 <Route path="/accounts" element={<BankAccountsView />} />
+                <Route path="/points" element={<PointsView />} />
                 <Route path="/applications" element={<ApplicationsView />} />
                 <Route path="/timeline" element={<TimelineView />} />
                 <Route path="/earnings" element={<EarningsView />} />
