@@ -11,6 +11,10 @@ import { POINT_PROGRAMS } from '../../utils/programs'
 export default function ProgramCombobox({ value, onChange, className, placeholder, autoFocus }) {
   const [open, setOpen] = useState(false)
   const [hi, setHi] = useState(0)
+  // Whether the user has arrowed into the list. Until they do, Enter accepts
+  // the free-typed text (just closes) instead of hijacking it to the top fuzzy
+  // match — free text is always allowed.
+  const [navigated, setNavigated] = useState(false)
   const wrapRef = useRef(null)
   const listRef = useRef(null)
 
@@ -38,14 +42,19 @@ export default function ProgramCombobox({ value, onChange, className, placeholde
   function onKeyDown(e) {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
+      setNavigated(true)
       if (!open) { setOpen(true); return }
       setHi(h => e.key === 'ArrowDown'
         ? Math.min(h + 1, matches.length - 1)
         : Math.max(h - 1, 0))
     } else if (e.key === 'Enter') {
-      if (open && matches[hiClamped]) {
+      // Only commit a suggestion the user actually arrowed to; otherwise let
+      // the free-typed text stand and just close the dropdown.
+      if (open && navigated && matches[hiClamped]) {
         e.preventDefault()
         choose(matches[hiClamped].name)
+      } else {
+        setOpen(false)
       }
     } else if (e.key === 'Escape' || e.key === 'Tab') {
       setOpen(false)
@@ -61,7 +70,7 @@ export default function ProgramCombobox({ value, onChange, className, placeholde
       <input
         className={`${className} pr-8`}
         value={value ?? ''}
-        onChange={e => { onChange(e.target.value); setOpen(true); setHi(0) }}
+        onChange={e => { onChange(e.target.value); setOpen(true); setHi(0); setNavigated(false) }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}

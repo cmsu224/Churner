@@ -135,8 +135,12 @@ export function collectEvents(state) {
     }
 
     // 12-month close shield clears — bonus-earned cards become safe to close.
+    // Only surface it while it's still ahead (like the bank clawback_clear
+    // event, which guards on !safe): a card that already cleared shouldn't
+    // reappear as a red "overdue" milestone in the agenda. Keep Alive cards are
+    // deliberate keeps, so they don't get a close reminder.
     const cs = getCardCloseShield(card)
-    if (cs?.safeDate) {
+    if (cs && !cs.safe && cs.safeDate && card.status !== 'Keep Alive') {
       events.push(makeEvent({
         kind: 'close_shield_clear',
         date: cs.safeDate,
