@@ -35,6 +35,18 @@ export default function SettingsView() {
     dispatch({ type: 'SET_SETTING', key: 'programValueCents', value: map })
   }
 
+  // On blur, drop the raw draft so the field snaps back to the committed value
+  // (or the default placeholder). Otherwise a stuck partial/invalid entry like
+  // "0" would keep showing while the effective rate silently uses the default.
+  function commitProgramValue(key) {
+    setValDrafts(d => {
+      if (!(key in d)) return d
+      const rest = { ...d }
+      delete rest[key]
+      return rest
+    })
+  }
+
   async function toggleNotifications() {
     if (notifyEnabled) {
       dispatch({ type: 'SET_SETTING', key: 'notifyEnabled', value: false })
@@ -168,6 +180,7 @@ export default function SettingsView() {
                     aria-label={`${p.name} value in cents per point`}
                     value={valDrafts[key] ?? (custom != null ? String(custom) : '')}
                     onChange={e => setProgramValue(key, e.target.value)}
+                    onBlur={() => commitProgramValue(key)}
                     placeholder={String(p.valueCents)}
                     className="w-20 bg-raised border border-edge-strong rounded-lg px-2 py-1.5 text-xs text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors text-right"
                   />
