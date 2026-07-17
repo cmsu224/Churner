@@ -1,10 +1,13 @@
 import { isRetired } from '../utils/statusMeta'
 
-// Annual fee: posts on the anniversary of openDate each year.
+// Annual fee: posts each year on the anniversary of the fee anchor — the
+// recorded "Annual Fee Post Date" when the user set one (statement fee dates
+// often lag the open date), otherwise the open date.
 // Cancel BEFORE it posts = no fee. Cancel WITHIN 30 days after = full refund.
 export function getAnnualFeeInfo(card) {
-  if (!card.openDate || !(card.annualFee > 0)) return null
-  const open = new Date(card.openDate)
+  const anchor = card.feePostDate || card.openDate
+  if (!anchor || !(card.annualFee > 0)) return null
+  const open = new Date(anchor)
   const today = new Date()
   let feeDate = new Date(open)
   feeDate.setFullYear(today.getFullYear())

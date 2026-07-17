@@ -124,7 +124,7 @@ Page: `/timeline`. Every dated event across the household, in one place, sourced
 
 Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline, no modals. Only the **card name is required**; everything else is optional so data entry stays fluid. Cards are **grouped by issuer** (Chase, American Express, Citi, …, with an "Other" bucket), each group headed by the issuer's **logo**.
 
-**Tracked fields:** person, status, card name, issuer (with autocomplete for Chase, Amex, Capital One, Citi, Bank of America, Barclays, Wells Fargo, US Bank, Discover), last 4, open date, last-used date, **current balance**, **credit limit**, minimum-spend requirement / deadline days / current spend, **itemized spend log**, bonus value & type (points / cash / miles), **bonus cash value** (what a points bonus was actually worth — feeds Earnings), annual fee, **first-year-fee-waived** flag, "bonus received" + received date, **closed/downgraded date**, and the **"Business card"** / **"Authorized user"** flags (which exclude a card from Chase 5/24 — see below).
+**Tracked fields:** person, status, card name, issuer (with autocomplete for Chase, Amex, Capital One, Citi, Bank of America, Barclays, Wells Fargo, US Bank, Discover), last 4, open date, last-used date, **current balance**, **credit limit**, minimum-spend requirement / deadline days / current spend, **itemized spend log**, bonus value & type (points / cash / miles), **bonus cash value** (what a points bonus was actually worth — feeds Earnings), annual fee, **first-year-fee-waived** flag, **annual-fee post date** (the date the fee actually posts — anchors the fee cycle when statement dates lag the open date), "bonus received" + received date, **closed/downgraded date**, and the **"Business card"** / **"Authorized user"** flags (which exclude a card from Chase 5/24 — see below).
 
 **Statuses** (friendly labels; stored values stable): Applied → Earning Bonus → Bonus Earned → Keep Alive → Cancel or Downgrade → Downgraded / Closed. The lifecycle engine suggests the next status automatically.
 
@@ -231,7 +231,7 @@ Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply f
 
 `src/engines/lifecycle.js` powers the time-based intelligence:
 
-- **Annual fee timing** — the fee posts on each anniversary of the open date. The engine finds the next fee date, detects whether you're inside the **30-day cancel-for-refund** window, and reports days until fee / refund days left / refund deadline.
+- **Annual fee timing** — the fee posts on each anniversary of the **fee anchor**: the card's recorded **Annual Fee Post Date** when set (statement fee dates often lag the open date), otherwise the open date. The engine finds the next fee date, detects whether you're inside the **30-day cancel-for-refund** window, and reports days until fee / refund days left / refund deadline. The anchored dates flow through to the fee reminders and the Timeline/calendar fee events automatically.
 - **12-month close shield** (`getCardCloseShield`) — the card version of the bank 181-day clawback rule: a card whose bonus has been earned becomes safe to close **365 days after opening** (closing earlier risks a bonus clawback). Powers the shield label on each card, the primary quick-action flip on Bonus Earned cards, the approaching/cleared reminders, and the Timeline's card safe-to-close events.
 - **Re-eligibility** — per-issuer bonus-again windows: **Amex** = once-per-lifetime (not repeatable on the same product), **Chase Sapphire family** = 48 months, **Chase standard** = 24 months, **Citi** = 24 months, **Capital One** = 24 months. Computes your re-eligible date from the bonus-received date.
 - **Spend-deadline math** — deadline, days left, percent complete, and met/not-met from open date + deadline days + current spend.
@@ -391,7 +391,7 @@ creditCards[]      { id, memberId, status, cardName, issuer, last4,
                      spendRequirement, spendDeadlineDays, currentSpend,
                      spendLog[] { id, date, amount, note },
                      bonusValue, bonusType, bonusCashValue,
-                     annualFee, feeWaivedFirstYear,
+                     annualFee, feeWaivedFirstYear, feePostDate,
                      bonusReceived, bonusReceivedDate,
                      isBusiness, isAuthorizedUser, downgradedToCard, notes }
 bankAccounts[]     { id, memberId, status, bankName, accountType, last4,

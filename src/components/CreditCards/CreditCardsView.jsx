@@ -142,7 +142,7 @@ export default function CreditCardsView() {
       spendRequirement: '', spendDeadlineDays: '', currentSpend: '',
       currentBalance: '', creditLimit: '',
       bonusValue: '', bonusType: 'cashback', bonusReceived: false, bonusReceivedDate: '',
-      annualFee: '', feeWaivedFirstYear: false, isBusiness: false, isAuthorizedUser: false, notes: '',
+      annualFee: '', feeWaivedFirstYear: false, feePostDate: '', isBusiness: false, isAuthorizedUser: false, notes: '',
     })
     setMoreOpen(false)
     setAdding(true)
@@ -167,6 +167,7 @@ export default function CreditCardsView() {
       openDate: newCard.openDate || null,
       lastUsedDate: newCard.lastUsedDate || null,
       bonusReceivedDate: newCard.bonusReceivedDate || null,
+      feePostDate: newCard.feePostDate || null,
     }
     delete payload._statusSet
     // Auto-compute status from age when the user left it at the default
@@ -347,10 +348,17 @@ export default function CreditCardsView() {
                   </div>
                 </div>
                 {Number(newCard.annualFee) > 0 && (
-                  <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-                    <input type="checkbox" checked={!!newCard.feeWaivedFirstYear} onChange={e => setN('feeWaivedFirstYear', e.target.checked)} />
-                    First-year annual fee waived at sign-up
-                  </label>
+                  <>
+                    <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
+                      <input type="checkbox" checked={!!newCard.feeWaivedFirstYear} onChange={e => setN('feeWaivedFirstYear', e.target.checked)} />
+                      First-year annual fee waived at sign-up
+                    </label>
+                    <div>
+                      <label className="text-xs text-ink-muted block mb-1">Annual Fee Post Date</label>
+                      <DateField value={newCard.feePostDate} onChange={v => setN('feePostDate', v)} />
+                      <p className="text-[11px] text-ink-faint mt-1">When the fee actually posts (any year). Anchors the next-fee countdown, refund window, and calendar. Blank = open-date anniversary.</p>
+                    </div>
+                  </>
                 )}
               </div>
             )}

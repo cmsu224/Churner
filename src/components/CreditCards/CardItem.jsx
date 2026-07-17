@@ -140,6 +140,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
         lastUsedDate: draft.lastUsedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
         closedDate: draft.closedDate || null,
+        feePostDate: draft.feePostDate || null,
         // spendLog is managed only via LOG_SPEND / DELETE_SPEND_ENTRY, never in
         // this form. Take it from the live card, not the draft snapshot, so a
         // log entry deleted while the form is open isn't resurrected on save.
@@ -626,10 +627,17 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 </div>
               )}
               {Number(draft.annualFee) > 0 && (
-                <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-                  <input type="checkbox" checked={!!draft.feeWaivedFirstYear} onChange={e => set('feeWaivedFirstYear', e.target.checked)} />
-                  First-year fee waived
-                </label>
+                <>
+                  <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
+                    <input type="checkbox" checked={!!draft.feeWaivedFirstYear} onChange={e => set('feeWaivedFirstYear', e.target.checked)} />
+                    First-year fee waived
+                  </label>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Annual Fee Post Date</label>
+                    <DateField value={draft.feePostDate} onChange={v => set('feePostDate', v)} />
+                    <p className="text-[11px] text-ink-faint mt-1">When the fee actually posts (any year — statement dates often lag the open date). Anchors the next-fee countdown, the 30-day refund window, and the calendar. Blank = open-date anniversary.</p>
+                  </div>
+                </>
               )}
             </div>
           )}
