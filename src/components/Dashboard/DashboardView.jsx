@@ -3,6 +3,7 @@ import { useChurn } from '../../store/ChurnContext'
 import { useActionItems } from '../../hooks/useActionItems'
 import ActionQueue from './ActionQueue'
 import PlayerSummaryCard from './PlayerSummaryCard'
+import BonusPipeline from './BonusPipeline'
 import SpendProgress from './SpendProgress'
 import CreditAgeSection from './CreditAgeSection'
 import EligibilitySection from './EligibilitySection'
@@ -12,11 +13,12 @@ import { CheckCircle, ChevronUp, ChevronDown, SlidersHorizontal } from 'lucide-r
 const LS_ORDER = 'churner_dash_order'
 // Default order per the requested layout: summary first, then eligibility,
 // then card usage, then action items. Stats and spend challenges follow.
-const DEFAULT_ORDER = ['summary', 'eligibility', 'usage', 'spend', 'actions', 'stats']
+const DEFAULT_ORDER = ['summary', 'pipeline', 'eligibility', 'usage', 'spend', 'actions', 'stats']
 
 const SECTION_LABELS = {
   stats: 'Stats',
   summary: 'Individual Summary',
+  pipeline: 'Bonus Pipeline',
   eligibility: 'Application Eligibility',
   usage: 'Credit Age & Usage',
   spend: 'Active Spend Challenges',
@@ -117,6 +119,7 @@ export default function DashboardView() {
         </div>
       </section>
     ),
+    pipeline: <BonusPipeline />,
     eligibility: <EligibilitySection />,
     usage: <CreditAgeSection />,
     spend: pendingSpend.length > 0 ? (

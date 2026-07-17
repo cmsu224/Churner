@@ -64,3 +64,35 @@ export function getProgramMeta(name) {
   }
   return { ...OTHER, name: (name ?? '').trim() }
 }
+
+// An issuer's own transferable currency, for valuing bank-points cards whose
+// name doesn't itself say the program (e.g. "Sapphire Preferred" → Chase UR).
+const ISSUER_CURRENCY = {
+  chase: 'Chase Ultimate Rewards',
+  amex: 'Amex Membership Rewards',
+  'american express': 'Amex Membership Rewards',
+  citi: 'Citi ThankYou Points',
+  citibank: 'Citi ThankYou Points',
+  'capital one': 'Capital One Miles',
+  bilt: 'Bilt Rewards',
+  'wells fargo': 'Wells Fargo Rewards',
+  'u.s. bank': 'U.S. Bank Altitude Points',
+  'us bank': 'U.S. Bank Altitude Points',
+}
+
+// Infer the loyalty program a card earns its points/miles in, so a card bonus
+// is valued at the right per-program rate. Co-brand cards carry the program in
+// their name ("Hilton Honors Surpass", "United Explorer"), which takes priority;
+// otherwise the card is matched to its issuer's transferable currency. Returns
+// program metadata (getProgramMeta shape), or Other when nothing matches.
+export function getCardProgram(card) {
+  const byName = getProgramMeta(card?.cardName)
+  if (byName.name && Number(byName.valueCents) > 0) return byName
+  const issuer = (card?.issuer ?? '').toLowerCase().trim()
+  if (issuer) {
+    for (const [key, prog] of Object.entries(ISSUER_CURRENCY)) {
+      if (issuer.includes(key)) return getProgramMeta(prog)
+    }
+  }
+  return byName
+}

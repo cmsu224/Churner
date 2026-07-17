@@ -62,9 +62,10 @@ Members are **fully editable** — none of the names, colors, or roles are hardc
 
 ### 1. Command Center Dashboard
 
-The home screen (`/`) is a prioritized command center, not a passive summary. **Every section is reorderable** — tap **Customize** to move sections up/down; the layout is saved per device (localStorage). Default order: Individual Summary → Application Eligibility → Credit Age & Usage → Spend Challenges → Action Items → Stats.
+The home screen (`/`) is a prioritized command center, not a passive summary. **Every section is reorderable** — tap **Customize** to move sections up/down; the layout is saved per device (localStorage). Default order: Individual Summary → Bonus Pipeline → Application Eligibility → Credit Age & Usage → Spend Challenges → Action Items → Stats.
 
-- **Individual Summary** — per-person rollup of activity, including a **Bonus Pipeline** (dollar value of not-yet-received card and bank bonuses; points/miles are valued at their cash value or the household point rate, never counted as raw dollars, and flagged `est.` when estimated).
+- **Individual Summary** — per-person rollup of activity, including a **Bonus Pipeline** (dollar value of not-yet-received card and bank bonuses; points/miles are valued at their cash value or the card's program rate, never counted as raw dollars, and flagged `est.` when estimated).
+- **Bonus Pipeline** — the household's money in flight, itemized: every not-yet-received card and bank bonus as its own line (brand, member, dollar value), sorted by value, with the running total in the header. Card points/miles are valued the same way as everywhere else — the card's program rate (or its bonus cash value), flagged `est.` — so you can see exactly which bonuses make up the pipeline, not just the sum.
 - **Application Eligibility** — compact per-member issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
 - **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#14-credit-age--keep-alive-tracker)).
 - **Active Spend Challenges** — live progress bars for every card with an open minimum-spend requirement, showing dollars spent vs. required, days remaining, and the **burn-rate projection** (on pace / off pace — need $X/week).
@@ -88,7 +89,7 @@ The engine generates these item types:
 - **Re-eligibility** — tells you when you can earn a card's sign-up bonus again (per-issuer windows).
 
 **Bank-account items**
-- **Direct-deposit deadline** — five tiers (overdue / ≤7d / ≤30d / ≤60d, plus a generic fallback when no DD-deadline is set), each with the required DD amount, source, and exact date.
+- **Direct-deposit deadline** — five tiers (overdue / ≤7d / ≤30d / ≤60d, plus a generic fallback when no DD-deadline is set), each with the required DD amount, source, and exact date. These reminders **clear automatically once the completed direct-deposit count meets the requirement** (or the DD is marked linked / the bonus received) — you don't have to dismiss them by hand.
 - **Multi-DD progress** — when an offer needs multiple qualifying deposits, tracks "X of Y completed" and how many remain.
 - **Minimum-balance reminder** — reminds you to keep the required balance to avoid fees and qualify.
 - **Bonus deadline** — overall offer-window countdown; if it expires, prompts you to call the bank to claim a manually-earned bonus.
@@ -144,7 +145,7 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
 - **Safe-to-close shield** — every open card with an earned bonus shows a shield line on the collapsed card: amber **"Safe to close in Nd (date)"** until 1 year from open, green **"Safe to close — 1 year passed, bonus earned"** after. Closing earlier risks the issuer clawing back the sign-up bonus — this is the card version of the bank accounts' 181-day clawback shield.
 - **Last used + "Used today" ⚡ pill** — Keep Alive cards show their **last-known used date** right on the collapsed card, with a quiet rounded **Used today** pill beside it: one tap sets the last-used date to today. No date picker — built specifically because typing dates is the most painful part of upkeep.
 - **"+ Log" spend button** on cards with an open spend requirement — see [Spend Logging](#6-spend-logging--burn-rate-projection).
-- **Bonus in pipeline** — cards actively earning a bonus show what's at stake right on the collapsed card: cash bonuses as dollars; points/miles as the points figure **plus an estimated cash value** (the card's bonus cash value if set, otherwise the household ¢/pt rate, flagged `est.`). Valued by the same engine rule as the Earnings page and Dashboard pipeline — points are never counted as raw dollars.
+- **Bonus in pipeline** — cards actively earning a bonus show what's at stake right on the collapsed card: cash bonuses as dollars; points/miles as the points figure **plus an estimated cash value** (the card's bonus cash value if set, otherwise its **program rate** — the program is inferred from the card name/issuer, so Hilton points value at Hilton's rate, not a flat 1¢ — flagged `est.`). Valued by the same engine rule as the Earnings page and Dashboard pipeline — points are never counted as raw dollars.
 - **Live spend progress bar** right on the collapsed card, color-coded by urgency, with the pace projection line under it.
 - **Clearable date fields** — press Backspace/Delete or click the × to clear a date (desktop-friendly), plus the native picker for mobile.
 - **Required fields are accent-highlighted**; optional fields are muted so you know what to ignore.
@@ -263,7 +264,7 @@ Page: `/fees`. Every annual fee across the household on one screen, sorted by so
 
 Page: `/earnings`. `src/engines/earnings.js` finally answers *"how much are we actually making?"*:
 
-- **Realized value per card**: bonus counted once received — cash bonuses at face value, points/miles at the card's **bonus cash value** if set, otherwise at the household's **¢/point rate** (Settings, default 1.0¢; estimated values are flagged `est.`). **Fees paid** is estimated from fee postings: one at open (unless first-year waived) plus one per anniversary while open (the closed date stops the clock). **Net = realized − fees.**
+- **Realized value per card**: bonus counted once received — cash bonuses at face value, points/miles at the card's **bonus cash value** if set, otherwise at the card's **program rate** (inferred from the card name/issuer, then valued at the per-program Settings rate or the published default, falling back to the household global ¢/point rate for unknown programs; estimated values are flagged `est.`). **Fees paid** is estimated from fee postings: one at open (unless first-year waived) plus one per anniversary while open (the closed date stops the clock). **Net = realized − fees.**
 - **Realized value per bank account**: the bonus amount once received.
 - **Headline stats**: household lifetime net, trailing 12 months, current year, total fees paid, plus per-calendar-year chips.
 - **Efficiency stats**: $ of bonus per $1 of required spend (over completed card bonuses), average days from open to bonus, bonuses completed.

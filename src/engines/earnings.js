@@ -3,21 +3,26 @@
 // Valuation rule: a card bonus's realized $ value is
 //   cashback  → bonusValue (already a $ figure)
 //   points/miles → bonusCashValue if the user set one, otherwise
-//                  bonusValue * (settings.pointValueCents ?? 1) / 100
+//                  bonusValue * (the card's program ¢/pt rate) / 100
 // The points/miles fallback is an estimate of what the points are worth, so it
 // carries `estimated: true` whenever bonusCashValue is absent and the bonus
-// isn't cashback (points/miles valued off the household's default cents-per-point).
+// isn't cashback.
+
+import { getCardProgram, resolvePointValueCents } from '../utils/programs'
 
 // Dollar value of a card's sign-up bonus, regardless of whether it's been
-// received yet. Cashback is a $ figure already; points/miles use the card's
-// own cash value if set, otherwise the household's cents-per-point rate (an
-// estimate). Exported so pipelines and summaries value points the same way
-// the Earnings page does — never counting raw points as dollars.
+// received yet. Cashback is a $ figure already; points/miles use the card's own
+// cash value if set, otherwise the card's program rate — the program is inferred
+// from the card name/issuer, then valued at the user's per-program Settings rate
+// (or the published default), falling back to the household global rate for
+// unknown programs (see resolvePointValueCents). So 130k Hilton points value at
+// Hilton's 0.5¢, not a flat 1¢. Exported so pipelines and summaries value points
+// the same way the Earnings page does — never counting raw points as dollars.
 export function valueCardBonus(card, settings) {
   const bonusValue = card.bonusValue ?? 0
   if (card.bonusType === 'cashback') return { value: bonusValue, estimated: false }
   if (card.bonusCashValue != null) return { value: card.bonusCashValue, estimated: false }
-  const cents = settings?.pointValueCents ?? 1
+  const cents = resolvePointValueCents({ program: getCardProgram(card).name }, settings)
   return { value: (bonusValue * cents) / 100, estimated: true }
 }
 
