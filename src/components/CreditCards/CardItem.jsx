@@ -7,8 +7,9 @@ import DateField from '../shared/DateField'
 import { getSpendDeadlineInfo, getCardNextStatus, getReeligibilityInfo, getCardCloseShield } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
+import { valueCardBonus } from '../../engines/earnings'
 import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
-import { fmt$, fmtDate } from '../../utils/format'
+import { fmt$, fmtPts, fmtDate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Shield } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -67,7 +68,7 @@ function getQuickActions(card) {
 }
 
 export default function CardItem({ card, members, autoOpenLogSpend = false }) {
-  const { dispatch } = useChurn()
+  const { state, dispatch } = useChurn()
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
   const [confirming, setConfirming] = useState(false)
@@ -90,6 +91,11 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
   const info = getSpendDeadlineInfo(card)
   const burn = getBurnRate(card)
   const closeShield = getCardCloseShield(card)
+  // What this card is working toward — valued the same way the Earnings page
+  // and Dashboard pipeline value bonuses (points never counted as raw dollars).
+  const pipeline = card.status === 'Active Churn' && !card.bonusReceived && Number(card.bonusValue) > 0
+    ? valueCardBonus(card, state.settings)
+    : null
   const nextStatus = getCardNextStatus(card)
   const age = getCardAge(card)
   const quickActions = getQuickActions(card)
@@ -284,6 +290,18 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
             </span>
           </div>
         </div>
+
+        {pipeline && (
+          <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+            <span className="text-ink-muted">Bonus in pipeline</span>
+            <span className="text-accent-ink font-medium tabular-nums">
+              {card.bonusType === 'cashback'
+                ? fmt$(pipeline.value)
+                : <>{fmtPts(card.bonusValue)} {card.bonusType === 'miles' ? 'miles' : 'pts'}{' '}
+                    <span className="text-ink-muted font-normal">≈ {fmt$(pipeline.value)}{pipeline.estimated ? ' est.' : ''}</span></>}
+            </span>
+          </div>
+        )}
 
         {info && !info.met && (
           <div className="mt-2">
