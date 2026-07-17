@@ -5,17 +5,16 @@ import { useHighlight } from '../../hooks/useHighlight'
 import CardItem from './CardItem'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
-import FilterBar, { Pill, MultiPill, Chip, FilterRow } from '../shared/FilterBar'
+import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/FilterBar'
 import { getIssuerMeta } from '../../utils/issuers'
 import { CARD_STATUSES } from '../../utils/statusMeta'
 import { getSmartCardStatus } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Layers, ChevronDown, ChevronUp } from 'lucide-react'
 
 const SORT_OPTIONS = [
   { value: 'newest',   label: 'Newest first' },
   { value: 'oldest',   label: 'Oldest first' },
-  { value: 'balance',  label: 'Highest balance' },
   { value: 'fee',      label: 'Highest annual fee' },
   { value: 'name',     label: 'Name A–Z' },
 ]
@@ -26,7 +25,7 @@ const AGE_RANGES = [
   { value: '2to4', label: '2–4yr' },
   { value: 'gt4',  label: '4+yr' },
 ]
-const DEFAULT_FILTERS = { statuses: [], issuers: [], ageRange: 'any', hasBalance: false, hasAnnualFee: false, bonusPending: false, hideClosed: false }
+const DEFAULT_FILTERS = { statuses: [], issuers: [], ageRange: 'any', hasAnnualFee: false, bonusPending: false, hideClosed: false }
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -55,6 +54,11 @@ export default function CreditCardsView() {
   const [filterMember, setFilterMember] = useState('all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [sortBy, setSortBy] = useState('newest')
+  // Grouping is now an explicit, opt-in view mode — decoupled from the sort so
+  // "Newest first" shows a true global newest-first order instead of silently
+  // bucketing by issuer first.
+  const [groupByBrand, setGroupByBrand] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   // Deep links from the command palette: ?add=1 opens the add form,
   // ?logspend=<cardId> opens that card's log-spend row, ?highlight=<id> flashes.
@@ -85,7 +89,6 @@ export default function CreditCardsView() {
     filters.statuses.length > 0,
     filters.issuers.length > 0,
     filters.ageRange !== 'any',
-    filters.hasBalance,
     filters.hasAnnualFee,
     filters.bonusPending,
     filters.hideClosed,
@@ -101,7 +104,6 @@ export default function CreditCardsView() {
         const name = getIssuerMeta(c.issuer || c.cardName).name
         if (!filters.issuers.includes(name)) return false
       }
-      if (filters.hasBalance && !(c.currentBalance > 0)) return false
       if (filters.hasAnnualFee && !(c.annualFee > 0)) return false
       if (filters.bonusPending && c.status !== 'Active Churn') return false
       if (filters.ageRange !== 'any') {
@@ -117,7 +119,6 @@ export default function CreditCardsView() {
     const sortFn = {
       newest:  (a, b) => new Date(b.openDate || '1970') - new Date(a.openDate || '1970'),
       oldest:  (a, b) => new Date(a.openDate || '9999') - new Date(b.openDate || '9999'),
-      balance: (a, b) => (b.currentBalance ?? 0) - (a.currentBalance ?? 0),
       fee:     (a, b) => (b.annualFee ?? 0) - (a.annualFee ?? 0),
       name:    (a, b) => (a.cardName ?? '').localeCompare(b.cardName ?? ''),
     }[sortBy] ?? (() => 0)
@@ -127,8 +128,9 @@ export default function CreditCardsView() {
   const allFiltered = applyFiltersAndSort(allCards)
   const filteredCards = allFiltered.filter(c => c.status !== 'Closed' && c.status !== 'Downgraded')
   const closedCards = allFiltered.filter(c => c.status === 'Closed' || c.status === 'Downgraded')
-  // Use issuer groups only for default sort; flat list otherwise so sort order is obvious.
-  const useGroups = sortBy === 'newest'
+  // Grouping is opt-in via the "Group by brand" toggle. When off, the flat list
+  // honors the chosen sort exactly (so newest-first is truly newest-first).
+  const useGroups = groupByBrand
   const groups = useGroups ? groupByIssuer(filteredCards) : null
 
   function startAdd() {
@@ -140,8 +142,9 @@ export default function CreditCardsView() {
       spendRequirement: '', spendDeadlineDays: '', currentSpend: '',
       currentBalance: '', creditLimit: '',
       bonusValue: '', bonusType: 'cashback', bonusReceived: false, bonusReceivedDate: '',
-      annualFee: '', isBusiness: false, isAuthorizedUser: false, notes: '',
+      annualFee: '', feeWaivedFirstYear: false, isBusiness: false, isAuthorizedUser: false, notes: '',
     })
+    setMoreOpen(false)
     setAdding(true)
   }
 
@@ -177,6 +180,12 @@ export default function CreditCardsView() {
   }
 
   function setN(k, v) { setNewCard(d => ({ ...d, [k]: v })) }
+
+  // Add-form progressive disclosure — reveal only the sections that matter for
+  // the status the user picked, so a new card starts as a short form.
+  const addStatus = newCard?.status
+  const showAddEarn = addStatus === 'Active Churn' || addStatus === 'Applied'
+  const showAddBonus = addStatus !== 'Closed' && addStatus !== 'Downgraded'
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -216,6 +225,12 @@ export default function CreditCardsView() {
         onSortChange={setSortBy}
         sortOptions={SORT_OPTIONS}
         onClear={clearFilters}
+        trailing={
+          <Toggle active={groupByBrand} onClick={() => setGroupByBrand(g => !g)}>
+            <Layers size={12} />
+            Group by brand
+          </Toggle>
+        }
       >
         <FilterRow label="Status">
           {CARD_STATUSES.map(s => (
@@ -235,7 +250,6 @@ export default function CreditCardsView() {
           ))}
         </FilterRow>
         <FilterRow label="Show">
-          <Chip active={filters.hasBalance}    onClick={() => setFilters(f => ({ ...f, hasBalance: !f.hasBalance }))}>Has balance</Chip>
           <Chip active={filters.hasAnnualFee}  onClick={() => setFilters(f => ({ ...f, hasAnnualFee: !f.hasAnnualFee }))}>Has annual fee</Chip>
           <Chip active={filters.bonusPending}  onClick={() => setFilters(f => ({ ...f, bonusPending: !f.bonusPending }))}>Bonus pending</Chip>
           <Chip active={filters.hideClosed}    onClick={() => setFilters(f => ({ ...f, hideClosed: !f.hideClosed }))}>Hide closed/downgraded</Chip>
@@ -284,73 +298,107 @@ export default function CreditCardsView() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Open Date</label>
-                <DateField value={newCard.openDate} onChange={v => setN('openDate', v)} />
-              </div>
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Last Used</label>
-                <DateField value={newCard.lastUsedDate} onChange={v => setN('lastUsedDate', v)} />
-              </div>
+            <div>
+              <label className="text-xs text-ink-tertiary block mb-1">Open Date</label>
+              <DateField value={newCard.openDate} onChange={v => setN('openDate', v)} />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
-                <input type="number" min="0" className={inp} value={newCard.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
+            {/* Earning Bonus — only when the card is actively working a bonus */}
+            {showAddEarn && (
+              <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+                <div className="text-xs font-medium text-ink-secondary mb-1">Earning bonus</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Spend Req ($)</label>
+                    <input type="number" min="0" className={inp} value={newCard.spendRequirement} onChange={e => setN('spendRequirement', e.target.value)} placeholder="4000" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Days</label>
+                    <input type="number" min="1" className={inp} value={newCard.spendDeadlineDays} onChange={e => setN('spendDeadlineDays', e.target.value)} placeholder="90" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Spent ($)</label>
+                    <input type="number" min="0" className={inp} value={newCard.currentSpend} onChange={e => setN('currentSpend', e.target.value)} placeholder="0" />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Credit Limit ($)</label>
-                <input type="number" min="0" className={inp} value={newCard.creditLimit} onChange={e => setN('creditLimit', e.target.value)} placeholder="optional" />
-              </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Spend Req ($)</label>
-                <input type="number" min="0" className={inp} value={newCard.spendRequirement} onChange={e => setN('spendRequirement', e.target.value)} placeholder="4000" />
+            {/* Bonus & Rewards — hidden once a card is closed/downgraded */}
+            {showAddBonus && (
+              <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+                <div className="text-xs font-medium text-ink-secondary mb-1">Bonus &amp; rewards</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Bonus</label>
+                    <input type="number" min="0" className={inp} value={newCard.bonusValue} onChange={e => setN('bonusValue', e.target.value)} placeholder="pts/$" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Type</label>
+                    <select className={inp} value={newCard.bonusType} onChange={e => setN('bonusType', e.target.value)}>
+                      <option value="points">Points</option>
+                      <option value="cashback">Cash</option>
+                      <option value="miles">Miles</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Annual Fee ($)</label>
+                    <input type="number" min="0" className={inp} value={newCard.annualFee} onChange={e => setN('annualFee', e.target.value)} placeholder="0" />
+                  </div>
+                </div>
+                {Number(newCard.annualFee) > 0 && (
+                  <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
+                    <input type="checkbox" checked={!!newCard.feeWaivedFirstYear} onChange={e => setN('feeWaivedFirstYear', e.target.checked)} />
+                    First-year annual fee waived at sign-up
+                  </label>
+                )}
               </div>
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Days</label>
-                <input type="number" min="1" className={inp} value={newCard.spendDeadlineDays} onChange={e => setN('spendDeadlineDays', e.target.value)} placeholder="90" />
-              </div>
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Spent ($)</label>
-                <input type="number" min="0" className={inp} value={newCard.currentSpend} onChange={e => setN('currentSpend', e.target.value)} placeholder="0" />
-              </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Bonus</label>
-                <input type="number" min="0" className={inp} value={newCard.bonusValue} onChange={e => setN('bonusValue', e.target.value)} placeholder="pts/$" />
-              </div>
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Type</label>
-                <select className={inp} value={newCard.bonusType} onChange={e => setN('bonusType', e.target.value)}>
-                  <option value="points">Points</option>
-                  <option value="cashback">Cash</option>
-                  <option value="miles">Miles</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-ink-tertiary block mb-1">Annual Fee</label>
-                <input type="number" min="0" className={inp} value={newCard.annualFee} onChange={e => setN('annualFee', e.target.value)} placeholder="0" />
-              </div>
+            {/* Everything else is optional — kept out of the way by default */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(o => !o)}
+                className="flex items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-ink transition-colors"
+              >
+                {moreOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                More details (optional)
+              </button>
+              {moreOpen && (
+                <div className="mt-2 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-ink-tertiary block mb-1">Last Used</label>
+                      <DateField value={newCard.lastUsedDate} onChange={v => setN('lastUsedDate', v)} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-ink-tertiary block mb-1">Credit Limit ($)</label>
+                      <input type="number" min="0" className={inp} value={newCard.creditLimit} onChange={e => setN('creditLimit', e.target.value)} placeholder="optional" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
+                    <input type="number" min="0" className={inp} value={newCard.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
+                      <input type="checkbox" checked={!!newCard.isBusiness} onChange={e => setN('isBusiness', e.target.checked)} />
+                      Business card
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
+                      <input type="checkbox" checked={!!newCard.isAuthorizedUser} onChange={e => setN('isAuthorizedUser', e.target.checked)} />
+                      Authorized user
+                    </label>
+                  </div>
+                  <p className="text-xs text-ink-faint -mt-1">Personal cards count toward Chase 5/24. Check these only to exclude a card.</p>
+                  <div>
+                    <label className="text-xs text-ink-tertiary block mb-1">Notes</label>
+                    <textarea rows={2} className={inp} value={newCard.notes} onChange={e => setN('notes', e.target.value)} placeholder="optional" />
+                  </div>
+                </div>
+              )}
             </div>
-
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-                <input type="checkbox" checked={!!newCard.isBusiness} onChange={e => setN('isBusiness', e.target.checked)} />
-                Business card
-              </label>
-              <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-                <input type="checkbox" checked={!!newCard.isAuthorizedUser} onChange={e => setN('isAuthorizedUser', e.target.checked)} />
-                Authorized user
-              </label>
-            </div>
-            <p className="text-xs text-ink-faint -mt-1">Personal cards count toward Chase 5/24. Check these only to exclude a card.</p>
 
             <div className="flex gap-2 pt-1">
               <button onClick={cancelAdd} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>

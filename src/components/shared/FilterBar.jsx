@@ -44,7 +44,26 @@ export function MultiPill({ value, values, onToggle, label }) {
   )
 }
 
-export default function FilterBar({ activeCount, sortBy, onSortChange, sortOptions, onClear, children }) {
+// A persistent on/off toggle that lives on the always-visible control row
+// (not inside the collapsible filter drawer). Used for view options like
+// "Group by brand" that shouldn't be buried.
+export function Toggle({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
+        active
+          ? 'bg-accent/15 border-accent/40 text-accent-ink'
+          : 'bg-raised border-edge-strong text-ink-tertiary hover:text-ink-secondary'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+export default function FilterBar({ activeCount, sortBy, onSortChange, sortOptions, onClear, trailing, children }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -89,6 +108,8 @@ export default function FilterBar({ activeCount, sortBy, onSortChange, sortOptio
             Clear
           </button>
         )}
+
+        {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
       </div>
 
       {/* Filter rows — shown only when expanded */}
