@@ -189,8 +189,9 @@ The direct deposit fields drive the multi-tier direct-deposit reminders, the mul
 
 Page: `/points`. One place to keep every program's balance — the points currently sitting on your cards and loyalty accounts — per person: Chase UR, Amex MR, airline miles, hotel points, or any custom program.
 
-- **One entry per member per program.** The **progressive add form** asks only for program, person, and balance; value override, expiration date, and notes stay under **More details (optional)**. The program field suggests ~20 known programs (transferable bank currencies, airlines, hotels — `src/utils/programs.js`) but accepts any name; known programs get their brand logo and a **Bank / Airline / Hotel** type tag, everything else is typed **Other**.
-- **Estimated cash value** per entry and in the header stats: balance × the program's **¢/pt override** if set, otherwise the household's ¢/point rate from Settings. Header shows **total points, total est. value, and program count** for whatever is currently in view (they follow the person filter).
+- **One entry per member per program.** The **progressive add form** asks only for program, person, and balance; value override, expiration date, and notes stay under **More details (optional)**. The program field is a **custom typeahead** (not a native datalist, which is unreliable across browsers): it filters ~20 known programs as you type (transferable bank currencies, airlines, hotels — `src/utils/programs.js`), with full keyboard navigation, a dropdown toggle, and free text always allowed. Known programs get their brand logo and a **Bank / Airline / Hotel** type tag, everything else is typed **Other**.
+- **Estimated cash value** per entry and in the header stats, resolved in priority order: the entry's own **¢/pt override** → the user's custom per-program rate (**Settings → Point Valuations**) → the program's **built-in default from published valuations** (The Points Guy July 2026 where available — e.g. Chase UR 2.05¢, Amex MR 2.0¢, Bilt 2.2¢, Hyatt 1.6¢, Hilton 0.5¢, Delta 1.2¢) → the household's global ¢/point rate. Header shows **total points, total est. value, and program count** for whatever is currently in view (they follow the person filter).
+- **Settings → Point Valuations** — every known program listed with its default ¢/pt as the placeholder; type a value to override it household-wide, clear the field to return to the default.
 - **Update balance** — the everyday action is one tap: a single-field quick update on each card (Enter saves) that re-stamps the **last-updated date** automatically. Full edit (person, program, balance, ¢/pt, expiration, notes) expands in place; delete asks for confirmation.
 - **Expiration tracking** — an optional expiration date per entry shows an amber **"Expires in Nd"** warning inside 90 days and red once expired (useful for programs that expire with inactivity).
 - **Sort & filter** — sort by highest value (default), highest balance, program A–Z, or recently updated; filter by person or program type; opt-in **Group by program** toggle with per-program subtotals (points + est. value).
@@ -412,7 +413,8 @@ notifications      { seen[], dismissed { itemId: dismissedAtISO },
 seniorIncome       { [memberId]: { ssMonthly, accessibleSupport } }
 externalPayments[]
 taxYear
-settings           { taxBracket, pointValueCents, notifyEnabled }
+settings           { taxBracket, pointValueCents, notifyEnabled,
+                     programValueCents { programName: centsPerPoint } }
 ```
 
 Engines with no synced state of their own: `events.js` (timeline), `earnings.js`, `burnRate.js`, `whatIf.js` (simulator inputs are deliberately not persisted).

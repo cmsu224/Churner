@@ -3,12 +3,13 @@ import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
 import { useHighlight } from '../../hooks/useHighlight'
 import PointsItem from './PointsItem'
+import ProgramCombobox from './ProgramCombobox'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
 import StatCard from '../shared/StatCard'
 import EmptyState from '../shared/EmptyState'
 import FilterBar, { Pill, MultiPill, FilterRow, Toggle } from '../shared/FilterBar'
-import { POINT_PROGRAMS, PROGRAM_TYPES, getProgramMeta, pointsValue } from '../../utils/programs'
+import { PROGRAM_TYPES, getProgramMeta, pointsValue, resolvePointValueCents } from '../../utils/programs'
 import { fmt$, fmtPts } from '../../utils/format'
 import { Plus, X, Coins, Layers, ChevronDown, ChevronUp } from 'lucide-react'
 
@@ -126,11 +127,6 @@ export default function PointsView() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
-      {/* Shared program suggestions for the add + edit forms */}
-      <datalist id="point-program-options">
-        {POINT_PROGRAMS.map(p => <option key={p.name} value={p.name} />)}
-      </datalist>
-
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-ink">Points</h1>
         {!adding && (
@@ -147,7 +143,7 @@ export default function PointsView() {
       {allBalances.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-4">
           <StatCard label="Total points" value={fmtPts(totalPoints)} />
-          <StatCard label="Est. value" value={fmt$(totalValue)} tone="success" sub={`at ${settings.pointValueCents ?? 1}¢/pt default`} />
+          <StatCard label="Est. value" value={fmt$(totalValue)} tone="success" sub="at per-program rates" />
           <StatCard label="Programs" value={programCount} />
         </div>
       )}
@@ -200,7 +196,7 @@ export default function PointsView() {
           <div className="p-4 pt-2 space-y-3">
             <div>
               <label className="text-xs text-accent-ink block mb-1 font-medium">Program <span className="text-accent-ink">*required</span></label>
-              <input className={inpRequired} list="point-program-options" value={newEntry.program} onChange={e => setN('program', e.target.value)} placeholder="e.g. Chase Ultimate Rewards, Delta SkyMiles" autoFocus />
+              <ProgramCombobox className={inpRequired} value={newEntry.program} onChange={v => setN('program', v)} placeholder="Type to search — e.g. Chase, Hilton, SkyMiles" autoFocus />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -231,7 +227,7 @@ export default function PointsView() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-xs text-ink-tertiary block mb-1">Value (¢/pt)</label>
-                      <input type="number" min="0" step="0.1" className={inp} value={newEntry.valueCents} onChange={e => setN('valueCents', e.target.value)} placeholder={`${settings.pointValueCents ?? 1} (default)`} />
+                      <input type="number" min="0" step="0.1" className={inp} value={newEntry.valueCents} onChange={e => setN('valueCents', e.target.value)} placeholder={`${resolvePointValueCents({ program: newEntry.program }, settings)} (default)`} />
                     </div>
                     <div>
                       <label className="text-xs text-ink-tertiary block mb-1">Expiration Date</label>
