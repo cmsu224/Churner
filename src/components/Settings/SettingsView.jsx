@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
 import { useTheme } from '../../hooks/useTheme'
+import { POINT_PROGRAMS } from '../../utils/programs'
 import { Sun, Moon, Users, Link2, ArrowDownUp, CheckCircle, AlertCircle, Bell, BellOff } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -19,6 +20,20 @@ export default function SettingsView() {
   const notifSupported = typeof window !== 'undefined' && 'Notification' in window
   const [permission, setPermission] = useState(notifSupported ? Notification.permission : 'unsupported')
   const pointValueCents = state.settings?.pointValueCents ?? 1
+  const programValueCents = state.settings?.programValueCents ?? {}
+  // Raw input text per program while editing, so partial entries like "0."
+  // don't get clobbered by the parsed store value mid-keystroke.
+  const [valDrafts, setValDrafts] = useState({})
+
+  function setProgramValue(key, raw) {
+    setValDrafts(d => ({ ...d, [key]: raw }))
+    const map = { ...programValueCents }
+    const v = parseFloat(raw)
+    if (raw.trim() === '') delete map[key]
+    else if (!Number.isNaN(v) && v > 0) map[key] = v
+    else return // incomplete/invalid — keep the draft, don't touch the store
+    dispatch({ type: 'SET_SETTING', key: 'programValueCents', value: map })
+  }
 
   async function toggleNotifications() {
     if (notifyEnabled) {
@@ -126,6 +141,41 @@ export default function SettingsView() {
             className={`${inp} w-24`}
           />
           <span className="text-sm text-ink-muted">¢ per point</span>
+        </div>
+      </section>
+
+      {/* Per-program point valuations (Points page) */}
+      <section className="bg-surface border border-edge rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-ink mb-1">Point Valuations</h2>
+        <p className="text-xs text-ink-tertiary mb-4">
+          What one point of each program is worth on the <span className="text-ink-secondary">Points</span> page.
+          Defaults come from published valuations (The Points Guy, July 2026 where available) — type a value to override,
+          clear it to go back to the default. A balance&rsquo;s own ¢/pt override always wins, and programs not
+          listed here use the Earnings rate above.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+          {POINT_PROGRAMS.map(p => {
+            const key = p.name.toLowerCase()
+            const custom = programValueCents[key]
+            return (
+              <div key={p.name} className="flex items-center justify-between gap-2">
+                <span className="text-xs text-ink-secondary truncate" title={p.name}>{p.name}</span>
+                <span className="flex items-center gap-1.5 flex-shrink-0">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.05"
+                    aria-label={`${p.name} value in cents per point`}
+                    value={valDrafts[key] ?? (custom != null ? String(custom) : '')}
+                    onChange={e => setProgramValue(key, e.target.value)}
+                    placeholder={String(p.valueCents)}
+                    className="w-20 bg-raised border border-edge-strong rounded-lg px-2 py-1.5 text-xs text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors text-right"
+                  />
+                  <span className="text-[11px] text-ink-faint w-7">¢/pt</span>
+                </span>
+              </div>
+            )
+          })}
         </div>
       </section>
 

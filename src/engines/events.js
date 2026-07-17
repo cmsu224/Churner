@@ -5,7 +5,7 @@
 // getAnnualFeeInfo, getClawbackStatus, getCardReeligibility, getBankEligibility
 // and turns them into a flat, filterable, exportable list of events.
 
-import { getSpendDeadlineInfo, getAnnualFeeInfo } from './lifecycle'
+import { getSpendDeadlineInfo, getAnnualFeeInfo, getCardCloseShield } from './lifecycle'
 import { getCardReeligibility } from './cardReeligibility'
 import { getBankEligibility } from './bankEligibility'
 import { getClawbackStatus } from './clawbackShield'
@@ -32,6 +32,7 @@ const KIND_CATEGORY = {
   bonus_deadline: 'banks',
   clawback_clear: 'banks',
   etf_clear: 'banks',
+  close_shield_clear: 'fees',
   card_reeligible: 'eligibility',
   bank_reeligible: 'eligibility',
 }
@@ -131,6 +132,19 @@ export function collectEvents(state) {
           cardId: card.id,
         }))
       }
+    }
+
+    // 12-month close shield clears — bonus-earned cards become safe to close.
+    const cs = getCardCloseShield(card)
+    if (cs?.safeDate) {
+      events.push(makeEvent({
+        kind: 'close_shield_clear',
+        date: cs.safeDate,
+        title: `Safe to close: ${n}`,
+        detail: `1 year since open with the bonus earned — closing or downgrading no longer risks a clawback. ${pn}'s card.`,
+        memberId: card.memberId,
+        cardId: card.id,
+      }))
     }
 
     // Retention window opens 10 months after opening, for cards 0–12 months old with a fee.

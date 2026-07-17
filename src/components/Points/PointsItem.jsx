@@ -3,7 +3,8 @@ import { useChurn } from '../../store/ChurnContext'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
-import { getProgramMeta, pointsValue } from '../../utils/programs'
+import ProgramCombobox from './ProgramCombobox'
+import { getProgramMeta, pointsValue, resolvePointValueCents } from '../../utils/programs'
 import { fmt$, fmtPts, fmtDate, daysUntil } from '../../utils/format'
 import { ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react'
 
@@ -29,7 +30,7 @@ export default function PointsItem({ entry, members }) {
 
   const meta = getProgramMeta(entry.program)
   const expiry = expiryInfo(entry)
-  const cents = Number(entry.valueCents) > 0 ? Number(entry.valueCents) : (settings.pointValueCents ?? 1)
+  const cents = resolvePointValueCents(entry, settings)
 
   function startEdit() {
     setDraft({ ...entry })
@@ -160,13 +161,13 @@ export default function PointsItem({ entry, members }) {
 
           <div>
             <label className="text-xs text-accent-ink block mb-1 font-medium">Program <span className="text-accent-ink">*required</span></label>
-            <input className={inpRequired} list="point-program-options" value={draft.program ?? ''} onChange={e => setDraft(d => ({ ...d, program: e.target.value }))} placeholder="e.g. Chase Ultimate Rewards" />
+            <ProgramCombobox className={inpRequired} value={draft.program ?? ''} onChange={v => setDraft(d => ({ ...d, program: v }))} placeholder="Type to search — e.g. Chase, Hilton, SkyMiles" />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Value (¢/pt)</label>
-              <input type="number" min="0" step="0.1" className={inp} value={draft.valueCents ?? ''} onChange={e => setDraft(d => ({ ...d, valueCents: e.target.value }))} placeholder={`${settings.pointValueCents ?? 1} (default)`} />
+              <input type="number" min="0" step="0.1" className={inp} value={draft.valueCents ?? ''} onChange={e => setDraft(d => ({ ...d, valueCents: e.target.value }))} placeholder={`${resolvePointValueCents({ program: draft.program }, settings)} (default)`} />
             </div>
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Expiration Date</label>
