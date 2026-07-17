@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import PageHeader from '../shared/PageHeader'
 import {
   ClipboardList, TrendingUp, BookOpen, FlaskConical, Calculator,
-  Users, Link2, ArrowDownUp, Settings, ChevronRight, Coins,
+  Users, Link2, ArrowDownUp, Settings, ChevronRight, Coins, Receipt,
 } from 'lucide-react'
 
 // Mobile hub for everything that doesn't fit in the 5-slot bottom nav.
@@ -11,6 +11,7 @@ const GROUPS = [
     title: 'Tools',
     items: [
       { to: '/points', icon: Coins, label: 'Points', desc: 'Loyalty balances across every program, per person' },
+      { to: '/fees', icon: Receipt, label: 'Annual Fees', desc: 'Every card fee due date and refund window in one place' },
       { to: '/applications', icon: ClipboardList, label: 'Applications', desc: 'Plan applications and track approvals & denials' },
       { to: '/earnings', icon: TrendingUp, label: 'Earnings', desc: 'What the household is actually making' },
       { to: '/rules', icon: BookOpen, label: 'Eligibility', desc: 'Issuer rules and bonus re-eligibility' },
