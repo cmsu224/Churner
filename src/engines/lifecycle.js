@@ -1,3 +1,5 @@
+import { isRetired } from '../utils/statusMeta'
+
 // Annual fee: posts on the anniversary of openDate each year.
 // Cancel BEFORE it posts = no fee. Cancel WITHIN 30 days after = full refund.
 export function getAnnualFeeInfo(card) {
@@ -14,6 +16,27 @@ export function getAnnualFeeInfo(card) {
   const refundDeadline = new Date(feeDate)
   refundDeadline.setDate(refundDeadline.getDate() + 30)
   return { feeDate: feeDate.toISOString(), daysUntilFee, inRefundWindow, refundDaysLeft, refundDeadline: refundDeadline.toISOString() }
+}
+
+// 12-month close shield — the card version of the bank 181-day clawback rule.
+// Closing a card less than a year after opening risks the issuer clawing back
+// the sign-up bonus (and sours the relationship). Safe = 365 days since open,
+// once the bonus has actually been earned. Null for cards with no earned bonus
+// and for retired (Closed/Downgraded) cards.
+export function getCardCloseShield(card) {
+  if (!card?.bonusReceived || isRetired(card)) return null
+  if (!card.openDate) {
+    return { safe: false, daysRemaining: null, safeDate: null, message: 'Set an open date to track when it’s safe to close' }
+  }
+  const safeDate = new Date(card.openDate)
+  safeDate.setDate(safeDate.getDate() + 365)
+  const today = new Date()
+  const daysRemaining = Math.ceil((safeDate - today) / 86400000)
+  const safe = today >= safeDate
+  const message = safe
+    ? 'Safe to close — 1 year passed, bonus earned'
+    : `Safe to close in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}`
+  return { safe, daysRemaining: safe ? 0 : daysRemaining, safeDate: safeDate.toISOString(), message }
 }
 
 // Per-issuer bonus re-eligibility window (months since bonus received)

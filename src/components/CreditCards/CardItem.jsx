@@ -4,12 +4,12 @@ import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
-import { getSpendDeadlineInfo, getCardNextStatus, getReeligibilityInfo } from '../../engines/lifecycle'
+import { getSpendDeadlineInfo, getCardNextStatus, getReeligibilityInfo, getCardCloseShield } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
 import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
 import { fmt$, fmtDate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Shield } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -44,11 +44,14 @@ function getQuickActions(card) {
       return hasBonus
         ? [{ label: '✓ Bonus Received', color: 'emerald', payload: { bonusReceived: true, status: 'Bonus Met', bonusReceivedDate: today } }]
         : [{ label: '→ Keep Alive', color: 'zinc', payload: { status: 'Keep Alive' } }]
-    case 'Bonus Met':
-      return [
-        { label: '→ Keep Alive', color: 'zinc', payload: { status: 'Keep Alive' } },
-        { label: 'Close / Downgrade', color: 'red', payload: { status: 'Downgrade/Close Due' } },
-      ]
+    case 'Bonus Met': {
+      // Once the 12-month close shield clears, closing/downgrading becomes the
+      // suggested primary (solid) action; until then Keep Alive leads.
+      const shield = getCardCloseShield(card)
+      const keep = { label: '→ Keep Alive', color: 'zinc', payload: { status: 'Keep Alive' } }
+      const close = { label: 'Close / Downgrade', color: 'red', payload: { status: 'Downgrade/Close Due' } }
+      return shield?.safe ? [close, keep] : [keep, close]
+    }
     case 'Keep Alive':
       return [
         { label: 'Close / Downgrade', color: 'red', payload: { status: 'Downgrade/Close Due' } },
@@ -86,6 +89,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
 
   const info = getSpendDeadlineInfo(card)
   const burn = getBurnRate(card)
+  const closeShield = getCardCloseShield(card)
   const nextStatus = getCardNextStatus(card)
   const age = getCardAge(card)
   const quickActions = getQuickActions(card)
@@ -275,17 +279,6 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 <span>Log</span>
               </button>
             )}
-            {/* Only show for Keep Alive cards — one tap to confirm it's still in use */}
-            {card.status === 'Keep Alive' && (
-              <button
-                onClick={markUsedToday}
-                title="Mark used today"
-                className="flex items-center gap-1 bg-success hover:bg-success/85 text-white text-xs font-medium px-2 py-1 rounded-md transition-colors"
-              >
-                <Zap size={11} />
-                <span>Used</span>
-              </button>
-            )}
             <span className="text-ink-tertiary">
               {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
             </span>
@@ -312,6 +305,33 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                   : `Off pace — need ${fmt$(burn.neededPerWeek)}/wk (current ~${fmt$(burn.perWeek)}/wk)`}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Keep Alive: last-known-used date with a quiet one-tap "Used today"
+            pill beside it — replaces the old solid Used button in the header */}
+        {card.status === 'Keep Alive' && !expanded && (
+          <div className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-muted">
+            <span>Last used <span className="text-ink font-medium">{card.lastUsedDate ? fmtDate(card.lastUsedDate) : '—'}</span></span>
+            <button
+              onClick={markUsedToday}
+              title="Mark used today"
+              className="flex items-center gap-1 border border-edge-strong text-ink-tertiary hover:text-success-ink hover:border-success/50 px-2.5 py-1 rounded-full transition-colors flex-shrink-0"
+            >
+              <Zap size={11} />
+              <span>Used today</span>
+            </button>
+          </div>
+        )}
+
+        {/* 12-month close shield — shown for any open card with an earned bonus */}
+        {closeShield && (
+          <div className={`mt-2 flex items-center gap-1 text-xs font-medium ${closeShield.safe ? 'text-success-ink' : 'text-warning-ink'}`}>
+            <Shield size={11} className="flex-shrink-0" />
+            <span>
+              {closeShield.message}
+              {!closeShield.safe && closeShield.safeDate && <> ({fmtDate(closeShield.safeDate)})</>}
+            </span>
           </div>
         )}
 

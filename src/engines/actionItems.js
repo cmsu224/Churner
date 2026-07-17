@@ -1,4 +1,4 @@
-import { getSpendDeadlineInfo, getAnnualFeeInfo, getReeligibilityInfo } from './lifecycle'
+import { getSpendDeadlineInfo, getAnnualFeeInfo, getReeligibilityInfo, getCardCloseShield } from './lifecycle'
 import { getClawbackStatus } from './clawbackShield'
 import { getKeepAliveCards } from './creditAge'
 import { getBurnRate } from './burnRate'
@@ -110,6 +110,24 @@ export function generateActionItems(state) {
         title: `Update status: ${n}`,
         detail: `Bonus is marked as received but card status is still "Active Churn". Tap the card to update it to "Bonus Met" so your tracker stays accurate.`,
         dueDate: null, action: 'Update card status' })
+    }
+
+    // Close shield — the card version of the bank clawback reminders. A
+    // heads-up as the 12-month mark approaches and an all-clear once it
+    // passes. Keep Alive cards are deliberate keeps, so they don't nag.
+    const cs = getCardCloseShield(card)
+    if (cs && cs.safeDate && (card.status === 'Bonus Met' || card.status === 'Downgrade/Close Due')) {
+      if (cs.safe) {
+        items.push({ id: `close-safe-${card.id}`, type: 'info', category: 'clawback', cardId: card.id, memberId: card.memberId,
+          title: `Safe to close: ${n}`,
+          detail: `Open a full year with the bonus earned — closing or downgrading now carries no clawback risk. Downgrade to a no-fee card to keep the credit history, or cancel outright. ${pn}'s card.`,
+          dueDate: null, action: 'Cancel or downgrade' })
+      } else if (cs.daysRemaining <= 30) {
+        items.push({ id: `close-soon-${card.id}`, type: 'info', category: 'clawback', cardId: card.id, memberId: card.memberId,
+          title: `Safe to close in ${cs.daysRemaining}d: ${n}`,
+          detail: `The card turns 1 year old on ${new Date(cs.safeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. Closing before then risks the issuer clawing back the bonus — plan the cancel or downgrade for after that date. ${pn}'s card.`,
+          dueDate: cs.safeDate, action: 'Plan cancel / downgrade' })
+      }
     }
 
     // Re-eligibility

@@ -82,6 +82,7 @@ The engine generates these item types:
 - **Annual fee — refund window** — when a fee has already posted, counts down the **30-day cancel-for-full-refund** window (critical at ≤5 days), with the option to product-change to a no-fee card to keep the history.
 - **Annual fee — upcoming** — fires within 45 days of a fee posting, coaching you to call the retention line first, then either cancel before it posts or let it post and refund within 30 days.
 - **Retention call due** — for fee cards aged 10–12 months, prompts you to call the retention/loyalty line and ask for an offer.
+- **Safe to close — approaching / cleared** — for bonus-earned cards in *Bonus Earned* or *Cancel or Downgrade* status: a heads-up when the **12-month close shield** clears within 30 days (with the exact date), then an all-clear once closing/downgrading carries no clawback risk. Keep Alive cards are deliberate keeps, so they don't nag.
 - **Stale status** — flags cards marked "bonus received" but still showing an earning status so your tracker stays accurate.
 - **Re-eligibility** — tells you when you can earn a card's sign-up bonus again (per-issuer windows).
 
@@ -113,7 +114,7 @@ A **bell icon in the header** (every screen) opens the notification center:
 
 Page: `/timeline`. Every dated event across the household, in one place, sourced from the existing engines (`src/engines/events.js` reuses their math — no duplicated rule logic):
 
-- **Event types:** spend deadlines, annual-fee post dates, fee-refund window closes, retention-call window opens (card turns 10 months old), card bonus re-eligibility dates, direct-deposit deadlines, bank-bonus offer deadlines, clawback-clear ("safe to close") dates, early-termination-fee window ends, and bank bonus re-eligibility dates.
+- **Event types:** spend deadlines, annual-fee post dates, fee-refund window closes, retention-call window opens (card turns 10 months old), card safe-to-close dates (the 12-month close shield clears), card bonus re-eligibility dates, direct-deposit deadlines, bank-bonus offer deadlines, clawback-clear ("safe to close") dates, early-termination-fee window ends, and bank bonus re-eligibility dates.
 - **Two views:** a **month calendar** (prev/today/next, event chips per day, tap a day for its agenda) and an **agenda list** grouped by month with an **Overdue** section on top. Mobile defaults to agenda.
 - **Filters** by member and by category (Spend / Fees / Banks / Eligibility).
 - **Export .ics** — generates an iCalendar file client-side (RFC 5545: proper escaping, line folding, all-day VEVENTs, stable UIDs) from the *currently filtered upcoming events*, one VEVENT per item, summaries like `[Churner] Wife: Spend deadline: Sapphire Preferred`. Import or subscribe in Google/Apple Calendar for reminders while the app is closed.
@@ -133,13 +134,14 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
 - **Dynamic status action buttons** — context-sensitive one-tap buttons appear on every card based on its current status, so you can advance the lifecycle without opening the edit form. The **primary next step is a solid, filled button** (any secondary options stay outlined) so the obvious action is unmistakable:
   - *Applied* → **Card Arrived** (→ Earning Bonus)
   - *Earning Bonus* → **✓ Bonus Received** (sets bonusReceived + bonusReceivedDate + status in one tap). Cards with no sign-up bonus (points/perks-only cards) show **→ Keep Alive** instead.
-  - *Bonus Earned* → **→ Keep Alive** or **Close / Downgrade** (→ Cancel or Downgrade)
+  - *Bonus Earned* → **→ Keep Alive** or **Close / Downgrade** (→ Cancel or Downgrade). Which one is the solid primary button depends on the **12-month close shield**: Keep Alive leads until the card is safe to close, then Close / Downgrade takes over.
   - *Keep Alive* → **Close / Downgrade** (→ Cancel or Downgrade)
   - *Cancel or Downgrade* → **✓ Mark Closed**, **Keep It** (→ Keep Alive), or **Downgrade →** (type the no-fee replacement card's name — marks this card Downgraded and creates the new card, without inheriting the original's 5/24-counted open date)
 - **Undo button** — after any quick-action tap, an **↩ Undo** button appears for 6 seconds to instantly revert the change. No confirmation dialog.
 - **Smart status on import** — when importing cards from a credit report (where bonus status is unknown), the app infers the right status from the card's age: under 6 months → Earning Bonus; 6–10 months → Bonus Earned (bonus assumed received); 11–13 months → Annual Fee Decision; 14+ months → Keep Alive. Cards with no bonus details are set to Keep Alive regardless of age.
 - **Smart status on manual add** — same age-based logic applies when you add a card manually and leave the status at the default. If you explicitly pick a status in the dropdown, that choice is respected as-is.
-- **"Used" ⚡ button** — one tap on the collapsed card sets the last-used date to today (rendered as a solid green button so it's an obvious one-tap). Only visible on **Keep Alive** cards (the only status where usage tracking matters). No date picker — built specifically because typing dates is the most painful part of upkeep.
+- **Safe-to-close shield** — every open card with an earned bonus shows a shield line on the collapsed card: amber **"Safe to close in Nd (date)"** until 1 year from open, green **"Safe to close — 1 year passed, bonus earned"** after. Closing earlier risks the issuer clawing back the sign-up bonus — this is the card version of the bank accounts' 181-day clawback shield.
+- **Last used + "Used today" ⚡ pill** — Keep Alive cards show their **last-known used date** right on the collapsed card, with a quiet rounded **Used today** pill beside it: one tap sets the last-used date to today. No date picker — built specifically because typing dates is the most painful part of upkeep.
 - **"+ Log" spend button** on cards with an open spend requirement — see [Spend Logging](#6-spend-logging--burn-rate-projection).
 - **Live spend progress bar** right on the collapsed card, color-coded by urgency, with the pace projection line under it.
 - **Clearable date fields** — press Backspace/Delete or click the × to clear a date (desktop-friendly), plus the native picker for mobile.
@@ -229,6 +231,7 @@ Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply f
 `src/engines/lifecycle.js` powers the time-based intelligence:
 
 - **Annual fee timing** — the fee posts on each anniversary of the open date. The engine finds the next fee date, detects whether you're inside the **30-day cancel-for-refund** window, and reports days until fee / refund days left / refund deadline.
+- **12-month close shield** (`getCardCloseShield`) — the card version of the bank 181-day clawback rule: a card whose bonus has been earned becomes safe to close **365 days after opening** (closing earlier risks a bonus clawback). Powers the shield label on each card, the primary quick-action flip on Bonus Earned cards, the approaching/cleared reminders, and the Timeline's card safe-to-close events.
 - **Re-eligibility** — per-issuer bonus-again windows: **Amex** = once-per-lifetime (not repeatable on the same product), **Chase Sapphire family** = 48 months, **Chase standard** = 24 months, **Citi** = 24 months, **Capital One** = 24 months. Computes your re-eligible date from the bonus-received date.
 - **Spend-deadline math** — deadline, days left, percent complete, and met/not-met from open date + deadline days + current spend.
 - **Status transitions** — suggests Bonus Met / Retention Call Due / Downgrade-Close Due based on bonus status and card age; the account version uses the 181-day rule.
