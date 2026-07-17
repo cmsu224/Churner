@@ -38,6 +38,7 @@ function withDefaults(raw) {
     ...base,
     version: 3,
     applications: base.applications ?? [],
+    pointsBalances: base.pointsBalances ?? [],
     settings: { ...INITIAL_STATE.settings, ...(base.settings ?? {}) },
     notifications: {
       seen: base.notifications?.seen ?? [],
@@ -114,6 +115,13 @@ function reducer(state, action) {
         ),
       }
     }
+
+    case 'ADD_POINTS_BALANCE':
+      return { ...state, pointsBalances: [...(state.pointsBalances ?? []), { ...action.payload, id: crypto.randomUUID() }] }
+    case 'UPDATE_POINTS_BALANCE':
+      return { ...state, pointsBalances: (state.pointsBalances ?? []).map(b => b.id === action.payload.id ? action.payload : b) }
+    case 'DELETE_POINTS_BALANCE':
+      return { ...state, pointsBalances: (state.pointsBalances ?? []).filter(b => b.id !== action.id) }
 
     case 'ADD_MEMBER':
       return { ...state, members: [...state.members, { ...action.payload, id: crypto.randomUUID() }] }

@@ -15,6 +15,10 @@ export const INITIAL_STATE = {
   bankAccounts: [],
   // Application funnel: planned → applied → pending → approved / denied
   applications: [],
+  // Loyalty balances: one entry per member per program (Chase UR, MR, airline
+  // miles, hotel points…). balance is points; valueCents optionally overrides
+  // settings.pointValueCents for that program's est. value.
+  pointsBalances: [],
   seniorIncome: {},
   externalPayments: [],
   taxYear: new Date().getFullYear(),

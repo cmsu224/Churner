@@ -20,18 +20,19 @@ No backend, no subscription, no database server. The whole app is a static singl
   - [6. Spend Logging & Burn-Rate Projection](#6-spend-logging--burn-rate-projection)
   - [7. Application Tracker](#7-application-tracker)
   - [8. Bank Account Tracking](#8-bank-account-tracking)
-  - [9. Issuer Rule Engines](#9-issuer-rule-engines)
-  - [10. What-If Eligibility Simulator](#10-what-if-eligibility-simulator)
-  - [11. Card Lifecycle: Annual Fees, Retention & Re-Eligibility](#11-card-lifecycle-annual-fees-retention--re-eligibility)
-  - [12. Credit Age & Keep-Alive Tracker](#12-credit-age--keep-alive-tracker)
-  - [13. Earnings & ROI Analytics](#13-earnings--roi-analytics)
-  - [14. Tax Liability Predictor](#14-tax-liability-predictor)
-  - [15. Command Palette & Global Search](#15-command-palette--global-search)
-  - [16. Member Management](#16-member-management)
-  - [17. Resources Hub](#17-resources-hub)
-  - [18. Import / Export & AI Import Helper](#18-import--export--ai-import-helper)
-  - [19. Data Sync (GitHub Gist)](#19-data-sync-github-gist)
-  - [20. UI / UX & Design System](#20-ui--ux--design-system)
+  - [9. Points & Loyalty Balances](#9-points--loyalty-balances)
+  - [10. Issuer Rule Engines](#10-issuer-rule-engines)
+  - [11. What-If Eligibility Simulator](#11-what-if-eligibility-simulator)
+  - [12. Card Lifecycle: Annual Fees, Retention & Re-Eligibility](#12-card-lifecycle-annual-fees-retention--re-eligibility)
+  - [13. Credit Age & Keep-Alive Tracker](#13-credit-age--keep-alive-tracker)
+  - [14. Earnings & ROI Analytics](#14-earnings--roi-analytics)
+  - [15. Tax Liability Predictor](#15-tax-liability-predictor)
+  - [16. Command Palette & Global Search](#16-command-palette--global-search)
+  - [17. Member Management](#17-member-management)
+  - [18. Resources Hub](#18-resources-hub)
+  - [19. Import / Export & AI Import Helper](#19-import--export--ai-import-helper)
+  - [20. Data Sync (GitHub Gist)](#20-data-sync-github-gist)
+  - [21. UI / UX & Design System](#21-ui--ux--design-system)
 - [Privacy & Security](#privacy--security)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -52,7 +53,7 @@ The household has **four members** by default, each with a role:
 | Mom | `senior` | Retired, on Social Security |
 | Dad | `senior` | Retired, on Social Security |
 
-Members are **fully editable** — none of the names, colors, or roles are hardcoded. Add, rename, recolor, or delete members freely (see [Member Management](#16-member-management)). Every card, account, application, and rule check is attributed to a member. The default member colors are a colorblind-validated categorical set (they double as chart series colors on the Earnings page), but any color can be chosen.
+Members are **fully editable** — none of the names, colors, or roles are hardcoded. Add, rename, recolor, or delete members freely (see [Member Management](#17-member-management)). Every card, account, application, and rule check is attributed to a member. The default member colors are a colorblind-validated categorical set (they double as chart series colors on the Earnings page), but any color can be chosen.
 
 ---
 
@@ -64,7 +65,7 @@ The home screen (`/`) is a prioritized command center, not a passive summary. **
 
 - **Individual Summary** — per-person rollup of activity, including a **Bonus Pipeline** (dollar value of not-yet-received card and bank bonuses; points/miles are valued at their cash value or the household point rate, never counted as raw dollars, and flagged `est.` when estimated).
 - **Application Eligibility** — compact per-member issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
-- **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#12-credit-age--keep-alive-tracker)).
+- **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#13-credit-age--keep-alive-tracker)).
 - **Active Spend Challenges** — live progress bars for every card with an open minimum-spend requirement, showing dollars spent vs. required, days remaining, and the **burn-rate projection** (on pace / off pace — need $X/week).
 - **Action Queue** — a single ranked list of *everything you need to do*, pulled from every card and account (see [Action Engine](#2-action-engine-the-brain)). Items can be **dismissed or snoozed (1/3/7 days)** — both synced across devices. If nothing is pending, you get an "all caught up" state instead.
 - **Stats bar** — cash pipeline (total tracked bonus value in flight), count of active cards, and count of bank accounts at a glance.
@@ -181,7 +182,17 @@ The direct deposit fields drive the multi-tier direct-deposit reminders, the mul
 
 **Contextual edit form** — both the add and edit forms adapt to the account's status. The **Sign-Up Bonus** section (bonus amount, deadline, minimum balance, ETF window, taxable checkbox, bonus received date) only appears when the account is in a bonus-earning status or bonus data exists. The **Direct Deposit Requirements** section only appears when the status is Opened/DD Linked or when direct deposit data is present. On the add form, current balance, minimum balance, bonus received date, offer link, and notes stay tucked under **More details (optional)**. "Direct Deposit" is always spelled out in full — never abbreviated.
 
-### 9. Issuer Rule Engines
+### 9. Points & Loyalty Balances
+
+Page: `/points`. One place to keep every program's balance — the points currently sitting on your cards and loyalty accounts — per person: Chase UR, Amex MR, airline miles, hotel points, or any custom program.
+
+- **One entry per member per program.** The **progressive add form** asks only for program, person, and balance; value override, expiration date, and notes stay under **More details (optional)**. The program field suggests ~20 known programs (transferable bank currencies, airlines, hotels — `src/utils/programs.js`) but accepts any name; known programs get their brand logo and a **Bank / Airline / Hotel** type tag, everything else is typed **Other**.
+- **Estimated cash value** per entry and in the header stats: balance × the program's **¢/pt override** if set, otherwise the household's ¢/point rate from Settings. Header shows **total points, total est. value, and program count** for whatever is currently in view (they follow the person filter).
+- **Update balance** — the everyday action is one tap: a single-field quick update on each card (Enter saves) that re-stamps the **last-updated date** automatically. Full edit (person, program, balance, ¢/pt, expiration, notes) expands in place; delete asks for confirmation.
+- **Expiration tracking** — an optional expiration date per entry shows an amber **"Expires in Nd"** warning inside 90 days and red once expired (useful for programs that expire with inactivity).
+- **Sort & filter** — sort by highest value (default), highest balance, program A–Z, or recently updated; filter by person or program type; opt-in **Group by program** toggle with per-program subtotals (points + est. value).
+
+### 10. Issuer Rule Engines
 
 Page: `/rules`. Each issuer has a dedicated engine and a dashboard widget, evaluated **per member**:
 
@@ -204,7 +215,7 @@ The widget only shows cards where the bonus has been received (`bonusReceived: t
 
 **Bank bonus eligibility** (`bankEligibility.js`) — the bank equivalent of card re-eligibility. For each bank a person has used, it shows when they can earn that bank's new-account bonus again, based on a per-bank cooldown measured from the last bonus received (or last account opened if none yet). Known windows include Chase ~24mo, Wells Fargo ~12mo, Capital One/TD ~12mo, and once-per-lifetime banks like Discover and SoFi; unknown banks default to a conservative 24 months. Windows are estimates flagged to verify on Doctor of Credit. Shown per person on the Eligibility page as **Bank Bonus Eligibility** (eligible now / cooldown countdown + date / lifetime).
 
-### 10. What-If Eligibility Simulator
+### 11. What-If Eligibility Simulator
 
 Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply for X on this date, what happens?"* — `src/engines/whatIf.js`:
 
@@ -213,7 +224,7 @@ Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply f
 - **24-month 5/24 projection** — a month-strip showing the member's 5/24 count at the 1st of each month (green under 4, amber at 4, red at 5+), with and without the planned applications, plus a **drop-off schedule** listing exactly when each existing card leaves the 24-month window and what the count becomes.
 - Business cards don't add a 5/24 slot but do count for issuer velocity — the simulator models both.
 
-### 11. Card Lifecycle: Annual Fees, Retention & Re-Eligibility
+### 12. Card Lifecycle: Annual Fees, Retention & Re-Eligibility
 
 `src/engines/lifecycle.js` powers the time-based intelligence:
 
@@ -222,7 +233,7 @@ Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply f
 - **Spend-deadline math** — deadline, days left, percent complete, and met/not-met from open date + deadline days + current spend.
 - **Status transitions** — suggests Bonus Met / Retention Call Due / Downgrade-Close Due based on bonus status and card age; the account version uses the 181-day rule.
 
-### 12. Credit Age & Keep-Alive Tracker
+### 13. Credit Age & Keep-Alive Tracker
 
 `src/engines/creditAge.js` protects the ~15% of a FICO score driven by length of credit history:
 
@@ -232,7 +243,7 @@ Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply f
 - **"Used Today" ⚡ button** on Keep Alive cards — one tap marks it used, no date entry. Only shown when the card is in Keep Alive status.
 - Inactivity-closure warnings flow into the [Action Queue](#2-action-engine-the-brain).
 
-### 13. Earnings & ROI Analytics
+### 14. Earnings & ROI Analytics
 
 Page: `/earnings`. `src/engines/earnings.js` finally answers *"how much are we actually making?"*:
 
@@ -244,7 +255,7 @@ Page: `/earnings`. `src/engines/earnings.js` finally answers *"how much are we a
 - **By member** — proportional bars with cards/banks/fees/T12M breakdowns.
 - **The Receipts** — collapsible per-item tables (cards and bank accounts) showing realized bonus, fees, net, and the realization date, newest first.
 
-### 14. Tax Liability Predictor
+### 15. Tax Liability Predictor
 
 Page: `/tax`. `src/engines/taxPredictor.js` summarizes the year's taxable income from churning:
 
@@ -253,20 +264,20 @@ Page: `/tax`. `src/engines/taxPredictor.js` summarizes the year's taxable income
 - Adjustable **federal tax bracket** (stored in settings) produces an **estimated federal tax** on bank bonuses, per member and household-wide.
 - Selectable tax year and a CSV-style export of the table.
 
-### 15. Command Palette & Global Search
+### 16. Command Palette & Global Search
 
 Press **Ctrl/Cmd-K** anywhere (or the search box in the header) to open the command palette:
 
-- **Searches everything**: cards, bank accounts, applications, members, and every page — grouped results with member/issuer context lines.
+- **Searches everything**: cards, bank accounts, points balances, applications, members, and every page — grouped results with member/issuer context lines.
 - **Selecting an item jumps to it** and pulses a highlight ring around it (`?highlight=` deep links).
-- **Quick actions**: *Add card*, *Add application*, *Add bank account*, *Export calendar (.ics)*, and *Log spend on \<card\>* for every card with an open spend requirement.
+- **Quick actions**: *Add card*, *Add application*, *Add bank account*, *Add points balance*, *Export calendar (.ics)*, and *Log spend on \<card\>* for every card with an open spend requirement.
 - Fully keyboard driven: type to filter, ↑/↓ to move, Enter to run, Esc to close.
 
-### 16. Member Management
+### 17. Member Management
 
 Page: `/members`. Full CRUD over the household: add a member, rename, change role (churner / senior), and recolor (the color drives the member badges and the Earnings chart series everywhere). The app refuses to delete the last remaining member. No names are hardcoded anywhere.
 
-### 17. Resources Hub
+### 18. Resources Hub
 
 Page: `/resources`. A curated launchpad so you never have to look anything up elsewhere. Sections:
 
@@ -279,7 +290,7 @@ Page: `/resources`. A curated launchpad so you never have to look anything up el
 
 All links open in a new tab.
 
-### 18. Import / Export & AI Import Helper
+### 19. Import / Export & AI Import Helper
 
 Page: `/import`.
 
@@ -291,7 +302,7 @@ Page: `/import`.
   - The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card.
 - **Import** — paste or file-load JSON, preview what will be added (with per-member assignment breakdown and an unassigned-items warning), then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
 
-### 19. Data Sync (GitHub Gist)
+### 20. Data Sync (GitHub Gist)
 
 `src/hooks/useGist.js` + `src/store/ChurnContext.jsx`:
 
@@ -302,7 +313,7 @@ Page: `/import`.
 - **Offline fallback** — a local cache in `localStorage` keeps the app working without a connection and on API errors.
 - A live **sync indicator** in the header shows syncing / synced-at / error states, with retry/reconnect actions on failure.
 
-### 20. UI / UX & Design System
+### 21. UI / UX & Design System
 
 - **Semantic design tokens** — all colors flow through CSS custom properties (light values on `:root`, dark on `html.dark`) exposed as Tailwind classes: surfaces (`base → surface → raised → overlay`), borders (`edge`, `edge-strong`), text emphasis (`ink` → `ink-faint`), brand accent, and status colors (`success/warning/danger/info`, each with a text-legible `-ink` variant). **Both themes are first-class** — no override hacks; components use tokens and the theme flips underneath.
 - **Light / dark mode** — a toggle in Settings switches instantly; the preference persists in localStorage, and the correct theme is applied before first render to prevent flash. Tailwind's `darkMode: 'class'` strategy.
@@ -385,6 +396,8 @@ bankAccounts[]     { id, memberId, status, bankName, accountType, last4,
                      ddDeadlineDays, ddLinkedDate, ddSourceDescription,
                      minimumBalance, bonusDeadlineDays, etfDays, isTaxable,
                      offerUrl, notes }
+pointsBalances[]   { id, memberId, program, balance, valueCents,
+                     expirationDate, updatedAt, notes }
 applications[]     { id, memberId, product, issuer,
                      status: 'planned'|'applied'|'pending'|'approved'|'denied',
                      appliedDate, decisionDate, deniedReason, notes,

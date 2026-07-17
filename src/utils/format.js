@@ -1,6 +1,9 @@
 export const fmt$ = (amount) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount ?? 0)
 
+export const fmtPts = (n) =>
+  new Intl.NumberFormat('en-US').format(Math.round(n ?? 0))
+
 export const fmtDate = (iso) => {
   if (!iso) return '—'
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso))

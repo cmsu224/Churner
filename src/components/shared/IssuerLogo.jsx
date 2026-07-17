@@ -4,9 +4,10 @@ import { getIssuerMeta, monogram } from '../../utils/issuers'
 // Renders a brand logo for an issuer/bank name. Pulls the real logo from
 // Google's public favicon service (no auth, no user data sent — just the
 // public brand domain). Falls back to a brand-colored monogram badge if the
-// image fails or the issuer is unknown.
-export default function IssuerLogo({ name, size = 28, rounded = 'rounded-md' }) {
-  const meta = getIssuerMeta(name)
+// image fails or the issuer is unknown. Pass `meta` ({ name, domain, color })
+// to brand something other than an issuer — e.g. a loyalty program.
+export default function IssuerLogo({ name, size = 28, rounded = 'rounded-md', meta: metaProp }) {
+  const meta = metaProp ?? getIssuerMeta(name)
   const [failed, setFailed] = useState(false)
 
   const showImg = meta.domain && !failed

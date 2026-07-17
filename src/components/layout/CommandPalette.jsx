@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users, Link2,
   ArrowDownUp, Settings, CalendarDays, ClipboardList, TrendingUp, FlaskConical,
-  Plus, DollarSign, CornerDownLeft,
+  Plus, DollarSign, CornerDownLeft, Coins,
 } from 'lucide-react'
 import { useChurn } from '../../store/ChurnContext'
 import { getIssuerMeta } from '../../utils/issuers'
@@ -12,6 +12,7 @@ const PAGES = [
   { label: 'Dashboard', route: '/', icon: LayoutDashboard, keywords: 'home overview' },
   { label: 'Credit Cards', route: '/cards', icon: CreditCard, keywords: 'cards' },
   { label: 'Bank Accounts', route: '/accounts', icon: Landmark, keywords: 'banks checking savings' },
+  { label: 'Points', route: '/points', icon: Coins, keywords: 'loyalty miles rewards balances programs' },
   { label: 'Applications', route: '/applications', icon: ClipboardList, keywords: 'apply funnel denials' },
   { label: 'Timeline', route: '/timeline', icon: CalendarDays, keywords: 'calendar deadlines events ics' },
   { label: 'Earnings', route: '/earnings', icon: TrendingUp, keywords: 'roi analytics profit bonuses' },
@@ -69,6 +70,7 @@ export default function CommandPalette({ open, onClose }) {
       { label: 'Add card', icon: Plus, route: '/cards?add=1', keywords: 'new credit card create' },
       { label: 'Add application', icon: Plus, route: '/applications?add=1', keywords: 'new apply plan create' },
       { label: 'Add bank account', icon: Plus, route: '/accounts?add=1', keywords: 'new bank create' },
+      { label: 'Add points balance', icon: Plus, route: '/points?add=1', keywords: 'new loyalty miles rewards create' },
       { label: 'Export calendar (.ics)', icon: CalendarDays, route: '/timeline', keywords: 'ics download subscribe reminders' },
       ...(state.creditCards ?? [])
         .filter(c => (c.spendRequirement ?? 0) > 0 && (c.currentSpend ?? 0) < (c.spendRequirement ?? 0) && c.status !== 'Closed' && c.status !== 'Downgraded')
@@ -95,6 +97,14 @@ export default function CommandPalette({ open, onClose }) {
       icon: Landmark,
       route: `/accounts?highlight=${a.id}`,
       keywords: `${a.status}`,
+    }))
+
+    const points = (state.pointsBalances ?? []).map(b => ({
+      label: b.program || 'Points balance',
+      sub: [memberName(members, b.memberId), `${new Intl.NumberFormat('en-US').format(b.balance ?? 0)} pts`].filter(Boolean).join(' · '),
+      icon: Coins,
+      route: `/points?highlight=${b.id}`,
+      keywords: 'points miles loyalty rewards balance',
     }))
 
     const applications = (state.applications ?? []).map(a => ({
@@ -130,9 +140,10 @@ export default function CommandPalette({ open, onClose }) {
 
     return [
       build('Actions', actions, 4),
-      build('Pages', PAGES, 13),
+      build('Pages', PAGES, 14),
       build('Cards', cards, q ? 6 : 0),
       build('Accounts', accounts, q ? 6 : 0),
+      build('Points', points, q ? 6 : 0),
       build('Applications', applications, q ? 6 : 0),
       build('Members', memberEntries, 0),
     ].filter(s => s.entries.length > 0)
