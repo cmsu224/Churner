@@ -1,8 +1,10 @@
+// Only bank bonuses are summed — credit-card sign-up bonuses are purchase
+// rebates in the IRS's eyes, so they never enter the tax picture at all.
 export function getTaxSummary(bankAccounts, members, taxYear) {
   const year = taxYear ?? new Date().getFullYear()
   const byMember = {}
   for (const p of (members ?? [])) {
-    byMember[p.id] = { memberId: p.id, memberName: p.name, bankBonuses: 0, ccBonuses: 0 }
+    byMember[p.id] = { memberId: p.id, memberName: p.name, bankBonuses: 0 }
   }
   for (const acct of (bankAccounts ?? [])) {
     if (!acct.bonusReceived || !acct.bonusReceivedDate) continue
@@ -13,7 +15,6 @@ export function getTaxSummary(bankAccounts, members, taxYear) {
   const rows = Object.values(byMember)
   const totals = rows.reduce((acc, r) => ({
     bankBonuses: acc.bankBonuses + r.bankBonuses,
-    ccBonuses: 0,
-  }), { bankBonuses: 0, ccBonuses: 0 })
+  }), { bankBonuses: 0 })
   return { rows, totals, year }
 }

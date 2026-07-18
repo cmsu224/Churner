@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
 import { useActionItems } from '../../hooks/useActionItems'
 import ActionQueue from './ActionQueue'
@@ -40,6 +41,7 @@ function loadOrder() {
 
 export default function DashboardView() {
   const { state } = useChurn()
+  const navigate = useNavigate()
   const { active: actionItems, snoozedItems, dismissedItems } = useActionItems()
   // Any item at all — active, snoozed, or dismissed. When everything is muted,
   // ActionQueue must still render so its "Snoozed & dismissed" restore drawer
@@ -92,21 +94,32 @@ export default function DashboardView() {
     )
   }
 
+  // Stat tiles drill into their detail: pipeline scrolls to the itemized
+  // Bonus Pipeline section (falls back to Cards when it's empty/hidden),
+  // the counts go straight to their pages.
+  function goToPipeline() {
+    const el = document.getElementById('dash-pipeline')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    else navigate('/cards')
+  }
+
+  const statTile = 'bg-surface border border-edge-strong hover:border-accent/50 rounded-xl p-3 text-center transition-colors cursor-pointer'
+
   const SECTIONS = {
     stats: (
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-surface border border-edge-strong rounded-xl p-3 text-center">
+        <button onClick={goToPipeline} className={statTile}>
           <div className="text-xs text-ink-tertiary mb-1">Cash Pipeline</div>
           <div className="text-lg font-bold text-success-ink">{fmt$(cashPipeline)}</div>
-        </div>
-        <div className="bg-surface border border-edge-strong rounded-xl p-3 text-center">
+        </button>
+        <button onClick={() => navigate('/cards')} className={statTile}>
           <div className="text-xs text-ink-tertiary mb-1">Active Cards</div>
           <div className="text-lg font-bold text-ink">{activeCards.length}</div>
-        </div>
-        <div className="bg-surface border border-edge-strong rounded-xl p-3 text-center">
+        </button>
+        <button onClick={() => navigate('/accounts')} className={statTile}>
           <div className="text-xs text-ink-tertiary mb-1">Bank Accounts</div>
           <div className="text-lg font-bold text-ink">{activeAccounts.length}</div>
-        </div>
+        </button>
       </div>
     ),
     summary: (
@@ -180,7 +193,7 @@ export default function DashboardView() {
 
       {order.map(key => {
         const el = SECTIONS[key]
-        return el ? <div key={key}>{el}</div> : null
+        return el ? <div key={key} id={`dash-${key}`}>{el}</div> : null
       })}
     </div>
   )

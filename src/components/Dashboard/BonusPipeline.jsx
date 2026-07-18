@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
 import { valueCardBonus } from '../../engines/earnings'
 import IssuerLogo from '../shared/IssuerLogo'
@@ -8,8 +9,10 @@ import { fmt$, fmtPts } from '../../utils/format'
 // bank bonus as its own line, so the pipeline total is something you can see
 // the parts of. Card points/miles are valued the same way the Earnings page
 // does (per-program rate via valueCardBonus), flagged `est.` when estimated.
+// Each row is a drill-down — it jumps to the card/account on its own page.
 export default function BonusPipeline() {
   const { state } = useChurn()
+  const navigate = useNavigate()
   const settings = state.settings ?? {}
   const members = state.members ?? []
 
@@ -25,6 +28,7 @@ export default function BonusPipeline() {
         value,
         estimated,
         raw: c.bonusType === 'cashback' ? null : { pts: c.bonusValue, unit: c.bonusType === 'miles' ? 'miles' : 'pts' },
+        to: `/cards?highlight=${c.id}`,
       }
     })
 
@@ -38,6 +42,7 @@ export default function BonusPipeline() {
       value: a.bonusAmount ?? 0,
       estimated: false,
       raw: null,
+      to: `/accounts?highlight=${a.id}`,
     }))
 
   const rows = [...cardRows, ...bankRows].sort((a, b) => b.value - a.value)
@@ -57,7 +62,11 @@ export default function BonusPipeline() {
       </div>
       <div className="bg-surface border border-edge rounded-xl divide-y divide-edge overflow-hidden">
         {rows.map(r => (
-          <div key={r.id} className="flex items-center gap-2.5 px-3 py-2.5">
+          <button
+            key={r.id}
+            onClick={() => navigate(r.to)}
+            className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 hover:bg-raised/60 transition-colors"
+          >
             <IssuerLogo name={r.logoName} size={26} />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium text-ink truncate">{r.name}</div>
@@ -70,7 +79,7 @@ export default function BonusPipeline() {
               {fmt$(r.value)}
               {r.estimated && <span className="text-warning-ink text-[10px] font-medium ml-0.5">est.</span>}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </section>

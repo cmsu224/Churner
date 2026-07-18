@@ -1,11 +1,15 @@
+import { useNavigate } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
 import { getChase524Status } from '../../engines/chase524'
 import { valueCardBonus } from '../../engines/earnings'
 import { fmt$ } from '../../utils/format'
 import { CreditCard, Landmark } from 'lucide-react'
 
+// Clicking the card drills into this member's cards; the Accounts mini-tile
+// goes to their bank accounts instead.
 export default function PlayerSummaryCard({ player }) {
   const { state } = useChurn()
+  const navigate = useNavigate()
   const settings = state.settings ?? {}
   const cards = (state.creditCards ?? []).filter(c => c.memberId === player.id)
   const accounts = (state.bankAccounts ?? []).filter(a => a.memberId === player.id)
@@ -33,7 +37,11 @@ export default function PlayerSummaryCard({ player }) {
 
   return (
     <div
-      className="bg-surface border rounded-xl p-4 flex flex-col gap-3"
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(`/cards?member=${player.id}`)}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/cards?member=${player.id}`) } }}
+      className="bg-surface border rounded-xl p-4 flex flex-col gap-3 cursor-pointer hover:brightness-105 transition-[filter]"
       style={{ borderColor: player.hex + '40' }}
     >
       <div className="flex items-center justify-between">
@@ -55,7 +63,13 @@ export default function PlayerSummaryCard({ player }) {
             <div className="text-ink font-semibold">{activeCards.length}</div>
           </div>
         </div>
-        <div className="bg-raised rounded-lg p-2.5 flex items-center gap-2">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={e => { e.stopPropagation(); navigate(`/accounts?member=${player.id}`) }}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); navigate(`/accounts?member=${player.id}`) } }}
+          className="bg-raised hover:bg-overlay rounded-lg p-2.5 flex items-center gap-2 cursor-pointer transition-colors"
+        >
           <Landmark size={14} className="text-ink-muted" />
           <div>
             <div className="text-ink-muted text-xs">Accounts</div>
@@ -69,7 +83,7 @@ export default function PlayerSummaryCard({ player }) {
           <span className="text-xs text-ink-muted">Bonus Pipeline</span>
           <span className="text-sm font-semibold text-success-ink">
             {fmt$(cardPipeline + bankPipeline)}
-            {pipelineEstimated && <span className="text-warning-ink text-[10px] ml-0.5" title="Points/miles bonuses valued at the rate in Settings">est.</span>}
+            {pipelineEstimated && <span className="text-warning-ink text-[10px] ml-0.5" title="Points/miles bonuses valued at their program's global rate (Settings → Point Valuations)">est.</span>}
           </span>
         </div>
       )}

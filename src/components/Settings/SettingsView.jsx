@@ -131,11 +131,11 @@ export default function SettingsView() {
         </div>
       </section>
 
-      {/* Earnings valuation */}
+      {/* Fallback valuation for unknown programs */}
       <section className="bg-surface border border-edge rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-ink mb-1">Earnings Valuation</h2>
+        <h2 className="text-sm font-semibold text-ink mb-1">Fallback Point Value</h2>
         <p className="text-xs text-ink-tertiary mb-4">
-          The Earnings page values points/miles bonuses at this rate unless a card has its own cash value set. Cash bonuses always count at face value.
+          Used only for points in programs that aren&rsquo;t listed under Point Valuations below (custom/unknown programs). Cash bonuses always count at face value.
         </p>
         <div className="flex items-center gap-3">
           <label className="text-sm text-ink font-medium" htmlFor="point-value">Point value</label>
@@ -160,10 +160,11 @@ export default function SettingsView() {
       <section className="bg-surface border border-edge rounded-xl p-5">
         <h2 className="text-sm font-semibold text-ink mb-1">Point Valuations</h2>
         <p className="text-xs text-ink-tertiary mb-4">
-          What one point of each program is worth on the <span className="text-ink-secondary">Points</span> page.
-          Defaults come from published valuations (The Points Guy, July 2026 where available) — type a value to override,
-          clear it to go back to the default. A balance&rsquo;s own ¢/pt override always wins, and programs not
-          listed here use the Earnings rate above.
+          What one point of each program is worth <span className="text-ink-secondary">everywhere in the app</span> —
+          Points balances, card-bonus values on Cards, the Dashboard pipeline, and Earnings all use the same rate.
+          Defaults are Frequent Miler&rsquo;s Reasonable Redemption Values (July 2026) — realistic mid-point redemption
+          values, not maximums. Type a value to override, clear it to go back to the default. Programs not listed
+          here use the fallback rate above.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
           {POINT_PROGRAMS.map(p => {

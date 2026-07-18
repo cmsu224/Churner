@@ -42,19 +42,21 @@ export default function BankAccountsView() {
   const { state, dispatch } = useChurn()
   const members = state.members ?? []
   const allAccounts = state.bankAccounts ?? []
+  // Deep links: ?add=1 opens the add form, ?highlight=<id> scrolls to and
+  // flashes an account, ?member=<id> pre-filters to one person (used by the
+  // Dashboard's member summary cards).
+  const location = useLocation()
+  const urlParams = new URLSearchParams(location.search)
+  const wantsAdd = urlParams.get('add') === '1'
   const [adding, setAdding] = useState(false)
   const [newAcct, setNewAcct] = useState(null)
-  const [filterMember, setFilterMember] = useState('all')
+  const [filterMember, setFilterMember] = useState(() => urlParams.get('member') ?? 'all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [sortBy, setSortBy] = useState('newest')
   // Opt-in grouping, decoupled from sort (see CreditCardsView for the rationale).
   const [grouped, setGrouped] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
 
-  // Deep links from the command palette: ?add=1 opens the add form,
-  // ?highlight=<id> scrolls to and flashes an account.
-  const location = useLocation()
-  const wantsAdd = new URLSearchParams(location.search).get('add') === '1'
   useHighlight()
   useEffect(() => {
     if (wantsAdd) startAdd()

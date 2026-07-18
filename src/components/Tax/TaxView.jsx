@@ -12,9 +12,9 @@ export default function TaxView() {
 
   function exportCSV() {
     const rows = [
-      ['Member', 'Bank Bonuses (Taxable)', 'CC Bonuses (Tax-Free)', 'Estimated 1099-INT'],
-      ...summary.rows.map(r => [r.memberName, r.bankBonuses.toFixed(2), '0.00', r.bankBonuses.toFixed(2)]),
-      ['HOUSEHOLD TOTAL', summary.totals.bankBonuses.toFixed(2), '0.00', summary.totals.bankBonuses.toFixed(2)],
+      ['Member', 'Bank Bonuses (Taxable)', 'Estimated 1099-INT'],
+      ...summary.rows.map(r => [r.memberName, r.bankBonuses.toFixed(2), r.bankBonuses.toFixed(2)]),
+      ['HOUSEHOLD TOTAL', summary.totals.bankBonuses.toFixed(2), summary.totals.bankBonuses.toFixed(2)],
     ]
     const csv = rows.map(r => r.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -50,30 +50,28 @@ export default function TaxView() {
         <span className="text-xs text-ink-tertiary">federal estimate on bank bonuses</span>
       </div>
 
-      <div className="bg-surface border border-edge-strong rounded-xl overflow-hidden mb-4">
-        <div className="grid grid-cols-4 text-xs font-medium text-ink-muted bg-raised px-4 py-2.5">
+      <div className="bg-surface border border-edge-strong rounded-xl overflow-hidden mb-1.5">
+        <div className="grid grid-cols-3 text-xs font-medium text-ink-muted bg-raised px-4 py-2.5">
           <span>Member</span>
           <span className="text-right">Bank Bonuses</span>
-          <span className="text-right">CC Bonuses</span>
           <span className="text-right">1099-INT Est.</span>
         </div>
         {summary.rows.map(row => (
-          <div key={row.memberId} className="grid grid-cols-4 px-4 py-3 border-t border-edge text-sm">
+          <div key={row.memberId} className="grid grid-cols-3 px-4 py-3 border-t border-edge text-sm">
             <span className="text-ink-secondary font-medium">{row.memberName}</span>
             <span className="text-right text-ink">{fmt$(row.bankBonuses)}</span>
-            <span className="text-right text-ink-tertiary text-xs">
-              $0.00 <span className="text-ink-faint">(rebate)</span>
-            </span>
             <span className="text-right text-warning-ink">{fmt$(row.bankBonuses)}</span>
           </div>
         ))}
-        <div className="grid grid-cols-4 px-4 py-3 border-t border-edge-strong bg-raised/50 text-sm font-semibold">
+        <div className="grid grid-cols-3 px-4 py-3 border-t border-edge-strong bg-raised/50 text-sm font-semibold">
           <span className="text-ink">Household Total</span>
           <span className="text-right text-ink">{fmt$(summary.totals.bankBonuses)}</span>
-          <span className="text-right text-ink-tertiary">$0.00</span>
           <span className="text-right text-warning-ink">{fmt$(summary.totals.bankBonuses)}</span>
         </div>
       </div>
+      <p className="text-[11px] text-ink-tertiary mb-4 px-1">
+        Credit-card sign-up bonuses aren&rsquo;t listed — the IRS treats them as purchase rebates, not income, so they don&rsquo;t count for tax.
+      </p>
 
       <div className="bg-surface border border-edge-strong rounded-xl p-4 mb-4 flex items-center justify-between">
         <div>
