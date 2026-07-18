@@ -635,7 +635,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Annual Fee Post Date</label>
                     <DateField value={draft.feePostDate} onChange={v => set('feePostDate', v)} />
-                    <p className="text-[11px] text-ink-faint mt-1">When the fee actually posts (any year — statement dates often lag the open date). Anchors the next-fee countdown, the 30-day refund window, and the calendar. Blank = open-date anniversary.</p>
+                    <p className="text-[11px] text-ink-faint mt-1">When the fee actually posts (any year — statement dates often lag the open date). Anchors the next-fee countdown, the 30-day refund window, the calendar, and the Earnings fees-paid estimate. Blank = open-date anniversary.</p>
                   </div>
                 </>
               )}

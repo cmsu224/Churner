@@ -49,32 +49,34 @@ export function isAccountBonusPending(acct) {
     && !ACCOUNT_BONUS_DONE_STATUSES.includes(acct.status ?? '')
 }
 
-// Number of full anniversaries of `openDate` that have elapsed by `endDate`
-// (e.g. opened 2025-01-15, endDate 2026-07-15 → 1 anniversary — 2026-01-15 — has passed).
-function anniversariesPassed(openDate, endDate) {
-  let years = endDate.getFullYear() - openDate.getFullYear()
-  const anniv = new Date(openDate)
-  anniv.setFullYear(openDate.getFullYear() + years)
-  if (anniv > endDate) years -= 1
-  return Math.max(0, years)
-}
-
 // Fee-counting rule (estimate — issuers vary, this is a reasonable default):
-// the annual fee posts at card-open for "year 1" and again on each anniversary
-// the card stays open. So the number of fee postings by `endDate` is
-//   (anniversaries elapsed) + 1  — the +1 is the fee charged at open —
-//   minus 1 if feeWaivedFirstYear is set (no year-1 fee).
-// A card opened 100 days ago with a $95 fee, not waived, and no anniversary
-// reached yet → 0 anniversaries + 1 posting = $95 paid. A card opened
-// 2025-01-15 with a $95 fee, not waived, as of 2026-07-15 → 1 anniversary
-// (2026-01-15) + 1 = 2 postings = $190 paid.
+// fees post yearly on the card's FEE ANCHOR — the recorded Annual Fee Post
+// Date when set (statement fee dates often lag the open date), otherwise the
+// open date, where the opening-day posting is the year-1 fee. Only postings
+// whose date has actually passed count, so a second-year fee that hasn't hit
+// yet isn't charged early. Adjustments:
+//   - feeWaivedFirstYear skips the first posting
+//   - the closed date stops the clock, and a posting the card was closed
+//     within 30 days AFTER is fully refunded under the standard 30-day
+//     cancel-for-refund rule (same rule the Annual Fee tracker uses), so it
+//     doesn't count either
 function computeFeesPaid(card) {
   if (!(card.annualFee > 0) || !card.openDate) return 0
   const open = new Date(card.openDate)
   const end = card.closedDate ? new Date(card.closedDate) : new Date()
   if (end < open) return 0
-  const passed = anniversariesPassed(open, end)
-  const postings = passed + 1 - (card.feeWaivedFirstYear ? 1 : 0)
+  const anchor = card.feePostDate ? new Date(card.feePostDate) : open
+  // First posting: the anchor's month/day in the opening year, or its next
+  // occurrence if that falls before the open date itself.
+  const first = new Date(anchor)
+  first.setFullYear(open.getFullYear())
+  if (first < open) first.setFullYear(first.getFullYear() + 1)
+  let postings = 0
+  for (const d = new Date(first); d <= end; d.setFullYear(d.getFullYear() + 1)) {
+    if (card.closedDate && end - d <= 30 * 86400000) continue // refunded on cancel
+    postings++
+  }
+  if (card.feeWaivedFirstYear) postings -= 1
   return Math.max(0, postings) * card.annualFee
 }
 
