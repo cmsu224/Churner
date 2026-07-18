@@ -4,13 +4,15 @@ import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
-import { getSpendProgress, getCardNextStatus, getReeligibilityInfo, getCardCloseShield } from '../../engines/lifecycle'
+import { getSpendProgress, getReeligibilityInfo, getCardCloseShield } from '../../engines/lifecycle'
+import { getCardFeeSchedule } from '../../engines/annualFees'
+import { getCancelGuidance } from '../../engines/cancelGuidance'
 import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
 import { valueCardBonus, isCardBonusPending } from '../../engines/earnings'
-import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
-import { fmt$, fmtPts, fmtDate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Shield } from 'lucide-react'
+import { CARD_STATUSES } from '../../utils/statusMeta'
+import { fmt$, fmt$0, fmtPts, fmtDate } from '../../utils/format'
+import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Lightbulb } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -31,6 +33,77 @@ const btnSolid = {
   blue:    'bg-accent text-white hover:bg-accent-hover border border-transparent',
   red:     'bg-danger text-white hover:bg-danger/85 border border-transparent',
   zinc:    'bg-overlay text-ink hover:bg-overlay/80 border border-edge-strong',
+}
+
+// One right-aligned fact on the collapsed card (label left, value right) —
+// same visual grammar as the "Bonus in pipeline" row.
+function FactRow({ label, value, tone = 'text-ink' }) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className="text-ink-muted flex-shrink-0">{label}</span>
+      <span className={`font-medium tabular-nums text-right ${tone}`}>{value}</span>
+    </div>
+  )
+}
+
+// The next annual fee as a fact row — or, when a fee just posted, the 30-day
+// cancel-for-full-refund countdown. Same numbers as the Annual Fee tracker
+// (getCardFeeSchedule), so the two never disagree.
+function FeeFactRow({ feeSchedule }) {
+  if (feeSchedule.inRefundWindow) {
+    return (
+      <FactRow
+        label="Fee posted"
+        tone="text-warning-ink"
+        value={`refund by ${fmtDate(feeSchedule.refundDeadline)} · ${feeSchedule.refundDaysLeft}d`}
+      />
+    )
+  }
+  return (
+    <FactRow
+      label="Next annual fee"
+      value={`$${Math.round(feeSchedule.annualFee)} · ${fmtDate(feeSchedule.feeDate)} · ${feeSchedule.daysUntilFee}d`}
+    />
+  )
+}
+
+const guidanceTone = {
+  wait:   'text-warning-ink',
+  act:    'text-danger-ink',
+  decide: 'text-accent-ink',
+  keep:   'text-success-ink',
+}
+
+// The cancel-or-downgrade verdict from the guidance engine. Compact mode is a
+// single truncated line (verdict + a few-word summary; the full reason lives
+// in the hover tooltip) for the collapsed card; full mode spells the reason
+// out for the expanded view, where there's room.
+function GuidanceLine({ guidance, compact = false }) {
+  const tone = guidanceTone[guidance.tone] ?? 'text-ink-secondary'
+  const full = `${guidance.verdict}${guidance.date ? ` (${fmtDate(guidance.date)})` : ''} — ${guidance.reason}`
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs min-w-0" title={full}>
+        <Lightbulb size={12} className={`${tone} flex-shrink-0`} />
+        <span className="truncate">
+          <span className={`font-medium ${tone}`}>{guidance.verdict}</span>
+          <span className="text-ink-muted"> — {guidance.summary}</span>
+        </span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-start gap-1.5 text-xs">
+      <Lightbulb size={12} className={`${tone} flex-shrink-0 mt-0.5`} />
+      <span className="text-ink-muted">
+        <span className={`font-medium ${tone}`}>
+          {guidance.verdict}
+          {guidance.date ? ` (${fmtDate(guidance.date)})` : ''}
+        </span>
+        {' — '}{guidance.reason}
+      </span>
+    </div>
+  )
 }
 
 function getQuickActions(card) {
@@ -90,15 +163,30 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
 
   const spend = getSpendProgress(card)
   const burn = getBurnRate(card)
-  const closeShield = getCardCloseShield(card)
   // What this card is working toward — same inclusion rule and valuation as
   // the Dashboard pipeline (points never counted as raw dollars).
   const pipeline = isCardBonusPending(card) ? valueCardBonus(card, state.settings) : null
-  const nextStatus = getCardNextStatus(card)
   const age = getCardAge(card)
   const quickActions = getQuickActions(card)
   const isClosed = card.status === 'Closed' || card.status === 'Downgraded'
   const reeligibility = isClosed ? getReeligibilityInfo(card) : null
+
+  // Lifecycle stage drives what the collapsed card shows: earning cards get
+  // the bonus + spend tracker, earned/decide cards get the cancel-or-downgrade
+  // facts, Keep Alive cards stay lean (age / last used / next fee — actions
+  // only appear once expanded), retired cards show re-eligibility.
+  const stage = isClosed ? 'retired'
+    : card.status === 'Keep Alive' ? 'keep'
+    : card.status === 'Bonus Met' ? 'earned'
+    : card.status === 'Downgrade/Close Due' ? 'decide'
+    : 'earning' // Applied / Active Churn / legacy blank
+  const feeSchedule = getCardFeeSchedule(card)
+  const guidance = getCancelGuidance(card)
+  const earnedValue = (stage === 'earned' || stage === 'decide') && (card.bonusValue ?? 0) > 0
+    ? valueCardBonus(card, state.settings)
+    : null
+  // Keep Alive is a deliberate keep — no status buttons on the collapsed card.
+  const collapsedActions = stage === 'keep' ? [] : quickActions
 
   useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
 
@@ -181,6 +269,14 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
     setUndoSnapshot({ ...card })
     undoTimerRef.current = setTimeout(() => setUndoSnapshot(null), 6000)
     dispatch({ type: 'UPDATE_CARD', payload: { ...card, ...payload } })
+  }
+
+  // From the expanded Keep Alive strip: apply the transition and close the
+  // edit form, so the stale draft can't overwrite the new status on Save.
+  function applyQuickActionAndCollapse(e, payload) {
+    applyQuickAction(e, payload)
+    setDraft(null)
+    setExpanded(false)
   }
 
   function undoAction(e) {
@@ -275,8 +371,8 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-            {/* Quick spend logging for cards with an open spend requirement */}
-            {burn && !expanded && (
+            {/* Quick spend logging for cards still earning toward a spend requirement */}
+            {stage === 'earning' && burn && !expanded && (
               <button
                 onClick={e => { e.stopPropagation(); setShowLogSpend(s => !s) }}
                 title="Log spend"
@@ -297,14 +393,15 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
             <span className="text-ink-muted">Bonus in pipeline</span>
             <span className="text-accent-ink font-medium tabular-nums">
               {card.bonusType === 'cashback'
-                ? fmt$(pipeline.value)
+                ? fmt$0(pipeline.value)
                 : <>{fmtPts(card.bonusValue)} {card.bonusType === 'miles' ? 'miles' : 'pts'}{' '}
-                    <span className="text-ink-muted font-normal">≈ {fmt$(pipeline.value)}{pipeline.estimated ? ' est.' : ''}</span></>}
+                    <span className="text-ink-muted font-normal">≈ {fmt$0(pipeline.value)}{pipeline.estimated ? ' est.' : ''}</span></>}
             </span>
           </div>
         )}
 
-        {spend && !spend.met && !isClosed && (
+        {/* Earning stage: the spend tracker (bar, deadline, pace) */}
+        {stage === 'earning' && spend && !spend.met && (
           <div className="mt-2">
             <div className="h-1.5 bg-overlay rounded-full overflow-hidden mb-1">
               <div
@@ -313,7 +410,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
               />
             </div>
             <div className="flex justify-between text-xs text-ink-muted">
-              <span>{fmt$(spend.spent)} / {fmt$(spend.requirement)} spend</span>
+              <span>{fmt$0(spend.spent)} / {fmt$0(spend.requirement)} spend</span>
               {spend.deadline ? (
                 <span className={spend.deadline.daysLeft < 14 ? 'text-danger-ink font-medium' : ''}>{spend.deadline.daysLeft}d left</span>
               ) : (
@@ -327,41 +424,55 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                   : burn.onTrack && burn.projectedDate
                   ? `On pace — projected done ${new Date(burn.projectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                   : burn.stalled
-                  ? `No recent spend — need ${fmt$(burn.neededPerWeek)}/wk`
-                  : `Off pace — need ${fmt$(burn.neededPerWeek)}/wk (current ~${fmt$(burn.perWeek)}/wk)`}
+                  ? `No recent spend — need ${fmt$0(burn.neededPerWeek)}/wk`
+                  : `Off pace — need ${fmt$0(burn.neededPerWeek)}/wk (current ~${fmt$0(burn.perWeek)}/wk)`}
               </div>
             )}
           </div>
         )}
 
-        {/* Keep Alive: last-known-used date with a quiet one-tap "Used today"
-            pill beside it — replaces the old solid Used button in the header */}
-        {card.status === 'Keep Alive' && !expanded && (
-          <div className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-muted">
-            <span>Last used <span className="text-ink font-medium">{card.lastUsedDate ? fmtDate(card.lastUsedDate) : '—'}</span></span>
-            <button
-              onClick={markUsedToday}
-              title="Mark used today"
-              className="flex items-center gap-1 border border-edge-strong text-ink-tertiary hover:text-success-ink hover:border-success/50 px-2.5 py-1 rounded-full transition-colors flex-shrink-0"
-            >
-              <Zap size={11} />
-              <span>Used today</span>
-            </button>
+        {/* Bonus Earned / Cancel-or-Downgrade: the decision facts — what the
+            bonus was worth and when the next fee posts (or the refund window) —
+            plus the engine's one-line verdict, which carries the clawback /
+            safe-to-cancel timing (full reason in the hover tooltip). */}
+        {(stage === 'earned' || stage === 'decide') && (
+          <div className="mt-2 space-y-1">
+            {earnedValue && (
+              <FactRow
+                label="Bonus earned"
+                tone="text-success-ink"
+                value={card.bonusType === 'cashback'
+                  ? fmt$0(earnedValue.value)
+                  : <>{fmtPts(card.bonusValue)} {card.bonusType === 'miles' ? 'miles' : 'pts'}{' '}
+                      <span className="text-ink-muted font-normal">≈ {fmt$0(earnedValue.value)}{earnedValue.estimated ? ' est.' : ''}</span></>}
+              />
+            )}
+            {feeSchedule && <FeeFactRow feeSchedule={feeSchedule} />}
+            {guidance && <div className="pt-0.5"><GuidanceLine guidance={guidance} compact /></div>}
           </div>
         )}
 
-        {/* 12-month close shield — shown for any open card with an earned bonus */}
-        {closeShield && (
-          <div className={`mt-2 flex items-center gap-1 text-xs font-medium ${closeShield.safe ? 'text-success-ink' : 'text-warning-ink'}`}>
-            <Shield size={11} className="flex-shrink-0" />
-            <span>
-              {closeShield.message}
-              {!closeShield.safe && closeShield.safeDate && <> ({fmtDate(closeShield.safeDate)})</>}
-            </span>
+        {/* Keep Alive: lean by design — age & fee chips live in the header;
+            this adds last-used (with one-tap Used today) and the next fee.
+            Status actions only appear once the card is expanded. */}
+        {stage === 'keep' && !expanded && (
+          <div className="mt-2 space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-xs text-ink-muted">
+              <span>Last used <span className="text-ink font-medium">{card.lastUsedDate ? fmtDate(card.lastUsedDate) : '—'}</span></span>
+              <button
+                onClick={markUsedToday}
+                title="Mark used today"
+                className="flex items-center gap-1 border border-edge-strong text-ink-tertiary hover:text-success-ink hover:border-success/50 px-2.5 py-1 rounded-full transition-colors flex-shrink-0"
+              >
+                <Zap size={11} />
+                <span>Used today</span>
+              </button>
+            </div>
+            {feeSchedule && <FeeFactRow feeSchedule={feeSchedule} />}
           </div>
         )}
 
-        {isClosed ? (
+        {stage === 'retired' && (
           reeligibility && reeligibility.months ? (
             reeligibility.reeligible ? (
               <div className="mt-2">
@@ -392,15 +503,12 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
           ) : (
             <div className="mt-1.5 text-xs text-ink-faint">Re-eligibility tracked after bonus is earned</div>
           )
-        ) : (
-          nextStatus && !expanded && (
-            <div className="mt-2 text-xs text-warning-ink">→ {statusLabel(nextStatus)}</div>
-          )
         )}
       </div>
 
-      {/* Quick action buttons — only shown when collapsed */}
-      {!expanded && (quickActions.length > 0 || undoSnapshot || showLogSpend) && (
+      {/* Quick action buttons — only shown when collapsed (and never for Keep
+          Alive, whose actions live behind the expanded view) */}
+      {!expanded && (collapsedActions.length > 0 || undoSnapshot || showLogSpend) && (
         <div className="px-4 pb-3 pt-0 flex gap-2 flex-wrap items-center border-t border-edge">
           {showLogSpend ? (
             <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center" onClick={e => e.stopPropagation()}>
@@ -451,8 +559,10 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
             </div>
           ) : (
             <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center">
-              <span className="text-[10px] text-ink-faint uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
-              {quickActions.map((action, i) => (
+              {collapsedActions.length > 0 && (
+                <span className="text-[10px] text-ink-faint uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
+              )}
+              {collapsedActions.map((action, i) => (
                 <button
                   key={action.label}
                   onClick={e => applyQuickAction(e, action.payload)}
@@ -499,6 +609,27 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
       {/* Expanded edit form */}
       {expanded && draft && !confirming && (
         <div className="border-t border-edge-strong p-4 space-y-3">
+
+          {/* Keep Alive keeps its status actions here, behind the expand — the
+              collapsed card stays lean. Applying one also closes the form so
+              the stale draft can't overwrite the new status on Save. */}
+          {stage === 'keep' && (
+            <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+              {guidance && <GuidanceLine guidance={guidance} />}
+              <div className="flex gap-2 flex-wrap items-center">
+                <span className="text-[10px] text-ink-faint uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
+                {quickActions.map(action => (
+                  <button
+                    key={action.label}
+                    onClick={e => applyQuickActionAndCollapse(e, action.payload)}
+                    className={`text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors ${btnColors[action.color] ?? btnColors.zinc}`}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Core */}
           <div className="grid grid-cols-2 gap-2">

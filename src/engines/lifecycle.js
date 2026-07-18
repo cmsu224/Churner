@@ -24,10 +24,13 @@ export function getAnnualFeeInfo(card) {
 // 12-month close shield — the card version of the bank 181-day clawback rule.
 // Closing a card less than a year after opening risks the issuer clawing back
 // the sign-up bonus (and sours the relationship). Safe = 365 days since open,
-// once the bonus has actually been earned. Null for cards with no earned bonus
-// and for retired (Closed/Downgraded) cards.
+// once the bonus has actually been earned. A card in "Bonus Met" status counts
+// as earned even when the received checkbox wasn't ticked — the same rule the
+// pipeline uses. Null for cards with no earned bonus and for retired
+// (Closed/Downgraded) cards.
 export function getCardCloseShield(card) {
-  if (!card?.bonusReceived || isRetired(card)) return null
+  const earned = card?.bonusReceived || card?.status === 'Bonus Met'
+  if (!earned || isRetired(card)) return null
   if (!card.openDate) {
     return { safe: false, daysRemaining: null, safeDate: null, message: 'Set an open date to track when it’s safe to close' }
   }
@@ -89,17 +92,6 @@ export function getSpendProgress(card) {
   const spent = Number(card?.currentSpend) || 0
   const pct = Math.min(100, Math.round((spent / requirement) * 100))
   return { requirement, spent, pct, met: spent >= requirement, deadline: getSpendDeadlineInfo(card) }
-}
-
-export function getCardNextStatus(card) {
-  if (!card) return null
-  const { status, openDate } = card
-  // Only age-based suggestions — bonus-received transition is handled by quick-action buttons
-  if (status === 'Bonus Met' && openDate) {
-    const months = monthsDiff(new Date(openDate), new Date())
-    if (months >= 11) return 'Downgrade/Close Due'
-  }
-  return null
 }
 
 // Infer the most appropriate status from a card's age and bonus configuration.
