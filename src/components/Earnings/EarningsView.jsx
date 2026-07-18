@@ -99,7 +99,7 @@ export default function EarningsView() {
               />
               <StatCard label="Trailing 12 Months" value={fmt$(household.trailing12)} />
               <StatCard label={`This Year (${currentYear})`} value={fmt$(household.byYear[currentYear] ?? 0)} />
-              <StatCard label="Fees Paid" value={fmt$(household.feesPaid)} tone={household.feesPaid > 0 ? 'danger' : 'default'} sub="estimated from anniversaries" />
+              <StatCard label="Fees Paid" value={fmt$(household.feesPaid)} tone={household.feesPaid > 0 ? 'danger' : 'default'} sub="fees that have posted, est." />
             </div>
             {years.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">

@@ -8,6 +8,7 @@ import BonusPipeline from './BonusPipeline'
 import SpendProgress from './SpendProgress'
 import CreditAgeSection from './CreditAgeSection'
 import EligibilitySection from './EligibilitySection'
+import { isCardBonusPending, isAccountBonusPending } from '../../engines/earnings'
 import { fmt$ } from '../../utils/format'
 import { CheckCircle, ChevronUp, ChevronDown, SlidersHorizontal } from 'lucide-react'
 
@@ -55,10 +56,10 @@ export default function DashboardView() {
 
   const cashPipeline =
     (state.creditCards ?? [])
-      .filter(c => !c.bonusReceived && c.bonusType === 'cashback' && (c.bonusValue ?? 0) > 0)
+      .filter(c => isCardBonusPending(c) && c.bonusType === 'cashback')
       .reduce((s, c) => s + (c.bonusValue ?? 0), 0) +
     (state.bankAccounts ?? [])
-      .filter(a => !a.bonusReceivedDate && (a.bonusAmount ?? 0) > 0)
+      .filter(isAccountBonusPending)
       .reduce((s, a) => s + (a.bonusAmount ?? 0), 0)
 
   const pendingSpend = (state.creditCards ?? []).filter(c => {

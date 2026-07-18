@@ -7,7 +7,7 @@ import DateField from '../shared/DateField'
 import { getSpendProgress, getCardNextStatus, getReeligibilityInfo, getCardCloseShield } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
-import { valueCardBonus } from '../../engines/earnings'
+import { valueCardBonus, isCardBonusPending } from '../../engines/earnings'
 import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
 import { fmt$, fmtPts, fmtDate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Shield } from 'lucide-react'
@@ -91,11 +91,9 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
   const spend = getSpendProgress(card)
   const burn = getBurnRate(card)
   const closeShield = getCardCloseShield(card)
-  // What this card is working toward — valued the same way the Earnings page
-  // and Dashboard pipeline value bonuses (points never counted as raw dollars).
-  const pipeline = card.status === 'Active Churn' && !card.bonusReceived && Number(card.bonusValue) > 0
-    ? valueCardBonus(card, state.settings)
-    : null
+  // What this card is working toward — same inclusion rule and valuation as
+  // the Dashboard pipeline (points never counted as raw dollars).
+  const pipeline = isCardBonusPending(card) ? valueCardBonus(card, state.settings) : null
   const nextStatus = getCardNextStatus(card)
   const age = getCardAge(card)
   const quickActions = getQuickActions(card)
@@ -637,7 +635,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Annual Fee Post Date</label>
                     <DateField value={draft.feePostDate} onChange={v => set('feePostDate', v)} />
-                    <p className="text-[11px] text-ink-faint mt-1">When the fee actually posts (any year — statement dates often lag the open date). Anchors the next-fee countdown, the 30-day refund window, and the calendar. Blank = open-date anniversary.</p>
+                    <p className="text-[11px] text-ink-faint mt-1">When the fee actually posts (any year — statement dates often lag the open date). Anchors the next-fee countdown, the 30-day refund window, the calendar, and the Earnings fees-paid estimate. Blank = open-date anniversary.</p>
                   </div>
                 </>
               )}

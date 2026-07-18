@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
-import { valueCardBonus } from '../../engines/earnings'
+import { valueCardBonus, isCardBonusPending, isAccountBonusPending } from '../../engines/earnings'
 import IssuerLogo from '../shared/IssuerLogo'
 import PlayerBadge from '../shared/PlayerBadge'
 import { fmt$, fmtPts } from '../../utils/format'
@@ -17,7 +17,7 @@ export default function BonusPipeline() {
   const members = state.members ?? []
 
   const cardRows = (state.creditCards ?? [])
-    .filter(c => !c.bonusReceived && (c.bonusValue ?? 0) > 0 && c.status !== 'Closed' && c.status !== 'Downgraded')
+    .filter(isCardBonusPending)
     .map(c => {
       const { value, estimated } = valueCardBonus(c, settings)
       return {
@@ -33,7 +33,7 @@ export default function BonusPipeline() {
     })
 
   const bankRows = (state.bankAccounts ?? [])
-    .filter(a => !a.bonusReceivedDate && (a.bonusAmount ?? 0) > 0 && a.status !== 'Closed')
+    .filter(isAccountBonusPending)
     .map(a => ({
       id: `bank-${a.id}`,
       name: a.bankName,
