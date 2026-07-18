@@ -11,8 +11,8 @@ import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
 import { valueCardBonus, isCardBonusPending } from '../../engines/earnings'
 import { CARD_STATUSES } from '../../utils/statusMeta'
-import { fmt$, fmtPts, fmtDate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Shield, Lightbulb } from 'lucide-react'
+import { fmt$, fmt$0, fmtPts, fmtDate } from '../../utils/format'
+import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Lightbulb } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -53,9 +53,9 @@ function FeeFactRow({ feeSchedule }) {
   if (feeSchedule.inRefundWindow) {
     return (
       <FactRow
-        label="Annual fee posted"
+        label="Fee posted"
         tone="text-warning-ink"
-        value={`refund if closed by ${fmtDate(feeSchedule.refundDeadline)} · ${feeSchedule.refundDaysLeft}d left`}
+        value={`refund by ${fmtDate(feeSchedule.refundDeadline)} · ${feeSchedule.refundDaysLeft}d`}
       />
     )
   }
@@ -74,9 +74,24 @@ const guidanceTone = {
   keep:   'text-success-ink',
 }
 
-// The cancel-or-downgrade verdict from the guidance engine, as one compact line.
-function GuidanceLine({ guidance }) {
+// The cancel-or-downgrade verdict from the guidance engine. Compact mode is a
+// single truncated line (verdict + a few-word summary; the full reason lives
+// in the hover tooltip) for the collapsed card; full mode spells the reason
+// out for the expanded view, where there's room.
+function GuidanceLine({ guidance, compact = false }) {
   const tone = guidanceTone[guidance.tone] ?? 'text-ink-secondary'
+  const full = `${guidance.verdict}${guidance.date ? ` (${fmtDate(guidance.date)})` : ''} — ${guidance.reason}`
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs min-w-0" title={full}>
+        <Lightbulb size={12} className={`${tone} flex-shrink-0`} />
+        <span className="truncate">
+          <span className={`font-medium ${tone}`}>{guidance.verdict}</span>
+          <span className="text-ink-muted"> — {guidance.summary}</span>
+        </span>
+      </div>
+    )
+  }
   return (
     <div className="flex items-start gap-1.5 text-xs">
       <Lightbulb size={12} className={`${tone} flex-shrink-0 mt-0.5`} />
@@ -148,7 +163,6 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
 
   const spend = getSpendProgress(card)
   const burn = getBurnRate(card)
-  const closeShield = getCardCloseShield(card)
   // What this card is working toward — same inclusion rule and valuation as
   // the Dashboard pipeline (points never counted as raw dollars).
   const pipeline = isCardBonusPending(card) ? valueCardBonus(card, state.settings) : null
@@ -379,9 +393,9 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
             <span className="text-ink-muted">Bonus in pipeline</span>
             <span className="text-accent-ink font-medium tabular-nums">
               {card.bonusType === 'cashback'
-                ? fmt$(pipeline.value)
+                ? fmt$0(pipeline.value)
                 : <>{fmtPts(card.bonusValue)} {card.bonusType === 'miles' ? 'miles' : 'pts'}{' '}
-                    <span className="text-ink-muted font-normal">≈ {fmt$(pipeline.value)}{pipeline.estimated ? ' est.' : ''}</span></>}
+                    <span className="text-ink-muted font-normal">≈ {fmt$0(pipeline.value)}{pipeline.estimated ? ' est.' : ''}</span></>}
             </span>
           </div>
         )}
@@ -396,7 +410,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
               />
             </div>
             <div className="flex justify-between text-xs text-ink-muted">
-              <span>{fmt$(spend.spent)} / {fmt$(spend.requirement)} spend</span>
+              <span>{fmt$0(spend.spent)} / {fmt$0(spend.requirement)} spend</span>
               {spend.deadline ? (
                 <span className={spend.deadline.daysLeft < 14 ? 'text-danger-ink font-medium' : ''}>{spend.deadline.daysLeft}d left</span>
               ) : (
@@ -410,16 +424,17 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                   : burn.onTrack && burn.projectedDate
                   ? `On pace — projected done ${new Date(burn.projectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                   : burn.stalled
-                  ? `No recent spend — need ${fmt$(burn.neededPerWeek)}/wk`
-                  : `Off pace — need ${fmt$(burn.neededPerWeek)}/wk (current ~${fmt$(burn.perWeek)}/wk)`}
+                  ? `No recent spend — need ${fmt$0(burn.neededPerWeek)}/wk`
+                  : `Off pace — need ${fmt$0(burn.neededPerWeek)}/wk (current ~${fmt$0(burn.perWeek)}/wk)`}
               </div>
             )}
           </div>
         )}
 
         {/* Bonus Earned / Cancel-or-Downgrade: the decision facts — what the
-            bonus was worth, when the next fee posts (or the refund window),
-            when closing is clawback-safe — plus the engine's verdict. */}
+            bonus was worth and when the next fee posts (or the refund window) —
+            plus the engine's one-line verdict, which carries the clawback /
+            safe-to-cancel timing (full reason in the hover tooltip). */}
         {(stage === 'earned' || stage === 'decide') && (
           <div className="mt-2 space-y-1">
             {earnedValue && (
@@ -427,24 +442,13 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 label="Bonus earned"
                 tone="text-success-ink"
                 value={card.bonusType === 'cashback'
-                  ? fmt$(earnedValue.value)
+                  ? fmt$0(earnedValue.value)
                   : <>{fmtPts(card.bonusValue)} {card.bonusType === 'miles' ? 'miles' : 'pts'}{' '}
-                      <span className="text-ink-muted font-normal">≈ {fmt$(earnedValue.value)}{earnedValue.estimated ? ' est.' : ''}</span></>}
+                      <span className="text-ink-muted font-normal">≈ {fmt$0(earnedValue.value)}{earnedValue.estimated ? ' est.' : ''}</span></>}
               />
             )}
             {feeSchedule && <FeeFactRow feeSchedule={feeSchedule} />}
-            {closeShield && (
-              <FactRow
-                label={<span className="inline-flex items-center gap-1"><Shield size={11} /> Safe to cancel</span>}
-                tone={closeShield.safe ? 'text-success-ink' : 'text-warning-ink'}
-                value={closeShield.safe
-                  ? 'now — clawback window passed'
-                  : closeShield.safeDate
-                  ? `${fmtDate(closeShield.safeDate)} · ${closeShield.daysRemaining}d`
-                  : 'set an open date to track'}
-              />
-            )}
-            {guidance && <div className="pt-0.5"><GuidanceLine guidance={guidance} /></div>}
+            {guidance && <div className="pt-0.5"><GuidanceLine guidance={guidance} compact /></div>}
           </div>
         )}
 

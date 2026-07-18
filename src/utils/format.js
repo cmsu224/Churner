@@ -1,6 +1,10 @@
 export const fmt$ = (amount) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount ?? 0)
 
+// Whole dollars — for compact card surfaces where cents are just noise
+export const fmt$0 = (amount) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount ?? 0)
+
 export const fmtPts = (n) =>
   new Intl.NumberFormat('en-US').format(Math.round(n ?? 0))
 
