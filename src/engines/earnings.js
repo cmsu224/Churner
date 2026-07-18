@@ -23,6 +23,32 @@ export function valueCardBonus(card, settings) {
   return { value: (bonusValue * cents) / 100, estimated: true }
 }
 
+// Statuses where a card's bonus is no longer "in flight": Bonus Met means the
+// bonus was earned even if the received checkbox wasn't ticked, and the rest
+// aren't pursuing one. Only Applied / Active Churn (or legacy blank statuses)
+// still count toward the pipeline.
+const CARD_BONUS_DONE_STATUSES = ['Bonus Met', 'Keep Alive', 'Downgrade/Close Due', 'Closed', 'Downgraded']
+
+// Shared pipeline predicate: is this card still working toward its bonus?
+// Used by the Dashboard stats, member summaries, and the itemized Bonus
+// Pipeline so every total agrees on what counts as money in flight.
+export function isCardBonusPending(card) {
+  return !card.bonusReceived
+    && (card.bonusValue ?? 0) > 0
+    && !CARD_BONUS_DONE_STATUSES.includes(card.status ?? '')
+}
+
+// Account statuses that are already past the bonus stage — a "Bonus Received"
+// account counts as received even when no received date was recorded.
+const ACCOUNT_BONUS_DONE_STATUSES = ['Bonus Received', 'Cooling Period', 'Safe to Close', 'Closed']
+
+export function isAccountBonusPending(acct) {
+  return !acct.bonusReceived
+    && !acct.bonusReceivedDate
+    && (acct.bonusAmount ?? 0) > 0
+    && !ACCOUNT_BONUS_DONE_STATUSES.includes(acct.status ?? '')
+}
+
 // Number of full anniversaries of `openDate` that have elapsed by `endDate`
 // (e.g. opened 2025-01-15, endDate 2026-07-15 → 1 anniversary — 2026-01-15 — has passed).
 function anniversariesPassed(openDate, endDate) {

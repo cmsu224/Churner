@@ -7,7 +7,7 @@ import DateField from '../shared/DateField'
 import { getSpendProgress, getCardNextStatus, getReeligibilityInfo, getCardCloseShield } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
-import { valueCardBonus } from '../../engines/earnings'
+import { valueCardBonus, isCardBonusPending } from '../../engines/earnings'
 import { CARD_STATUSES, statusLabel } from '../../utils/statusMeta'
 import { fmt$, fmtPts, fmtDate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Shield } from 'lucide-react'
@@ -91,11 +91,9 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
   const spend = getSpendProgress(card)
   const burn = getBurnRate(card)
   const closeShield = getCardCloseShield(card)
-  // What this card is working toward — valued the same way the Earnings page
-  // and Dashboard pipeline value bonuses (points never counted as raw dollars).
-  const pipeline = card.status === 'Active Churn' && !card.bonusReceived && Number(card.bonusValue) > 0
-    ? valueCardBonus(card, state.settings)
-    : null
+  // What this card is working toward — same inclusion rule and valuation as
+  // the Dashboard pipeline (points never counted as raw dollars).
+  const pipeline = isCardBonusPending(card) ? valueCardBonus(card, state.settings) : null
   const nextStatus = getCardNextStatus(card)
   const age = getCardAge(card)
   const quickActions = getQuickActions(card)
