@@ -9,7 +9,7 @@ import DateField from '../shared/DateField'
 import StatCard from '../shared/StatCard'
 import EmptyState from '../shared/EmptyState'
 import FilterBar, { Pill, MultiPill, FilterRow, Toggle } from '../shared/FilterBar'
-import { PROGRAM_TYPES, getProgramMeta, pointsValue, resolvePointValueCents } from '../../utils/programs'
+import { PROGRAM_TYPES, getProgramMeta, pointsValue } from '../../utils/programs'
 import { fmt$, fmtPts } from '../../utils/format'
 import { Plus, X, Coins, Layers, ChevronDown, ChevronUp } from 'lucide-react'
 
@@ -97,7 +97,7 @@ export default function PointsView() {
     setNewEntry({
       memberId: members[0]?.id ?? 'p1',
       program: '', balance: '',
-      valueCents: '', expirationDate: '', notes: '',
+      expirationDate: '', notes: '',
     })
     setMoreOpen(false)
     setAdding(true)
@@ -115,7 +115,6 @@ export default function PointsView() {
         ...newEntry,
         program: newEntry.program.trim(),
         balance: parseFloat(newEntry.balance) || 0,
-        valueCents: newEntry.valueCents !== '' ? parseFloat(newEntry.valueCents) || undefined : undefined,
         expirationDate: newEntry.expirationDate || null,
         updatedAt: new Date().toISOString(),
       }
@@ -224,15 +223,9 @@ export default function PointsView() {
               </button>
               {moreOpen && (
                 <div className="mt-2 space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-ink-tertiary block mb-1">Value (¢/pt)</label>
-                      <input type="number" min="0" step="0.1" className={inp} value={newEntry.valueCents} onChange={e => setN('valueCents', e.target.value)} placeholder={`${resolvePointValueCents({ program: newEntry.program }, settings)} (default)`} />
-                    </div>
-                    <div>
-                      <label className="text-xs text-ink-tertiary block mb-1">Expiration Date</label>
-                      <DateField value={newEntry.expirationDate} onChange={v => setN('expirationDate', v)} />
-                    </div>
+                  <div>
+                    <label className="text-xs text-ink-tertiary block mb-1">Expiration Date</label>
+                    <DateField value={newEntry.expirationDate} onChange={v => setN('expirationDate', v)} />
                   </div>
                   <div>
                     <label className="text-xs text-ink-tertiary block mb-1">Notes</label>

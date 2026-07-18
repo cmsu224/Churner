@@ -16,20 +16,20 @@ export const INITIAL_STATE = {
   // Application funnel: planned → applied → pending → approved / denied
   applications: [],
   // Loyalty balances: one entry per member per program (Chase UR, MR, airline
-  // miles, hotel points…). balance is points; valueCents optionally overrides
-  // settings.pointValueCents for that program's est. value.
+  // miles, hotel points…). balance is points; est. value comes from the global
+  // per-program rates (settings.programValueCents / built-in defaults).
   pointsBalances: [],
   seniorIncome: {},
   externalPayments: [],
   taxYear: new Date().getFullYear(),
   settings: {
     taxBracket: 22,
-    // Cents-per-point valuation used by the Earnings view for points/miles
-    // bonuses without an explicit cash value on the card.
+    // Fallback ¢/pt for points in programs without a per-program valuation
+    // (custom/unknown programs only).
     pointValueCents: 1,
-    // Per-program ¢/pt overrides for the Points page, keyed by lowercased
-    // canonical program name (e.g. 'hilton honors': 0.5). Empty = use the
-    // built-in published-valuation defaults in utils/programs.js.
+    // Global per-program ¢/pt overrides, keyed by lowercased canonical program
+    // name (e.g. 'hilton honors': 0.5). Used app-wide — Points, Dashboard,
+    // pipeline, Earnings. Empty = the built-in defaults in utils/programs.js.
     programValueCents: {},
     // Browser-notification opt-in (permission itself is per device/browser).
     notifyEnabled: false,

@@ -4,7 +4,7 @@ import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
-import { getSpendDeadlineInfo, getCardNextStatus, getReeligibilityInfo, getCardCloseShield } from '../../engines/lifecycle'
+import { getSpendProgress, getCardNextStatus, getReeligibilityInfo, getCardCloseShield } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
 import { valueCardBonus } from '../../engines/earnings'
@@ -88,7 +88,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
     if (autoOpenLogSpend) setShowLogSpend(true)
   }
 
-  const info = getSpendDeadlineInfo(card)
+  const spend = getSpendProgress(card)
   const burn = getBurnRate(card)
   const closeShield = getCardCloseShield(card)
   // What this card is working toward — valued the same way the Earnings page
@@ -135,7 +135,9 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
         creditLimit: draft.creditLimit !== '' && draft.creditLimit != null ? parseFloat(draft.creditLimit) || 0 : 0,
         bonusValue: draft.bonusValue !== '' && draft.bonusValue != null ? parseFloat(draft.bonusValue) || 0 : 0,
         annualFee: draft.annualFee !== '' && draft.annualFee != null ? parseFloat(draft.annualFee) || 0 : 0,
-        bonusCashValue: draft.bonusCashValue !== '' && draft.bonusCashValue != null ? parseFloat(draft.bonusCashValue) : undefined,
+        // No per-card cash value — points/miles are valued at the global
+        // program rate (Settings → Point Valuations) everywhere.
+        bonusCashValue: undefined,
         openDate: draft.openDate || null,
         lastUsedDate: draft.lastUsedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
@@ -304,14 +306,21 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
           </div>
         )}
 
-        {info && !info.met && (
+        {spend && !spend.met && !isClosed && (
           <div className="mt-2">
             <div className="h-1.5 bg-overlay rounded-full overflow-hidden mb-1">
-              <div className={`h-full rounded-full ${info.daysLeft < 14 ? 'bg-danger' : info.daysLeft < 30 ? 'bg-warning' : 'bg-info'}`} style={{ width: `${info.pct}%` }} />
+              <div
+                className={`h-full rounded-full ${!spend.deadline ? 'bg-info' : spend.deadline.daysLeft < 14 ? 'bg-danger' : spend.deadline.daysLeft < 30 ? 'bg-warning' : 'bg-info'}`}
+                style={{ width: `${spend.pct}%` }}
+              />
             </div>
             <div className="flex justify-between text-xs text-ink-muted">
-              <span>{fmt$(card.currentSpend ?? 0)} / {fmt$(card.spendRequirement ?? 0)} spend</span>
-              <span className={info.daysLeft < 14 ? 'text-danger-ink font-medium' : ''}>{info.daysLeft}d left</span>
+              <span>{fmt$(spend.spent)} / {fmt$(spend.requirement)} spend</span>
+              {spend.deadline ? (
+                <span className={spend.deadline.daysLeft < 14 ? 'text-danger-ink font-medium' : ''}>{spend.deadline.daysLeft}d left</span>
+              ) : (
+                <span className="text-ink-faint">add open date + days for the deadline</span>
+              )}
             </div>
             {burn && (
               <div className={`text-[11px] mt-1 ${burn.onTrack ? 'text-success-ink' : 'text-warning-ink'}`}>
@@ -617,13 +626,6 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Bonus Received Date</label>
                   <DateField value={draft.bonusReceivedDate} onChange={v => set('bonusReceivedDate', v)} />
-                </div>
-              )}
-              {draft.bonusReceived && draft.bonusType !== 'cashback' && (
-                <div>
-                  <label className="text-xs text-ink-muted block mb-1">Bonus Cash Value ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.bonusCashValue ?? ''} onChange={e => set('bonusCashValue', e.target.value)} placeholder="what the points were worth" />
-                  <p className="text-[11px] text-ink-faint mt-1">Used by Earnings. Blank = valued at the default rate in Settings.</p>
                 </div>
               )}
               {Number(draft.annualFee) > 0 && (

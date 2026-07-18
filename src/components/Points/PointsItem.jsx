@@ -33,7 +33,9 @@ export default function PointsItem({ entry, members }) {
   const cents = resolvePointValueCents(entry, settings)
 
   function startEdit() {
-    setDraft({ ...entry })
+    // rateCents edits the GLOBAL program rate (Settings → Point Valuations),
+    // not a per-entry override — changing it here changes it everywhere.
+    setDraft({ ...entry, rateCents: String(cents) })
     setQuickValue(null)
     setExpanded(true)
   }
@@ -45,17 +47,32 @@ export default function PointsItem({ entry, members }) {
 
   function saveEdit() {
     if (!draft?.program?.trim()) return
+    const { rateCents, ...entryDraft } = draft
     dispatch({
       type: 'UPDATE_POINTS_BALANCE', payload: {
-        ...draft,
+        ...entryDraft,
         program: draft.program.trim(),
         balance: parseFloat(draft.balance) || 0,
-        valueCents: draft.valueCents !== '' && draft.valueCents != null ? parseFloat(draft.valueCents) || undefined : undefined,
+        valueCents: undefined, // legacy per-entry override — rates are global now
         expirationDate: draft.expirationDate || null,
         // Re-stamp only when the number actually changed.
         updatedAt: (parseFloat(draft.balance) || 0) !== (Number(entry.balance) || 0) ? new Date().toISOString() : entry.updatedAt,
       }
     })
+    // A changed rate updates the global per-program valuation so every page —
+    // Points, Dashboard, Bonus Pipeline, Earnings — sees the same number.
+    const newRate = parseFloat(rateCents)
+    if (!Number.isNaN(newRate) && newRate > 0 && newRate !== cents) {
+      const meta2 = getProgramMeta(draft.program)
+      const key = (meta2.name ?? draft.program ?? '').toLowerCase().trim()
+      if (key) {
+        dispatch({
+          type: 'SET_SETTING',
+          key: 'programValueCents',
+          value: { ...(settings.programValueCents ?? {}), [key]: newRate },
+        })
+      }
+    }
     cancelEdit()
   }
 
@@ -166,8 +183,9 @@ export default function PointsItem({ entry, members }) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-ink-tertiary block mb-1">Value (¢/pt)</label>
-              <input type="number" min="0" step="0.1" className={inp} value={draft.valueCents ?? ''} onChange={e => setDraft(d => ({ ...d, valueCents: e.target.value }))} placeholder={`${resolvePointValueCents({ program: draft.program }, settings)} (default)`} />
+              <label className="text-xs text-ink-tertiary block mb-1">Program rate (¢/pt)</label>
+              <input type="number" min="0" step="0.05" className={inp} value={draft.rateCents ?? ''} onChange={e => setDraft(d => ({ ...d, rateCents: e.target.value }))} placeholder={String(cents)} />
+              <p className="text-[11px] text-ink-faint mt-1">Global — changes this program&rsquo;s rate everywhere (same as Settings).</p>
             </div>
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Expiration Date</label>

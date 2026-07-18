@@ -1,22 +1,30 @@
-import { getSpendDeadlineInfo } from '../../engines/lifecycle'
+import { useNavigate } from 'react-router-dom'
+import { getSpendProgress } from '../../engines/lifecycle'
 import { getBurnRate } from '../../engines/burnRate'
 import { fmt$ } from '../../utils/format'
 import PlayerBadge from '../shared/PlayerBadge'
 
+// One card's minimum-spend challenge. Renders even when the deadline can't be
+// computed yet (no open date / spend-window days) — the bar shouldn't vanish
+// just because a date is missing. Clicking drills into the card on Cards.
 export default function SpendProgress({ card }) {
-  const info = getSpendDeadlineInfo(card)
+  const navigate = useNavigate()
+  const spend = getSpendProgress(card)
   const burn = getBurnRate(card)
-  if (!info) return null
+  if (!spend) return null
+  const info = spend.deadline
 
   const urgency =
-    !info.met && info.daysLeft < 14
+    info && !spend.met && info.daysLeft < 14
       ? 'border-danger/30 bg-danger/5'
-      : !info.met && info.daysLeft < 30
+      : info && !spend.met && info.daysLeft < 30
       ? 'border-warning/30 bg-warning/5'
       : 'border-edge-strong bg-raised/50'
 
-  const barColor = info.met
+  const barColor = spend.met
     ? 'bg-success'
+    : !info
+    ? 'bg-info'
     : info.daysLeft < 14
     ? 'bg-danger'
     : info.daysLeft < 30
@@ -24,7 +32,10 @@ export default function SpendProgress({ card }) {
     : 'bg-info'
 
   return (
-    <div className={`rounded-lg border p-3 ${urgency}`}>
+    <button
+      onClick={() => navigate(`/cards?highlight=${card.id}`)}
+      className={`w-full text-left rounded-lg border p-3 hover:border-accent/50 transition-colors ${urgency}`}
+    >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div>
           <div className="text-sm font-medium text-ink leading-tight">{card.cardName}</div>
@@ -33,18 +44,20 @@ export default function SpendProgress({ card }) {
         <PlayerBadge memberId={card.memberId} showName={false} />
       </div>
       <div className="h-1.5 bg-overlay rounded-full overflow-hidden mb-2">
-        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${info.pct}%` }} />
+        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${spend.pct}%` }} />
       </div>
       <div className="flex justify-between text-xs">
         <span className="text-ink-secondary">
-          {fmt$(card.currentSpend ?? 0)} of {fmt$(card.spendRequirement ?? 0)}
+          {fmt$(spend.spent)} of {fmt$(spend.requirement)}
         </span>
-        {info.met ? (
+        {spend.met ? (
           <span className="text-success-ink font-medium">Bonus Met ✓</span>
-        ) : (
+        ) : info ? (
           <span className={info.daysLeft < 14 ? 'text-danger-ink font-medium' : 'text-ink-muted'}>
             {info.daysLeft}d left
           </span>
+        ) : (
+          <span className="text-ink-faint">no deadline set</span>
         )}
       </div>
       {burn && (
@@ -58,6 +71,6 @@ export default function SpendProgress({ card }) {
             : `Off pace — need ${fmt$(burn.neededPerWeek)}/wk (current ~${fmt$(burn.perWeek)}/wk)`}
         </div>
       )}
-    </div>
+    </button>
   )
 }

@@ -49,9 +49,16 @@ export default function CreditCardsView() {
   const { state, dispatch } = useChurn()
   const members = state.members ?? []
   const allCards = state.creditCards ?? []
+  // Deep links: ?add=1 opens the add form, ?logspend=<cardId> opens that
+  // card's log-spend row, ?highlight=<id> flashes, ?member=<id> pre-filters to
+  // one person (used by the Dashboard's member summary cards).
+  const location = useLocation()
+  const params = new URLSearchParams(location.search)
+  const logSpendCardId = params.get('logspend')
+  const wantsAdd = params.get('add') === '1'
   const [adding, setAdding] = useState(false)
   const [newCard, setNewCard] = useState(null)
-  const [filterMember, setFilterMember] = useState('all')
+  const [filterMember, setFilterMember] = useState(() => params.get('member') ?? 'all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [sortBy, setSortBy] = useState('newest')
   // Grouping is now an explicit, opt-in view mode — decoupled from the sort so
@@ -60,12 +67,6 @@ export default function CreditCardsView() {
   const [groupByBrand, setGroupByBrand] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
 
-  // Deep links from the command palette: ?add=1 opens the add form,
-  // ?logspend=<cardId> opens that card's log-spend row, ?highlight=<id> flashes.
-  const location = useLocation()
-  const params = new URLSearchParams(location.search)
-  const logSpendCardId = params.get('logspend')
-  const wantsAdd = params.get('add') === '1'
   useHighlight()
   useEffect(() => {
     if (wantsAdd) startAdd()

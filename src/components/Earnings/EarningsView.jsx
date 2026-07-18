@@ -21,7 +21,7 @@ function ReceiptRow({ logo, name, memberId, realized, estimated, feesPaid, net, 
       <span className="text-xs text-ink-tertiary w-24">{date ? fmtDate(date) : '—'}</span>
       <span className="text-sm text-success-ink font-medium tabular-nums w-24 text-right">
         {realized > 0 ? `+${fmt$(realized)}` : '—'}
-        {estimated && realized > 0 && <span className="text-warning-ink text-[10px] ml-0.5" title="Points valued at the default rate — set a cash value on the card for accuracy">est.</span>}
+        {estimated && realized > 0 && <span className="text-warning-ink text-[10px] ml-0.5" title="Points valued at the program's global rate — adjust in Settings → Point Valuations">est.</span>}
       </span>
       {feesPaid != null && (
         <span className="text-sm text-danger-ink tabular-nums w-20 text-right">{feesPaid > 0 ? `−${fmt$(feesPaid)}` : '—'}</span>
@@ -68,7 +68,7 @@ export default function EarningsView() {
     .sort((a, b) => String(b.e.realizedDate ?? '').localeCompare(String(a.e.realizedDate ?? ''))), [state])
 
   const hasAnything = household.lifetime > 0 || household.feesPaid > 0
-  const maxMemberLifetime = Math.max(1, ...perMember.map(m => m.lifetime))
+  const maxMemberNet = Math.max(1, ...perMember.map(m => Math.abs(m.lifetime - m.feesPaid)))
   const years = Object.keys(household.byYear).sort((a, b) => b - a)
 
   const efficiencyBits = []
@@ -115,7 +115,7 @@ export default function EarningsView() {
             )}
             {anyEstimated && (
               <p className="text-[11px] text-ink-tertiary mt-1">
-                * points/miles bonuses valued at {settings.pointValueCents ?? 1}¢/pt — set a cash value per card or adjust the rate in Settings.
+                * points/miles bonuses valued at their program&rsquo;s global rate — adjust in Settings → Point Valuations.
               </p>
             )}
           </section>
@@ -136,31 +136,37 @@ export default function EarningsView() {
             )}
           </section>
 
-          {/* Per-member breakdown */}
+          {/* Per-member breakdown — headline number is lifetime NET (bonuses −
+              fees), so a member whose fees outrun their bonuses shows a negative
+              in red. Bar color is semantic (green positive / red negative), not
+              the member's identity color — that stays on the dot by their name. */}
           <section>
-            <h2 className="text-base font-semibold text-ink mb-3">By Member</h2>
+            <h2 className="text-base font-semibold text-ink mb-3">By Member <span className="text-xs text-ink-tertiary font-normal">lifetime net = bonuses − fees</span></h2>
             <div className="bg-surface border border-edge rounded-xl divide-y divide-edge">
-              {perMember.map(m => (
-                <div key={m.memberId} className="px-4 py-3">
-                  <div className="flex items-center justify-between gap-3 mb-1.5">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: m.hex }} />
-                      <span className="text-sm font-medium text-ink">{m.name}</span>
-                    </span>
-                    <span className="text-sm font-semibold text-ink tabular-nums">{fmt$(m.lifetime)}</span>
+              {perMember.map(m => {
+                const net = m.lifetime - m.feesPaid
+                return (
+                  <div key={m.memberId} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-3 mb-1.5">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: m.hex }} />
+                        <span className="text-sm font-medium text-ink">{m.name}</span>
+                      </span>
+                      <span className={`text-sm font-semibold tabular-nums ${net < 0 ? 'text-danger-ink' : 'text-ink'}`}>{fmt$(net)}</span>
+                    </div>
+                    <div className="h-2 bg-raised rounded-full overflow-hidden" aria-hidden="true">
+                      <div
+                        className={`h-full rounded-full transition-all ${net < 0 ? 'bg-danger' : 'bg-success'}`}
+                        style={{ width: `${Math.round((Math.abs(net) / maxMemberNet) * 100)}%` }}
+                      />
+                    </div>
+                    <div className="text-[11px] text-ink-tertiary mt-1 tabular-nums">
+                      earned {fmt$(m.lifetime)} · cards {fmt$(m.lifetime - m.bankTotal)} · banks {fmt$(m.bankTotal)}{m.feesPaid > 0 ? <span className="text-danger-ink"> · fees −{fmt$(m.feesPaid)}</span> : null}
+                      {m.trailing12 > 0 ? ` · T12M ${fmt$(m.trailing12)}` : ''}
+                    </div>
                   </div>
-                  <div className="h-2 bg-raised rounded-full overflow-hidden" aria-hidden="true">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${Math.round((m.lifetime / maxMemberLifetime) * 100)}%`, backgroundColor: m.hex }}
-                    />
-                  </div>
-                  <div className="text-[11px] text-ink-tertiary mt-1 tabular-nums">
-                    cards {fmt$(m.lifetime - m.bankTotal)} · banks {fmt$(m.bankTotal)}{m.feesPaid > 0 ? <span className="text-danger-ink"> · fees −{fmt$(m.feesPaid)}</span> : null}
-                    {m.trailing12 > 0 ? ` · T12M ${fmt$(m.trailing12)}` : ''}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
 

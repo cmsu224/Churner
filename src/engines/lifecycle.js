@@ -79,6 +79,18 @@ export function getSpendDeadlineInfo(card) {
   return { deadline: deadline.toISOString(), daysLeft, pct, met: (card.currentSpend ?? 0) >= (card.spendRequirement ?? 0) }
 }
 
+// Spend progress toward a card's bonus requirement, whether or not the
+// deadline is computable. The progress bar shouldn't vanish just because the
+// open date or spend-window days haven't been entered — `deadline` is attached
+// only when getSpendDeadlineInfo can compute one.
+export function getSpendProgress(card) {
+  const requirement = Number(card?.spendRequirement) || 0
+  if (!(requirement > 0)) return null
+  const spent = Number(card?.currentSpend) || 0
+  const pct = Math.min(100, Math.round((spent / requirement) * 100))
+  return { requirement, spent, pct, met: spent >= requirement, deadline: getSpendDeadlineInfo(card) }
+}
+
 export function getCardNextStatus(card) {
   if (!card) return null
   const { status, openDate } = card
