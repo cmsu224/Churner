@@ -35,8 +35,8 @@ export default function AppShell() {
     if (data) dispatch({ type: 'LOAD_STATE', payload: data })
   }
 
-  function reconnect() {
-    gist.disconnect()
+  async function reconnect() {
+    await gist.disconnect()
     window.location.reload()
   }
 

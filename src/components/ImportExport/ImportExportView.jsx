@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import { getSmartCardStatus } from '../../engines/lifecycle'
+import { saveOrShare, copyText } from '../../utils/exportFile'
 import { Download, Upload, Copy, Check, AlertTriangle, ExternalLink } from 'lucide-react'
 
 function buildPrompt(players) {
@@ -234,17 +235,11 @@ export default function ImportExportView() {
 
   function handleExport() {
     const json = JSON.stringify(state, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `churner-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    saveOrShare(`churner-backup-${new Date().toISOString().slice(0, 10)}.json`, json, 'application/json')
   }
 
   function handleCopyPrompt() {
-    navigator.clipboard.writeText(buildPrompt(members)).then(() => {
+    copyText(buildPrompt(members)).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })

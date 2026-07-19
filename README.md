@@ -38,6 +38,7 @@ No backend, no subscription, no database server. The whole app is a static singl
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
 - [Deployment](#deployment)
+- [Mobile App (Android + iOS)](#mobile-app-android--ios)
 - [Data Model](#data-model)
 - [Maintaining This README](#maintaining-this-readme)
 
@@ -108,9 +109,10 @@ A **bell icon in the header** (every screen) opens the notification center:
 - Each notification links straight to its card or account (jump + highlight flash), and has inline **dismiss** and **snooze (1/3/7d)** controls — the same synced state as the Dashboard queue.
 - A collapsed **"Snoozed & dismissed"** drawer lets you restore anything.
 
-**Browser notifications (opt-in, Settings):** while the app is open, a system notification fires the moment an action item *newly becomes critical*. Enabling walks through the browser permission prompt; blocked/unsupported browsers degrade gracefully with a clear status message. Notified-item tracking is per device.
+**Notifications (opt-in, Settings):** while the app is open, a notification fires the moment an action item *newly becomes critical*. Enabling walks through the OS/browser permission prompt; blocked/unsupported platforms degrade gracefully with a clear status message. Notified-item tracking is per device.
 
-**When the app is closed**, the honest answer for a static SPA is the calendar: the Settings copy points to the Timeline page's **Export .ics** so deadlines live in Google/Apple Calendar with native reminders.
+- **On the web**, these are browser notifications (only fire while the app is open). **When the app is closed**, the honest answer for a static SPA is the calendar: the Settings copy points to the Timeline page's **Export .ics** so deadlines live in Google/Apple Calendar with native reminders.
+- **On the native mobile app** (see [Mobile App](#mobile-app-android--ios)), these are **OS local notifications**: in addition to the instant critical alert, the app schedules a reminder at **9am local on each dated action item's due date**, so reminders fire **even when the app is closed**. The schedule is reconciled on every action-item change — dismissing, snoozing, or resolving an item cancels or reschedules its pending notification. No server or push service is involved; everything is local to the device.
 
 ### 4. Timeline / Calendar & .ics Export
 
@@ -119,7 +121,7 @@ Page: `/timeline`. Every dated event across the household, in one place, sourced
 - **Event types:** spend deadlines, annual-fee post dates, fee-refund window closes, retention-call window opens (card turns 10 months old), card safe-to-close dates (the 12-month close shield clears), card bonus re-eligibility dates, direct-deposit deadlines, bank-bonus offer deadlines, clawback-clear ("safe to close") dates, early-termination-fee window ends, and bank bonus re-eligibility dates.
 - **Two views:** a **month calendar** (prev/today/next, event chips per day, tap a day for its agenda) and an **agenda list** grouped by month with an **Overdue** section on top. Mobile defaults to agenda.
 - **Filters** by member and by category (Spend / Fees / Banks / Eligibility).
-- **Export .ics** — generates an iCalendar file client-side (RFC 5545: proper escaping, line folding, all-day VEVENTs, stable UIDs) from the *currently filtered upcoming events*, one VEVENT per item, summaries like `[Churner] Wife: Spend deadline: Sapphire Preferred`. Import or subscribe in Google/Apple Calendar for reminders while the app is closed.
+- **Export .ics** — generates an iCalendar file client-side (RFC 5545: proper escaping, line folding, all-day VEVENTs, stable UIDs) from the *currently filtered upcoming events*, one VEVENT per item, summaries like `[Churner] Wife: Spend deadline: Sapphire Preferred`. Import or subscribe in Google/Apple Calendar for reminders while the app is closed. On the web this is a file download; on the **native mobile app** it opens the OS **share sheet** (save to Files, send to a calendar app, etc.).
 - Window: events from 30 days back (overdue) to 18 months out.
 
 ### 5. Credit Card Tracking
@@ -319,7 +321,7 @@ All links open in a new tab.
 
 Page: `/import`.
 
-- **Export** — downloads your full state as a JSON backup file.
+- **Export** — saves your full state as a JSON backup file (browser download on the web; OS **share sheet** on the native mobile app).
 - **AI Import Helper** — the fastest way to bulk-load. The prompt is **generated dynamically** with your actual household member names (e.g. Me | Wife | Mom | Dad) so the AI knows exactly who to assign each card to. Copy the prompt, open Claude (or any AI chat), paste the prompt + your credit-report PDF or screenshot, tell the AI whose cards you're importing ("These are Wife's cards" or "assign each to the right person"), and paste the returned JSON back into the app. The AI outputs a `member` field on each item; the import automatically resolves it to the correct member. Works for single-person and multi-person imports in one batch.
   - Credit report import: extracts every open revolving account, maps "Date Opened" → openDate, skips closed accounts/loans/mortgages, auto-flags business cards and authorized-user accounts.
   - Manual/screenshot import: supports all fields including bonus details, spend requirements, DD requirements, annual fees, and status.
@@ -331,7 +333,7 @@ Page: `/import`.
 
 `src/hooks/useGist.js` + `src/store/ChurnContext.jsx`:
 
-- On first launch, a setup screen connects your **GitHub Personal Access Token** and either **creates a new private Gist** (`churner-data.json`) or links an existing Gist ID.
+- On first launch, a setup screen connects your **GitHub Personal Access Token** and either **creates a new private Gist** (`churner-data.json`) or links an existing Gist ID. The **same Gist works across web and the native mobile app** — the data format is identical, so you can use both interchangeably.
 - State changes auto-save to the Gist, **debounced 1.5 seconds** to avoid hammering the API.
 - Loads from the Gist on startup; this is how you sync across devices. A **skeleton loading screen** shows while the first load is in flight.
 - **Backward-compatible loading** — every field added since your Gist was written is defaulted on load (deep-defaulting for nested settings/notification state), and the old `players`/`playerId` schema is migrated automatically. Older data never breaks or loses anything.
@@ -357,7 +359,9 @@ Page: `/import`.
 
 ## Privacy & Security
 
-- Your **Personal Access Token is stored in `localStorage` only** — never committed to the repo and never written into the Gist data.
+- Your **Personal Access Token** is stored **client-side only** — never committed to the repo and never written into the Gist data.
+  - On the **web** it lives in `localStorage`.
+  - On the **native mobile app** it lives in the OS secure store — **iOS Keychain / Android Keystore** — never in the WebView's localStorage. (An earlier plaintext token is migrated into the keystore and wiped on first launch.)
 - Your data lives in a **private GitHub Gist that only you can see.**
 - **Your PAT is never sent anywhere except GitHub's API.**
 - The token needs only the **`gist`** scope — nothing more.
@@ -372,6 +376,7 @@ Page: `/import`.
 - State via **`useReducer` + Context API**
 - Data sync via the **GitHub Gist REST API**
 - Charts are hand-rolled SVG — no chart library
+- **Native mobile:** [Capacitor 6](https://capacitorjs.com/) wraps the same web build into installable Android + iOS apps — plugins: `@aparajita/capacitor-secure-storage` (Keychain/Keystore), `@capacitor/local-notifications`, `@capacitor/share`, `@capacitor/filesystem`, `@capacitor/clipboard`, `@capacitor/status-bar`, `@capacitor/app` (see [Mobile App](#mobile-app-android--ios))
 
 ---
 
@@ -395,13 +400,65 @@ Deployed to **GitHub Pages via GitHub Actions** (`.github/workflows/deploy.yml`)
 
 > **Repo setting required:** Settings → Pages → Build and deployment → **Source: GitHub Actions**.
 
-`vite.config.js` sets `base: '/Churner/'` so asset paths resolve correctly under the project's Pages URL.
+`vite.config.js` sets `base: '/Churner/'` for the web build so asset paths resolve correctly under the project's Pages URL. The native build uses a relative base instead (`base: './'`, set by `CAPACITOR=1`) — see [Mobile App](#mobile-app-android--ios).
+
+---
+
+## Mobile App (Android + iOS)
+
+Churner also ships as an **installable native app** for Android and iOS via
+[Capacitor](https://capacitorjs.com/), which wraps the **exact same React build**
+in a native WebView. Every page, engine, tracked field, and the Gist sync are
+100% shared with the web app — nothing is reimplemented. Only three seams use
+native platform APIs (all behind a `Capacitor.isNativePlatform()` branch, so the
+web build is unaffected):
+
+| Capability | Web | Native mobile |
+|---|---|---|
+| **PAT storage** | `localStorage` | **iOS Keychain / Android Keystore** (`@aparajita/capacitor-secure-storage`) — hydrated into an in-memory cache at boot so `useGist`/`ChurnContext` stay synchronous |
+| **Notifications** | browser Notification (while open) | **OS local notifications** — instant critical alerts **plus scheduled 9am-on-due-date reminders that fire when the app is closed** |
+| **File export** (.ics / JSON backup / tax CSV) & clipboard | blob download / `navigator.clipboard` | OS **share sheet** (`@capacitor/share` + `@capacitor/filesystem`) / `@capacitor/clipboard` |
+
+The native integration lives in `src/native/credentials.js` (secure PAT store +
+boot hydration), `src/native/notifications.js` (permission + scheduling), and
+`src/utils/exportFile.js` (share/save + clipboard). `src/engines/*.js` and
+`src/store/ChurnContext.jsx` are **untouched** by the migration.
+
+### This branch is separate from the web deploy
+
+The mobile app is developed on a **dedicated long-lived branch** (`main` stays
+the web dashboard and the GitHub Pages deploy). The `android/` and `ios/`
+projects are committed; generated build output and CocoaPods are gitignored.
+**Periodically merge `main` into the mobile branch** to pick up new web features.
+
+### Build & run
+
+**Prerequisites:** Node 20+. Android needs **Android Studio + SDK**; iOS needs
+**macOS + Xcode + CocoaPods**.
+
+```bash
+npm install
+npm run sync:mobile      # builds the mobile bundle (relative base) + cap sync
+
+# Android
+npm run open:android     # opens Android Studio → Run on device/emulator
+#   or headless: cd android && ./gradlew assembleDebug   (APK in app/build/outputs)
+
+# iOS (macOS only)
+cd ios/App && pod install && cd -
+npm run open:ios         # opens Xcode → pick a signing team → Run
+```
+
+App identity: appId **`com.churner.app`**, name **Churner** (`capacitor.config.json`).
+Re-run `npm run sync:mobile` after any web-code change to push it into the native
+shells. The Android manifest declares `POST_NOTIFICATIONS`; notification
+permission is requested at runtime from Settings on both platforms.
 
 ---
 
 ## Data Model
 
-State (synced as `churner-data.json`). Every field below is optional at load time — older Gists are deep-defaulted, so no field is required to exist:
+State (synced as `churner-data.json`). Every field below is optional at load time — older Gists are deep-defaulted, so no field is required to exist. **The Capacitor mobile app uses this exact same schema** — the mobile migration added no fields and changed none, so the same Gist is fully interchangeable between web and mobile:
 
 ```
 version            3

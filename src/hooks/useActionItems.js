@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { useChurn } from '../store/ChurnContext'
 import { generateActionItems } from '../engines/actionItems'
+import { fireImmediate, reconcileScheduled } from '../native/notifications'
 
 // Central access point for action items + their synced dismiss/snooze state.
 // Used by the Dashboard action queue and the header notification center so
@@ -42,18 +44,28 @@ export function useActionItems() {
 
 const LS_NOTIFIED = 'churner_notified_ids'
 
-// Fire a browser notification when an item newly becomes critical while the
-// app is open. Per-device: notified ids live in localStorage; permission is
-// per browser. Degrades silently when unsupported or denied.
+// Keep notifications in sync with the live action items. On native this also
+// schedules OS-level reminders for dated items (so they fire when the app is
+// closed); on both platforms it fires an immediate alert when an item newly
+// turns critical while the app is open. Per-device: notified ids and permission
+// are local. Degrades silently when unsupported or denied.
 export function useBrowserNotifications(activeItems) {
   const { state } = useChurn()
   const enabled = !!state.settings?.notifyEnabled
 
   useEffect(() => {
     if (!enabled) return
-    if (typeof window === 'undefined' || !('Notification' in window)) return
-    if (Notification.permission !== 'granted') return
+    const isNative = Capacitor.isNativePlatform()
 
+    if (isNative) {
+      // Reconcile closed-app reminders for every active, dated item.
+      reconcileScheduled(activeItems)
+    } else {
+      if (typeof window === 'undefined' || !('Notification' in window)) return
+      if (Notification.permission !== 'granted') return
+    }
+
+    // Immediate alert for newly-critical items (both platforms).
     const criticals = activeItems.filter(i => i.type === 'critical')
     let already = []
     try { already = JSON.parse(localStorage.getItem(LS_NOTIFIED)) ?? [] } catch { /* ignore */ }
@@ -61,9 +73,7 @@ export function useBrowserNotifications(activeItems) {
     const fresh = criticals.filter(i => !alreadySet.has(i.id))
 
     for (const item of fresh.slice(0, 3)) {
-      try {
-        new Notification('Churner — action needed', { body: item.title, tag: item.id })
-      } catch { /* some browsers require a service worker; ignore */ }
+      fireImmediate('Churner — action needed', item.title, item.id)
     }
     // Store the current critical set (prunes resolved items, so a future
     // re-escalation notifies again).

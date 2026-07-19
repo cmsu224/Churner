@@ -1,0 +1,11 @@
+{
+  "appId": "com.churner.app",
+  "appName": "Churner",
+  "webDir": "dist",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_churner",
+      "iconColor": "#2563eb"
+    }
+  }
+}

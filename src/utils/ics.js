@@ -1,5 +1,6 @@
 // Minimal RFC 5545 (iCalendar) writer for Timeline events. All events are
 // exported as all-day VEVENTs so a bare YYYYMMDD DTSTART is enough.
+import { saveOrShare } from './exportFile'
 
 const CRLF = '\r\n'
 const PROD_ID = '-//Churner//EN'
@@ -91,15 +92,8 @@ export function buildIcs(events, memberNameById) {
   return lines.map(foldLine).join(CRLF) + CRLF
 }
 
-// Trigger a browser download of the given text as a .ics file.
+// Save the given text as a .ics file — browser download on web, native share
+// sheet on device.
 export function downloadIcs(filename, text) {
-  const blob = new Blob([text], { type: 'text/calendar' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  return saveOrShare(filename, text, 'text/calendar')
 }

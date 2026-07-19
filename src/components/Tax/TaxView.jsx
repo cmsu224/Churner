@@ -1,6 +1,7 @@
 import { useChurn } from '../../store/ChurnContext'
 import { getTaxSummary } from '../../engines/taxPredictor'
 import { fmt$ } from '../../utils/format'
+import { saveOrShare } from '../../utils/exportFile'
 
 const BRACKETS = [10, 12, 22, 24, 32, 35, 37]
 
@@ -17,13 +18,7 @@ export default function TaxView() {
       ['HOUSEHOLD TOTAL', summary.totals.bankBonuses.toFixed(2), summary.totals.bankBonuses.toFixed(2)],
     ]
     const csv = rows.map(r => r.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `churner-tax-${state.taxYear}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    saveOrShare(`churner-tax-${state.taxYear}.csv`, csv, 'text/csv')
   }
 
   return (

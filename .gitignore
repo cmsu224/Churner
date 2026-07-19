@@ -12,6 +12,21 @@ dist
 dist-ssr
 *.local
 
+# Capacitor native build artifacts (the android/ and ios/ projects themselves
+# are committed; only generated build output and local config are ignored)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/public/
+android/capacitor-cordova-android-plugins/
+ios/App/Pods/
+ios/App/build/
+ios/App/App/public/
+ios/App/output/
+DerivedData/
+*.xcuserstate
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

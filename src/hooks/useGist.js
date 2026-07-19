@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react'
+import {
+  getCachedPat, getCachedGistId, persistCredentials, clearCredentials,
+} from '../native/credentials'
 
-const LS_PAT = 'churner_pat'
-const LS_GIST = 'churner_gist_id'
 const LS_CACHE = 'churner_cache'
 const FILENAME = 'churner-data.json'
 
@@ -11,8 +12,10 @@ export function useGist() {
   const [error, setError] = useState(null)
   const saveTimer = useRef(null)
 
-  const pat = () => localStorage.getItem(LS_PAT) ?? ''
-  const gistId = () => localStorage.getItem(LS_GIST) ?? ''
+  // Credentials live in the secure store on native and localStorage on web,
+  // fronted by a synchronous in-memory cache (see native/credentials.js).
+  const pat = () => getCachedPat()
+  const gistId = () => getCachedGistId()
   const isConfigured = !!(pat() && gistId())
 
   const headers = () => ({
@@ -91,14 +94,14 @@ export function useGist() {
   }, [])
 
   const configure = useCallback((token, id) => {
-    localStorage.setItem(LS_PAT, token)
-    localStorage.setItem(LS_GIST, id)
+    // Returns a promise so callers that reload afterwards can await the write
+    // (secure-store writes are async on native).
+    return persistCredentials(token, id)
   }, [])
 
   const disconnect = useCallback(() => {
-    localStorage.removeItem(LS_PAT)
-    localStorage.removeItem(LS_GIST)
     localStorage.removeItem(LS_CACHE)
+    return clearCredentials()
   }, [])
 
   return {

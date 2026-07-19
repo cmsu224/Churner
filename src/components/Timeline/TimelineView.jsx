@@ -257,11 +257,11 @@ export default function TimelineView() {
   const hasFilteredEvents = filteredEvents.length > 0
   const filtersActive = filterMember !== 'all' || activeCategories.length !== EVENT_CATEGORIES.length
 
-  function handleExport() {
+  async function handleExport() {
     if (upcomingFilteredEvents.length === 0) return
     const memberNameById = Object.fromEntries(members.map(m => [m.id, m.name]))
     const ics = buildIcs(upcomingFilteredEvents, memberNameById)
-    downloadIcs(`churner-timeline-${new Date().toISOString().slice(0, 10)}.ics`, ics)
+    await downloadIcs(`churner-timeline-${new Date().toISOString().slice(0, 10)}.ics`, ics)
   }
 
   return (

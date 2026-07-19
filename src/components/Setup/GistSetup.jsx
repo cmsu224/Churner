@@ -29,7 +29,7 @@ export default function GistSetup({ onConfigured }) {
             files: { 'churner-data.json': { content: JSON.stringify(INITIAL_STATE, null, 2) } },
           }),
         })
-        gist.configure(pat.trim(), newId)
+        await gist.configure(pat.trim(), newId)
         onConfigured()
       } else {
         if (!gistId.trim()) { setErr('Gist ID is required'); setLoading(false); return }
@@ -37,7 +37,7 @@ export default function GistSetup({ onConfigured }) {
           headers: { Authorization: `token ${pat.trim()}`, Accept: 'application/vnd.github+json' },
         })
         if (!res.ok) throw new Error(`Invalid Gist ID or token (${res.status})`)
-        gist.configure(pat.trim(), gistId.trim())
+        await gist.configure(pat.trim(), gistId.trim())
         onConfigured()
       }
     } catch (e) {

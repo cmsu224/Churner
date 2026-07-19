@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { useChurn } from '../../store/ChurnContext'
 import { useTheme } from '../../hooks/useTheme'
 import { POINT_PROGRAMS } from '../../utils/programs'
+import { notifSupported as notifSupportedFn, getNotifPermission, requestNotifPermission, fireImmediate } from '../../native/notifications'
 import { Sun, Moon, Users, Link2, ArrowDownUp, CheckCircle, AlertCircle, Bell, BellOff } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -16,9 +18,13 @@ export default function SettingsView() {
   const [gistId, setGistId] = useState(gist.getGistId())
   const [saveStatus, setSaveStatus] = useState(null)
 
+  const isNative = Capacitor.isNativePlatform()
   const notifyEnabled = !!state.settings?.notifyEnabled
-  const notifSupported = typeof window !== 'undefined' && 'Notification' in window
-  const [permission, setPermission] = useState(notifSupported ? Notification.permission : 'unsupported')
+  const notifSupported = notifSupportedFn()
+  const [permission, setPermission] = useState('default')
+
+  // Permission is async on native (and cheap to read on web) — load it once.
+  useEffect(() => { getNotifPermission().then(setPermission) }, [])
   const pointValueCents = state.settings?.pointValueCents ?? 1
   const programValueCents = state.settings?.programValueCents ?? {}
   // Raw input text per program while editing, so partial entries like "0."
@@ -53,26 +59,30 @@ export default function SettingsView() {
       return
     }
     if (!notifSupported) return
-    let perm = Notification.permission
-    if (perm === 'default') perm = await Notification.requestPermission()
+    let perm = await getNotifPermission()
+    if (perm === 'default') perm = await requestNotifPermission()
     setPermission(perm)
     if (perm === 'granted') {
       dispatch({ type: 'SET_SETTING', key: 'notifyEnabled', value: true })
-      try {
-        new Notification('Churner', { body: 'Notifications are on — you’ll hear about newly critical items while the app is open.' })
-      } catch { /* ignore */ }
+      fireImmediate(
+        'Churner',
+        isNative
+          ? 'Notifications are on — you’ll be reminded about upcoming and newly critical items, even when the app is closed.'
+          : 'Notifications are on — you’ll hear about newly critical items while the app is open.',
+        'churner-notif-on',
+      )
     }
   }
 
   function currentPat() {
-    return localStorage.getItem('churner_pat') ?? ''
+    return gist.getPat()
   }
 
-  function saveSync() {
+  async function saveSync() {
     const token = pat.trim() || currentPat()
     const id = gistId.trim()
     if (!token || !id) return
-    gist.configure(token, id)
+    await gist.configure(token, id)
     setSaveStatus('saved')
     setTimeout(() => window.location.reload(), 800)
   }
@@ -103,20 +113,31 @@ export default function SettingsView() {
       <section className="bg-surface border border-edge rounded-xl p-5">
         <h2 className="text-sm font-semibold text-ink mb-1">Notifications</h2>
         <p className="text-xs text-ink-tertiary mb-4">
-          While the app is open, get a browser notification the moment an action item turns critical.
-          For reminders when the app is <em>closed</em>, use <Link to="/timeline" className="text-accent-ink hover:underline">Export .ics on the Timeline page</Link> and
-          subscribe in Google/Apple Calendar — that's the reliable channel for a static app like this one.
+          {isNative ? (
+            <>Get device reminders at 9am on an action item&rsquo;s due date — even when the app is closed — plus
+            an instant alert the moment an item turns critical. You can also{' '}
+            <Link to="/timeline" className="text-accent-ink hover:underline">export .ics from the Timeline</Link> to
+            subscribe in your calendar app.</>
+          ) : (
+            <>While the app is open, get a browser notification the moment an action item turns critical.
+            For reminders when the app is <em>closed</em>, use <Link to="/timeline" className="text-accent-ink hover:underline">Export .ics on the Timeline page</Link> and
+            subscribe in Google/Apple Calendar — that&rsquo;s the reliable channel for a static app like this one.</>
+          )}
         </p>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm text-ink font-medium">Browser notifications</div>
+            <div className="text-sm text-ink font-medium">{isNative ? 'Device notifications' : 'Browser notifications'}</div>
             <div className="text-xs text-ink-tertiary mt-0.5">
               {!notifSupported
-                ? 'Not supported by this browser.'
+                ? 'Not supported on this device.'
                 : permission === 'denied'
-                ? 'Blocked by the browser — allow notifications for this site in your browser settings, then try again.'
+                ? isNative
+                  ? 'Blocked — enable notifications for Churner in your device settings, then try again.'
+                  : 'Blocked by the browser — allow notifications for this site in your browser settings, then try again.'
                 : notifyEnabled
-                ? 'On — fires for newly critical items while the app is open.'
+                ? isNative
+                  ? 'On — reminders fire on due dates and for newly critical items.'
+                  : 'On — fires for newly critical items while the app is open.'
                 : 'Off. This device will ask for permission when you enable it.'}
             </div>
           </div>
@@ -274,7 +295,7 @@ export default function SettingsView() {
         <h2 className="text-sm font-semibold text-ink mb-1">Danger Zone</h2>
         <p className="text-xs text-ink-tertiary mb-4">Disconnect from GitHub and clear all stored credentials. Your Gist data is not deleted.</p>
         <button
-          onClick={() => { gist.disconnect(); window.location.reload() }}
+          onClick={async () => { await gist.disconnect(); window.location.reload() }}
           className="bg-danger/20 hover:bg-danger/30 text-danger-ink hover:text-danger-ink border border-danger/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
           Disconnect
