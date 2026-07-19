@@ -1,8 +1,8 @@
 // Annual-fee schedule — the household's annual fees gathered across every open
 // card into one sorted list with totals. This file does NOT re-derive the
-// per-card date math: the next-fee date, 30-day refund window, and refund
-// deadline all come from getAnnualFeeInfo (lifecycle.js), so the Annual Fee
-// Tracker, the Timeline fee events, and the fee action items stay in agreement.
+// per-card date math: the next-fee date, the issuer's refund window, and the
+// refund deadline all come from getAnnualFeeInfo (lifecycle.js), so the Annual
+// Fee Tracker, the Timeline fee events, and the fee action items stay in agreement.
 // The one thing layered on here is first-year-waiver awareness, so a card whose
 // sign-up fee was waived shows its first *charged* fee instead of the waived one.
 
@@ -20,7 +20,7 @@ export function getCardFeeSchedule(card) {
   if (!info) return null // fee set but no open/post date to anchor the cycle
 
   const anchor = card.feePostDate || card.openDate
-  let { feeDate, daysUntilFee, inRefundWindow, refundDaysLeft, refundDeadline } = info
+  let { feeDate, daysUntilFee, inRefundWindow, refundDaysLeft, refundDeadline, refundDays } = info
   let waivedFirstYear = false
 
   // First-year waiver: the sign-up fee (at the anchor date itself) doesn't post.
@@ -37,7 +37,7 @@ export function getCardFeeSchedule(card) {
       inRefundWindow = false
       refundDaysLeft = null
       const rd = new Date(next)
-      rd.setDate(rd.getDate() + 30)
+      rd.setDate(rd.getDate() + refundDays)
       refundDeadline = rd.toISOString()
       waivedFirstYear = true
     }
@@ -51,6 +51,7 @@ export function getCardFeeSchedule(card) {
     inRefundWindow,
     refundDaysLeft,
     refundDeadline,
+    refundDays,
     waivedFirstYear,
     // True when the countdown is anchored on the explicit fee post date rather
     // than the open-date anniversary — the tracker notes which is in play.

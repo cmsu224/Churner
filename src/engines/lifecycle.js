@@ -1,24 +1,47 @@
 import { isRetired } from '../utils/statusMeta'
 
+// How many days after an annual fee posts you can cancel (or downgrade) and
+// still get it refunded IN FULL. 30 days is the industry norm (Chase, Amex,
+// US Bank — and the conservative default for issuers with no consistent
+// policy, like Bank of America); verified longer windows: Citi 37d, Capital
+// One 39d (cancellations — downgrades there are inconsistent), Barclays 60d.
+// Sources: One Mile at a Time annual-fee refund-rules guide (Aug 2025),
+// Doctor of Credit issuer refund rules.
+const FEE_REFUND_DAYS = [
+  ['citi', 37],
+  ['capital one', 39],
+  ['barclay', 60],
+]
+
+export function getFeeRefundDays(card) {
+  const issuer = (card?.issuer ?? '').toLowerCase()
+  for (const [key, days] of FEE_REFUND_DAYS) {
+    if (issuer.includes(key)) return days
+  }
+  return 30
+}
+
 // Annual fee: posts each year on the anniversary of the fee anchor — the
 // recorded "Annual Fee Post Date" when the user set one (statement fee dates
 // often lag the open date), otherwise the open date.
-// Cancel BEFORE it posts = no fee. Cancel WITHIN 30 days after = full refund.
+// Cancel BEFORE it posts = no fee. Cancel within the issuer's refund window
+// after it posts (getFeeRefundDays) = full refund.
 export function getAnnualFeeInfo(card) {
   const anchor = card.feePostDate || card.openDate
   if (!anchor || !(card.annualFee > 0)) return null
+  const refundDays = getFeeRefundDays(card)
   const open = new Date(anchor)
   const today = new Date()
   let feeDate = new Date(open)
   feeDate.setFullYear(today.getFullYear())
-  // If this year's fee date is already >30 days in the past, jump to next year
-  if (today - feeDate > 30 * 86400000) feeDate.setFullYear(today.getFullYear() + 1)
+  // If this year's fee date is already past its refund window, jump to next year
+  if (today - feeDate > refundDays * 86400000) feeDate.setFullYear(today.getFullYear() + 1)
   const daysUntilFee = Math.ceil((feeDate - today) / 86400000)
-  const inRefundWindow = daysUntilFee < 0 // fee already posted, within 30d?
-  const refundDaysLeft = inRefundWindow ? 30 + daysUntilFee : null
+  const inRefundWindow = daysUntilFee < 0 // fee already posted, refund clock running
+  const refundDaysLeft = inRefundWindow ? refundDays + daysUntilFee : null
   const refundDeadline = new Date(feeDate)
-  refundDeadline.setDate(refundDeadline.getDate() + 30)
-  return { feeDate: feeDate.toISOString(), daysUntilFee, inRefundWindow, refundDaysLeft, refundDeadline: refundDeadline.toISOString() }
+  refundDeadline.setDate(refundDeadline.getDate() + refundDays)
+  return { feeDate: feeDate.toISOString(), daysUntilFee, inRefundWindow, refundDaysLeft, refundDeadline: refundDeadline.toISOString(), refundDays }
 }
 
 // 12-month close shield — the card version of the bank 181-day clawback rule.
