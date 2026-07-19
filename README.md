@@ -429,7 +429,13 @@ boot hydration), `src/native/notifications.js` (permission + scheduling), and
 The mobile app is developed on a **dedicated long-lived branch** (`main` stays
 the web dashboard and the GitHub Pages deploy). The `android/` and `ios/`
 projects are committed; generated build output and CocoaPods are gitignored.
-**Periodically merge `main` into the mobile branch** to pick up new web features.
+**Merges flow one way only — `main` → the mobile branch** — to pick up new web
+features; the mobile branch is never merged back into `main`.
+
+**See [`docs/MOBILE.md`](docs/MOBILE.md)** for the exact merge-from-`main`
+workflow, the list of files that can conflict, the "does this feature add a
+native seam?" checklist, and the on-device smoke test. (That doc lives on the
+mobile branch.)
 
 ### Build & run
 
