@@ -75,19 +75,31 @@ const guidanceTone = {
 }
 
 // The cancel-or-downgrade verdict from the guidance engine. Compact mode is a
-// single truncated line (verdict + a few-word summary; the full reason lives
-// in the hover tooltip) for the collapsed card; full mode spells the reason
-// out for the expanded view, where there's room.
+// single truncated line for the collapsed card — when the engine computed a
+// best-exit window (clawback-safe AND the fee refunds), the line leads with
+// those dates; the full reason lives in the hover tooltip. Full mode spells
+// everything out for the expanded view, where there's room.
 function GuidanceLine({ guidance, compact = false }) {
   const tone = guidanceTone[guidance.tone] ?? 'text-ink-secondary'
-  const full = `${guidance.verdict}${guidance.date ? ` (${fmtDate(guidance.date)})` : ''} — ${guidance.reason}`
+  const w = guidance.window
+  const windowText = w && (w.end
+    ? `cancel or downgrade ${fmtDate(w.start)} → ${fmtDate(w.end)}`
+    : `cancel or downgrade any time after ${fmtDate(w.start)}`)
+  const full = w
+    ? `${guidance.verdict}: ${windowText} — ${guidance.reason}`
+    : `${guidance.verdict}${guidance.date ? ` (${fmtDate(guidance.date)})` : ''} — ${guidance.reason}`
   if (compact) {
     return (
       <div className="flex items-center gap-1.5 text-xs min-w-0" title={full}>
         <Lightbulb size={12} className={`${tone} flex-shrink-0`} />
         <span className="truncate">
           <span className={`font-medium ${tone}`}>{guidance.verdict}</span>
-          <span className="text-ink-muted"> — {guidance.summary}</span>
+          <span className="text-ink-muted">
+            {' — '}
+            {w
+              ? (w.end ? `exit ${fmtDate(w.start)} → ${fmtDate(w.end)}` : `exit after ${fmtDate(w.start)}`)
+              : guidance.summary}
+          </span>
         </span>
       </div>
     )
@@ -98,8 +110,9 @@ function GuidanceLine({ guidance, compact = false }) {
       <span className="text-ink-muted">
         <span className={`font-medium ${tone}`}>
           {guidance.verdict}
-          {guidance.date ? ` (${fmtDate(guidance.date)})` : ''}
+          {w ? '' : guidance.date ? ` (${fmtDate(guidance.date)})` : ''}
         </span>
+        {w && <> — <span className="text-ink font-medium">{windowText}</span></>}
         {' — '}{guidance.reason}
       </span>
     </div>

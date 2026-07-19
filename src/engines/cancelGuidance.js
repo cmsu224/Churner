@@ -11,7 +11,7 @@
 // Downgrade/Close Due): while a bonus is still being earned the only sane
 // advice is "finish the spend", and that's the spend tracker's job.
 //
-// Shape: { tone, verdict, summary, reason, date }
+// Shape: { tone, verdict, summary, reason, date, window }
 //   tone:    'wait'   — clawback risk, don't cancel yet
 //            'act'    — money on the table right now (refund window / fee ≤45d)
 //            'decide' — a fee decision is coming, plan for it
@@ -19,6 +19,12 @@
 //   summary: a few words for the one-line collapsed card
 //   reason:  the full explanation (tooltip / expanded view)
 //   date:    the deadline/decision date the verdict hinges on (ISO), when one exists
+//   window:  { start, end } — the BEST-EXIT window (wait tone only): start is
+//            the day the clawback clears; end is when the issuer's fee-refund
+//            window for the first escapable fee cycle shuts (null when the
+//            card has no fee, meaning "any time after start"). Cancelling or
+//            downgrading inside it dodges the clawback AND never eats a fee —
+//            before the fee posts it's avoided, after it posts it refunds.
 
 import { getCardCloseShield } from './lifecycle'
 import { getCardFeeSchedule } from './annualFees'
@@ -34,14 +40,45 @@ export function getCancelGuidance(card) {
   // Clawback risk trumps everything — never cancel a card whose bonus the
   // issuer can still take back.
   if (shield && !shield.safe) {
+    if (!shield.safeDate) {
+      return {
+        tone: 'wait',
+        verdict: 'Wait to cancel',
+        summary: 'add an open date to track clawback',
+        reason: 'set an open date to track the 12-month clawback window',
+        date: null,
+      }
+    }
+    if (!fee) {
+      return {
+        tone: 'wait',
+        verdict: 'Wait to cancel',
+        summary: `clawback risk ends in ${shield.daysRemaining}d`,
+        reason: `closing in the first year risks a bonus clawback — clear in ${shield.daysRemaining}d${card.annualFee > 0 ? '; add an open or fee-post date to time the fee refund too' : '; no annual fee to time around'}`,
+        date: shield.safeDate,
+        window: { start: shield.safeDate, end: null },
+      }
+    }
+    // Best-exit window: opens when the clawback clears, closes when the
+    // refund window of the first escapable fee cycle shuts. Advance yearly
+    // cycles past any whose refund deadline is already gone by then — that
+    // fee is sunk (rare: an early fee-post date with a late-cleared shield).
+    const safe = new Date(shield.safeDate)
+    const feeDate = new Date(fee.feeDate)
+    const deadline = new Date(fee.refundDeadline)
+    let feeSunk = false
+    while (deadline < safe) {
+      feeDate.setFullYear(feeDate.getFullYear() + 1)
+      deadline.setFullYear(deadline.getFullYear() + 1)
+      feeSunk = true
+    }
     return {
       tone: 'wait',
-      verdict: 'Wait to cancel',
-      summary: shield.safeDate ? `clawback risk ends in ${shield.daysRemaining}d` : 'add an open date to track clawback',
-      reason: shield.safeDate
-        ? `closing in the first year risks a bonus clawback — clear in ${shield.daysRemaining}d`
-        : 'set an open date to track the 12-month clawback window',
+      verdict: 'Wait, then exit',
+      summary: `clawback risk ends in ${shield.daysRemaining}d`,
+      reason: `clawback risk ends in ${shield.daysRemaining}d — cancel or downgrade inside the window and the $${Math.round(fee.annualFee)} fee never sticks: before it posts it's avoided, and up to ${fee.refundDays}d after it posts it refunds in full${feeSunk ? '. Heads-up: one fee posts before the clawback clears and won’t refund' : ''}`,
       date: shield.safeDate,
+      window: { start: shield.safeDate, end: deadline.toISOString() },
     }
   }
 

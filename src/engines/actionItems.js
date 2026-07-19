@@ -76,15 +76,15 @@ export function generateActionItems(state) {
         const rl = fi.refundDaysLeft
         items.push({ id: `fee-refund-${card.id}`, type: rl <= 5 ? 'critical' : 'warning', category: 'annual_fee', cardId: card.id, memberId: card.memberId,
           title: `Annual fee posted — ${rl}d left to cancel for refund: ${n}`,
-          detail: `$${card.annualFee} annual fee already posted. You have ${rl} days to call and cancel for a FULL REFUND (30-day window). Or request a product change to a no-fee version to keep the credit history. Call the number on the back of the card. ${pn}'s card.`,
+          detail: `$${card.annualFee} annual fee already posted. You have ${rl} days to call and cancel for a FULL REFUND (${fi.refundDays}-day window). Or request a product change to a no-fee version to keep the credit history. Call the number on the back of the card. ${pn}'s card.`,
           dueDate: fi.refundDeadline, action: rl <= 5 ? 'CALL NOW to cancel/downgrade' : 'Call to cancel or downgrade' })
       } else if (!fi.inRefundWindow && fi.daysUntilFee >= 0 && fi.daysUntilFee <= 45) {
         const d = fi.daysUntilFee
         items.push({ id: `fee-soon-${card.id}`, type: d <= 7 ? 'warning' : 'info', category: 'annual_fee', cardId: card.id, memberId: card.memberId,
           title: `Annual fee in ${d}d: ${n} ($${card.annualFee})`,
           detail: d <= 14
-            ? `Fee posts in ${d} days. Option A: Cancel before it posts (no fee owed). Option B: Let it post → use any credits/perks → cancel within 30 days for a full refund. Call the retention line first and ask for a retention offer. ${pn}'s card.`
-            : `$${card.annualFee} annual fee coming up. Pro move: call the retention line, ask for a retention offer. Even if they say no, let the fee post then cancel within 30 days for a full refund. ${pn}'s card.`,
+            ? `Fee posts in ${d} days. Option A: Cancel before it posts (no fee owed). Option B: Let it post → use any credits/perks → cancel within ${fi.refundDays} days for a full refund. Call the retention line first and ask for a retention offer. ${pn}'s card.`
+            : `$${card.annualFee} annual fee coming up. Pro move: call the retention line, ask for a retention offer. Even if they say no, let the fee post then cancel within ${fi.refundDays} days for a full refund. ${pn}'s card.`,
           dueDate: fi.feeDate, action: d <= 14 ? 'Decide cancel strategy' : 'Call retention line' })
       }
     }

@@ -7,6 +7,7 @@
 // carries `estimated: true` whenever the bonus isn't cashback.
 
 import { getCardProgram, resolvePointValueCents } from '../utils/programs'
+import { getFeeRefundDays } from './lifecycle'
 
 // Dollar value of a card's sign-up bonus, regardless of whether it's been
 // received yet. Cashback is a $ figure already; points/miles use the card's
@@ -57,15 +58,16 @@ export function isAccountBonusPending(acct) {
 // yet isn't charged early. Adjustments:
 //   - feeWaivedFirstYear skips the first posting
 //   - the closed date stops the clock, and a posting the card was closed
-//     within 30 days AFTER is fully refunded under the standard 30-day
-//     cancel-for-refund rule (same rule the Annual Fee tracker uses), so it
-//     doesn't count either
+//     within the issuer's refund window AFTER (getFeeRefundDays — 30d for most
+//     issuers, longer for Citi/Capital One/Barclays; same rule the Annual Fee
+//     tracker uses) is fully refunded, so it doesn't count either
 function computeFeesPaid(card) {
   if (!(card.annualFee > 0) || !card.openDate) return 0
   const open = new Date(card.openDate)
   const end = card.closedDate ? new Date(card.closedDate) : new Date()
   if (end < open) return 0
   const anchor = card.feePostDate ? new Date(card.feePostDate) : open
+  const refundDays = getFeeRefundDays(card)
   // First posting: the anchor's month/day in the opening year, or its next
   // occurrence if that falls before the open date itself.
   const first = new Date(anchor)
@@ -73,7 +75,7 @@ function computeFeesPaid(card) {
   if (first < open) first.setFullYear(first.getFullYear() + 1)
   let postings = 0
   for (const d = new Date(first); d <= end; d.setFullYear(d.getFullYear() + 1)) {
-    if (card.closedDate && end - d <= 30 * 86400000) continue // refunded on cancel
+    if (card.closedDate && end - d <= refundDays * 86400000) continue // refunded on cancel
     postings++
   }
   if (card.feeWaivedFirstYear) postings -= 1
