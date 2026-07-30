@@ -36,13 +36,15 @@ function CardRow({ card, age, daysSinceUsed, usageStatus, isOldest }) {
         </div>
         {(card.annualFee > 0) && (() => {
           const fi = getAnnualFeeInfo(card)
-          const feeColor = fi && fi.daysUntilFee >= 0 && fi.daysUntilFee <= 30
-            ? 'text-warning-ink'
-            : 'text-ink-faint'
+          const live = fi && (fi.awaitingPost || fi.inRefundWindow || (fi.daysUntilFee >= 0 && fi.daysUntilFee <= 30))
           return (
-            <div className={`text-xs ${feeColor}`}>
-              ${card.annualFee}/yr · fee due {fi ? fmtDateShort(fi.feeDate) : '—'}
-              {fi && fi.daysUntilFee >= 0 && fi.daysUntilFee <= 45 && (
+            <div className={`text-xs ${live ? 'text-warning-ink' : 'text-ink-faint'}`}>
+              ${card.annualFee}/yr ·{' '}
+              {!fi ? 'fee due —'
+                : fi.inRefundWindow ? `fee posted · ${fi.refundDaysLeft}d to refund`
+                : fi.awaitingPost ? `fee due, not posted yet · by ${fmtDateShort(fi.expectedBy)}`
+                : `fee due ${fmtDateShort(fi.feeDate)}`}
+              {fi && !fi.inRefundWindow && !fi.awaitingPost && fi.daysUntilFee >= 0 && fi.daysUntilFee <= 45 && (
                 <span> ({fi.daysUntilFee}d)</span>
               )}
             </div>

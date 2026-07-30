@@ -18,6 +18,7 @@ export const ACCOUNT_STATUSES = [
   { value: 'Bonus Received', label: 'Bonus Received' },
   { value: 'Cooling Period', label: 'Holding (Clawback)' },
   { value: 'Safe to Close',  label: 'Safe to Close' },
+  { value: 'Closed',         label: 'Closed' },
 ]
 
 // Application funnel statuses (stored lowercase to stay distinct from the

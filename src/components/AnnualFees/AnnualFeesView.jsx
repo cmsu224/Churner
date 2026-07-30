@@ -8,12 +8,13 @@ import IssuerLogo from '../shared/IssuerLogo'
 import PlayerBadge from '../shared/PlayerBadge'
 import { Pill } from '../shared/FilterBar'
 import { getAnnualFeeSchedule } from '../../engines/annualFees'
-import { fmt$, fmtDate } from '../../utils/format'
-import { Receipt, CalendarClock, AlertCircle, ShieldCheck } from 'lucide-react'
+import { fmt$, fmtDate, todayISODate } from '../../utils/format'
+import { Receipt, CalendarClock, AlertCircle, ShieldCheck, Hourglass } from 'lucide-react'
 
-// The one-line "when does it hit" summary for a fee row, with its tone. Refund
-// windows are the most urgent (money already out the door, clock running), then
-// upcoming fees by proximity, then the calm "next fee is months away" state.
+// The one-line "when does it hit" summary for a fee row, with its tone. A
+// confirmed posting is the most urgent (money out the door, refund clock
+// running), then a fee due but not yet on the statement, then upcoming fees by
+// proximity, then the calm "next fee is months away" state.
 function dueMeta(row) {
   if (row.inRefundWindow) {
     const d = row.refundDaysLeft
@@ -24,24 +25,40 @@ function dueMeta(row) {
       date: `by ${fmtDate(row.refundDeadline)}`,
     }
   }
+  if (row.awaitingPost) {
+    return {
+      tone: 'text-warning-ink',
+      icon: Hourglass,
+      label: row.daysAwaiting === 0
+        ? 'Fee due today — bills on the next statement'
+        : `Fee due ${row.daysAwaiting}d ago — ${row.overdue ? 'check your statement' : 'bills on the next statement'}`,
+      date: `expected by ${fmtDate(row.expectedBy)}`,
+    }
+  }
   const d = row.daysUntilFee
   const soonTone = d <= 14 ? 'text-warning-ink' : d <= 45 ? 'text-info-ink' : 'text-ink-secondary'
   return {
     tone: soonTone,
     icon: CalendarClock,
-    label: row.waivedFirstYear ? `First fee in ${d}d` : `Fee posts in ${d}d`,
+    label: row.waivedFirstYear ? `First fee due in ${d}d` : `Fee due in ${d}d`,
     date: fmtDate(row.feeDate),
   }
 }
 
 export default function AnnualFeesView() {
-  const { state } = useChurn()
+  const { state, dispatch } = useChurn()
   const navigate = useNavigate()
   const members = state.members ?? []
   const [filterMember, setFilterMember] = useState('all')
 
   const cards = (state.creditCards ?? []).filter(c => filterMember === 'all' || c.memberId === filterMember)
-  const { rows, undated, totalAnnual, inRefund, dueSoon, next } = getAnnualFeeSchedule(cards)
+  const { rows, undated, totalAnnual, inRefund, awaiting, dueSoon, next } = getAnnualFeeSchedule(cards)
+
+  // Recording the real post date is the only thing that starts a refund clock —
+  // and it pins every later cycle to this card's true statement date.
+  function confirmFeePosted(card) {
+    dispatch({ type: 'UPDATE_CARD', payload: { ...card, feePostDate: todayISODate() } })
+  }
 
   const hasAnyFeeCards = (state.creditCards ?? []).some(c => (c.annualFee > 0) && c.status !== 'Closed' && c.status !== 'Downgraded')
 
@@ -66,11 +83,15 @@ export default function AnnualFeesView() {
             <StatCard label="Fees per year" value={fmt$(totalAnnual)} sub={`across ${rows.length} card${rows.length !== 1 ? 's' : ''}`} />
             <StatCard
               label="Next fee due"
-              value={next ? fmtDate(next.feeDate) : '—'}
+              value={!next ? '—' : next.awaitingPost ? 'Any day now' : fmtDate(next.feeDate)}
               sub={next ? next.card.cardName : 'nothing scheduled'}
             />
             <StatCard label="Due within 45 days" value={dueSoon.length} tone={dueSoon.length ? 'warning' : 'default'} />
-            <StatCard label="In refund window" value={inRefund.length} tone={inRefund.length ? 'danger' : 'default'} sub="cancel for full refund" />
+            {inRefund.length === 0 && awaiting.length > 0 ? (
+              <StatCard label="Waiting to post" value={awaiting.length} tone="warning" sub="confirm when it hits" />
+            ) : (
+              <StatCard label="In refund window" value={inRefund.length} tone={inRefund.length ? 'danger' : 'default'} sub="cancel for full refund" />
+            )}
           </div>
 
           {/* Person filter */}
@@ -99,10 +120,13 @@ export default function AnnualFeesView() {
                 const Icon = meta.icon
                 const card = row.card
                 return (
-                  <button
+                  <div
                     key={row.cardId}
+                    className="bg-surface border border-edge hover:border-edge-strong rounded-xl transition-colors overflow-hidden"
+                  >
+                  <button
                     onClick={() => navigate(`/cards?highlight=${row.cardId}`)}
-                    className="w-full text-left bg-surface border border-edge hover:border-edge-strong rounded-xl p-4 transition-colors"
+                    className="w-full text-left p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -136,6 +160,24 @@ export default function AnnualFeesView() {
                       <span className="tabular-nums">{meta.date}</span>
                     </div>
                   </button>
+
+                  {/* Nothing claims the fee posted until you say so — this is
+                      what starts the refund clock, from the real date. */}
+                  {row.awaitingPost && (
+                    <div className="px-4 pb-3 flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-[11px] text-ink-faint">
+                        Not posted yet — confirm when it shows up to start the {row.refundDays}-day refund clock
+                      </span>
+                      <button
+                        onClick={() => confirmFeePosted(card)}
+                        className="flex items-center gap-1 text-xs border border-edge-strong text-ink-tertiary hover:text-warning-ink hover:border-warning/50 px-2.5 py-1 rounded-full transition-colors flex-shrink-0"
+                      >
+                        <Receipt size={11} />
+                        Fee posted today
+                      </button>
+                    </div>
+                  )}
+                  </div>
                 )
               })}
 
@@ -172,8 +214,10 @@ export default function AnnualFeesView() {
           )}
 
           <p className="text-[11px] text-ink-faint mt-4">
-            Fees post on the anniversary of each card&rsquo;s open date — or its Annual Fee Post Date when set. Cancel before a fee posts to owe nothing,
-            or within 30 days after for a full refund. These same dates feed the Timeline calendar and your action items.
+            A fee cycles on the anniversary of each card&rsquo;s open date — or of its confirmed Annual Fee Post Date — but issuers bill it on the
+            <strong className="font-medium"> first statement after that</strong>, so it can land weeks later. Until you confirm the real date the app
+            won&rsquo;t claim it posted (and you owe nothing if you cancel first); confirming starts the 30&ndash;60 day cancel-for-full-refund clock
+            and pins the card&rsquo;s later cycles to its true statement date. These same dates feed the Timeline calendar and your action items.
           </p>
         </>
       )}

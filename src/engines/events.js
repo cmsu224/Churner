@@ -116,8 +116,22 @@ export function collectEvents(state) {
         events.push(makeEvent({
           kind: 'fee_post',
           date: fi.feeDate,
-          title: `Annual fee posts: ${n}`,
-          detail: `${fmt$(card.annualFee)} annual fee due to post — call the retention line first and ask for a retention offer before it hits. ${pn}'s card.`,
+          title: `Annual fee ${fi.confirmed ? 'posts' : 'due'}: ${n}`,
+          detail: fi.confirmed
+            ? `${fmt$(card.annualFee)} annual fee posts on this date — call the retention line first and ask for a retention offer before it hits. ${pn}'s card.`
+            : `${fmt$(card.annualFee)} annual fee cycle date — issuers bill it on the next statement, so expect it within ${fi.lagDays} days. Call the retention line first and ask for a retention offer before it hits. ${pn}'s card.`,
+          memberId: card.memberId,
+          cardId: card.id,
+        }))
+      }
+      // Awaiting confirmation: mark the far end of the expected window, so the
+      // calendar carries a "did this ever post?" checkpoint.
+      if (fi.awaitingPost && fi.daysUntilExpectedBy >= 0) {
+        events.push(makeEvent({
+          kind: 'fee_post',
+          date: fi.expectedBy,
+          title: `Annual fee expected by: ${n}`,
+          detail: `${fmt$(card.annualFee)} annual fee was due on its cycle date and should land by now. Check the statement — once it posts, mark it posted on the card to start the ${fi.refundDays}-day cancel-for-full-refund clock. ${pn}'s card.`,
           memberId: card.memberId,
           cardId: card.id,
         }))

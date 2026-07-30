@@ -7,7 +7,7 @@
 // carries `estimated: true` whenever the bonus isn't cashback.
 
 import { getCardProgram, resolvePointValueCents } from '../utils/programs'
-import { getFeeRefundDays } from './lifecycle'
+import { getFeeRefundDays, STATEMENT_LAG_DAYS } from './lifecycle'
 
 // Dollar value of a card's sign-up bonus, regardless of whether it's been
 // received yet. Cashback is a $ figure already; points/miles use the card's
@@ -51,11 +51,14 @@ export function isAccountBonusPending(acct) {
 }
 
 // Fee-counting rule (estimate — issuers vary, this is a reasonable default):
-// fees post yearly on the card's FEE ANCHOR — the recorded Annual Fee Post
-// Date when set (statement fee dates often lag the open date), otherwise the
-// open date, where the opening-day posting is the year-1 fee. Only postings
-// whose date has actually passed count, so a second-year fee that hasn't hit
-// yet isn't charged early. Adjustments:
+// fees cycle yearly on the card's FEE ANCHOR — the confirmed Annual Fee Post
+// Date when set, otherwise the open date, where the opening-day cycle is the
+// year-1 fee. A cycle only counts once the fee could actually have been
+// BILLED: issuers put it on the first statement after the cycle date, so an
+// unconfirmed anchor allows a statement cycle of lag (STATEMENT_LAG_DAYS —
+// the same rule the fee tracker waits on). That keeps a brand-new card from
+// booking its first fee as paid on day one, while the card itself still says
+// the fee hasn't posted. Adjustments:
 //   - feeWaivedFirstYear skips the first posting
 //   - the closed date stops the clock, and a posting the card was closed
 //     within the issuer's refund window AFTER (getFeeRefundDays — 30d for most
@@ -68,13 +71,16 @@ function computeFeesPaid(card) {
   if (end < open) return 0
   const anchor = card.feePostDate ? new Date(card.feePostDate) : open
   const refundDays = getFeeRefundDays(card)
+  // A confirmed post date is the real billing date; an open-date anchor is only
+  // the cycle date, so allow the statement lag before counting the fee.
+  const lagMs = (card.feePostDate ? 0 : STATEMENT_LAG_DAYS) * 86400000
   // First posting: the anchor's month/day in the opening year, or its next
   // occurrence if that falls before the open date itself.
   const first = new Date(anchor)
   first.setFullYear(open.getFullYear())
   if (first < open) first.setFullYear(first.getFullYear() + 1)
   let postings = 0
-  for (const d = new Date(first); d <= end; d.setFullYear(d.getFullYear() + 1)) {
+  for (const d = new Date(first); d - end <= -lagMs; d.setFullYear(d.getFullYear() + 1)) {
     if (card.closedDate && end - d <= refundDays * 86400000) continue // refunded on cancel
     postings++
   }

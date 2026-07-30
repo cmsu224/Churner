@@ -22,27 +22,141 @@ export function getFeeRefundDays(card) {
   return 30
 }
 
-// Annual fee: posts each year on the anniversary of the fee anchor — the
-// recorded "Annual Fee Post Date" when the user set one (statement fee dates
-// often lag the open date), otherwise the open date.
-// Cancel BEFORE it posts = no fee. Cancel within the issuer's refund window
-// after it posts (getFeeRefundDays) = full refund.
+// Issuers bill the annual fee on the first STATEMENT that closes on or after
+// the cycle date, not on the cycle date itself — so a fee routinely lands
+// weeks late. One statement cycle plus a few days of processing slack is the
+// window the app waits before calling a fee overdue.
+export const STATEMENT_LAG_DAYS = 35
+// Once a real post date has been confirmed, next year's posting lands on the
+// same statement — only a few days of drift, not a whole cycle.
+export const CONFIRMED_LAG_DAYS = 7
+
+// ── Calendar-day helpers ──────────────────────────────────────────────────
+// Stored dates are calendar days ('YYYY-MM-DD'). `new Date('2026-07-15')`
+// parses as UTC midnight, which renders (and subtracts) as the day before in
+// every negative-offset timezone — a day of error on a refund countdown. Parse
+// to LOCAL midnight instead so day math and formatting agree.
+function parseDay(value) {
+  if (!value) return null
+  const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  const d = new Date(value)
+  return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+function startOfToday() {
+  const n = new Date()
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate())
+}
+function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d }
+function addYears(date, n) { const d = new Date(date); d.setFullYear(d.getFullYear() + n); return d }
+// Whole days between two local midnights (Math.round absorbs DST's ±1 hour).
+function daysBetween(from, to) { return Math.round((to - from) / 86400000) }
+
+// Annual fee: where this card is in its current fee cycle, and what can still
+// be done about it.
+//
+// The fee does NOT post on the date the app can predict. Issuers bill it on the
+// first statement closing on or after the cycle date — the open date for year
+// one, the anniversary after that — so it can land up to a statement cycle
+// late. The sign-up fee on a card opened last week almost certainly hasn't
+// posted yet. So the engine never *assumes* a posting: it predicts a window and
+// waits for the user to confirm the real date (the card's "Fee posted" button,
+// stored as feePostDate). Only a CONFIRMED posting starts the
+// cancel-for-full-refund clock, so the app can't claim "21 days left to cancel
+// for a refund" on a fee that was never charged.
+//
+// Phases:
+//   scheduled — the cycle date is still ahead; cancel before it and owe nothing
+//   awaiting  — the cycle date passed with no confirmed posting: the fee is due
+//               to hit any day (through expectedBy). No refund clock yet.
+//   posted    — confirmed: feePostDate names this cycle, so inRefundWindow /
+//               refundDaysLeft count from the date it actually hit.
+//
+// Confirming one posting also pins every later cycle to the real statement
+// date, which is what makes the second year onward exact.
 export function getAnnualFeeInfo(card) {
-  const anchor = card.feePostDate || card.openDate
-  if (!anchor || !(card.annualFee > 0)) return null
+  if (!card || !(card.annualFee > 0)) return null
+  const confirmedPost = parseDay(card.feePostDate)
+  const openDate = parseDay(card.openDate)
+  const anchor = confirmedPost ?? openDate
+  if (!anchor) return null // fee set but no date to anchor the cycle on
+
   const refundDays = getFeeRefundDays(card)
-  const open = new Date(anchor)
-  const today = new Date()
-  let feeDate = new Date(open)
-  feeDate.setFullYear(today.getFullYear())
-  // If this year's fee date is already past its refund window, jump to next year
-  if (today - feeDate > refundDays * 86400000) feeDate.setFullYear(today.getFullYear() + 1)
-  const daysUntilFee = Math.ceil((feeDate - today) / 86400000)
-  const inRefundWindow = daysUntilFee < 0 // fee already posted, refund clock running
-  const refundDaysLeft = inRefundWindow ? refundDays + daysUntilFee : null
-  const refundDeadline = new Date(feeDate)
-  refundDeadline.setDate(refundDeadline.getDate() + refundDays)
-  return { feeDate: feeDate.toISOString(), daysUntilFee, inRefundWindow, refundDaysLeft, refundDeadline: refundDeadline.toISOString(), refundDays }
+  const today = startOfToday()
+  const iso = (d) => d.toISOString()
+
+  // A confirmed posting owns its cycle while it's still ahead or still
+  // refundable — the one case where the refund countdown is real.
+  if (confirmedPost) {
+    const since = daysBetween(confirmedPost, today)
+    if (since <= refundDays) {
+      const posted = since >= 0
+      const refundDeadline = addDays(confirmedPost, refundDays)
+      return {
+        phase: posted ? 'posted' : 'scheduled',
+        confirmed: true,
+        posted,
+        awaitingPost: false,
+        overdue: false,
+        feeDate: iso(confirmedPost),
+        expectedBy: iso(confirmedPost),
+        daysUntilFee: -since,
+        daysUntilExpectedBy: -since,
+        daysAwaiting: 0,
+        inRefundWindow: posted,
+        refundDaysLeft: posted ? refundDays - since : null,
+        refundDeadline: iso(refundDeadline),
+        refundDeadlineLatest: iso(refundDeadline),
+        refundDays,
+        lagDays: 0,
+        waivedFirstYear: false,
+        lastPostedDate: posted ? iso(confirmedPost) : null,
+        anchoredOnPostDate: true,
+      }
+    }
+  }
+
+  // Otherwise project the cycle forward from the anchor's month/day. A cycle is
+  // live until even the latest posting it could produce has run out its refund
+  // window; cycles covered by a first-year waiver are skipped outright.
+  const lag = confirmedPost ? CONFIRMED_LAG_DAYS : STATEMENT_LAG_DAYS
+  const waiverUntil = card.feeWaivedFirstYear && openDate ? addYears(openDate, 1) : null
+  let cycle = new Date(anchor)
+  let waived = false
+  for (let guard = 0; guard < 120; guard++) {
+    if (waiverUntil && cycle < waiverUntil) { cycle = addYears(cycle, 1); waived = true; continue }
+    if (addDays(cycle, lag + refundDays) < today) { cycle = addYears(cycle, 1); continue }
+    break
+  }
+
+  const expectedBy = addDays(cycle, lag)
+  const daysUntilFee = daysBetween(today, cycle)
+  const awaitingPost = daysUntilFee <= 0
+  return {
+    phase: awaitingPost ? 'awaiting' : 'scheduled',
+    confirmed: false,
+    posted: false,
+    awaitingPost,
+    // Past even the late end of the expected window and still unconfirmed —
+    // either it slipped by unnoticed or the anchor date is wrong.
+    overdue: awaitingPost && expectedBy < today,
+    feeDate: iso(cycle),
+    expectedBy: iso(expectedBy),
+    daysUntilFee,
+    daysUntilExpectedBy: daysBetween(today, expectedBy),
+    daysAwaiting: awaitingPost ? -daysUntilFee : 0,
+    inRefundWindow: false,
+    refundDaysLeft: null,
+    // Unconfirmed, so the deadline is a range: the earliest it could shut (fee
+    // posts on the cycle date) is the safe one to plan against.
+    refundDeadline: iso(addDays(cycle, refundDays)),
+    refundDeadlineLatest: iso(addDays(expectedBy, refundDays)),
+    refundDays,
+    lagDays: lag,
+    waivedFirstYear: waived,
+    lastPostedDate: confirmedPost ? iso(confirmedPost) : null,
+    anchoredOnPostDate: !!confirmedPost,
+  }
 }
 
 // 12-month close shield — the card version of the bank 181-day clawback rule.
@@ -206,12 +320,11 @@ export function getCardAttentionScore(card) {
 export function getAccountNextStatus(account) {
   if (!account) return null
   const { status, openedDate } = account
-  const today = new Date()
-  if (status === 'Bonus Received') return 'Cooling Period'
-  if ((status === 'Cooling Period' || status === 'Bonus Received') && openedDate) {
+  if (status !== 'Bonus Received' && status !== 'Cooling Period') return null
+  if (openedDate) {
     const safe = new Date(openedDate)
     safe.setDate(safe.getDate() + 181)
-    if (today >= safe) return 'Safe to Close'
+    if (new Date() >= safe) return 'Safe to Close'
   }
-  return null
+  return status === 'Bonus Received' ? 'Cooling Period' : null
 }
