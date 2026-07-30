@@ -69,21 +69,35 @@ export function generateActionItems(state) {
       }
     }
 
-    // Annual fee
+    // Annual fee. Three distinct states, and they must not be confused: the
+    // refund clock only runs on a CONFIRMED posting (see getAnnualFeeInfo).
     const fi = getAnnualFeeInfo(card)
     if (fi) {
       if (fi.inRefundWindow && fi.refundDaysLeft !== null) {
         const rl = fi.refundDaysLeft
         items.push({ id: `fee-refund-${card.id}`, type: rl <= 5 ? 'critical' : 'warning', category: 'annual_fee', cardId: card.id, memberId: card.memberId,
           title: `Annual fee posted — ${rl}d left to cancel for refund: ${n}`,
-          detail: `$${card.annualFee} annual fee already posted. You have ${rl} days to call and cancel for a FULL REFUND (${fi.refundDays}-day window). Or request a product change to a no-fee version to keep the credit history. Call the number on the back of the card. ${pn}'s card.`,
+          detail: `$${card.annualFee} annual fee posted on ${new Date(fi.feeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. You have ${rl} days to call and cancel for a FULL REFUND (${fi.refundDays}-day window). Or request a product change to a no-fee version to keep the credit history. Call the number on the back of the card. ${pn}'s card.`,
           dueDate: fi.refundDeadline, action: rl <= 5 ? 'CALL NOW to cancel/downgrade' : 'Call to cancel or downgrade' })
+      } else if (fi.awaitingPost) {
+        // The cycle date has passed but the fee hasn't been confirmed. Issuers
+        // bill it on the next statement, so this is the window where cancelling
+        // still costs nothing — and where the refund clock silently starts if
+        // the posting goes unnoticed.
+        const due = new Date(fi.feeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        const by = new Date(fi.expectedBy).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        items.push({ id: `fee-awaiting-${card.id}`, type: 'warning', category: 'annual_fee', cardId: card.id, memberId: card.memberId,
+          title: `Watch for the annual fee: ${n} ($${card.annualFee})`,
+          detail: fi.overdue
+            ? `The $${card.annualFee} fee was due on ${due} (${fi.daysAwaiting} days ago) and should have shown up by ${by}. Check the account: if it posted, tap "Fee posted" on the card to start the ${fi.refundDays}-day cancel-for-full-refund clock from the real date. If it never posted, the open/fee-post date on the card needs fixing. ${pn}'s card.`
+            : `The $${card.annualFee} fee is due on the ${due} cycle date, but issuers bill it on the next statement — expect it by ${by}. Until it posts you owe nothing, so cancelling or downgrading now costs $0. When it does show up, tap "Fee posted" on the card to start the ${fi.refundDays}-day cancel-for-full-refund clock. ${pn}'s card.`,
+          dueDate: fi.expectedBy, action: 'Check statement, then mark fee posted' })
       } else if (!fi.inRefundWindow && fi.daysUntilFee >= 0 && fi.daysUntilFee <= 45) {
         const d = fi.daysUntilFee
         items.push({ id: `fee-soon-${card.id}`, type: d <= 7 ? 'warning' : 'info', category: 'annual_fee', cardId: card.id, memberId: card.memberId,
           title: `Annual fee in ${d}d: ${n} ($${card.annualFee})`,
           detail: d <= 14
-            ? `Fee posts in ${d} days. Option A: Cancel before it posts (no fee owed). Option B: Let it post → use any credits/perks → cancel within ${fi.refundDays} days for a full refund. Call the retention line first and ask for a retention offer. ${pn}'s card.`
+            ? `Fee cycle hits in ${d} days (it bills on the statement after that, so allow a few weeks). Option A: Cancel before it posts (no fee owed). Option B: Let it post → use any credits/perks → cancel within ${fi.refundDays} days of the real post date for a full refund. Call the retention line first and ask for a retention offer. ${pn}'s card.`
             : `$${card.annualFee} annual fee coming up. Pro move: call the retention line, ask for a retention offer. Even if they say no, let the fee post then cancel within ${fi.refundDays} days for a full refund. ${pn}'s card.`,
           dueDate: fi.feeDate, action: d <= 14 ? 'Decide cancel strategy' : 'Call retention line' })
       }

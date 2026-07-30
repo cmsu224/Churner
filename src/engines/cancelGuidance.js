@@ -87,8 +87,20 @@ export function getCancelGuidance(card) {
       tone: 'act',
       verdict: 'Decide now',
       summary: `full refund if closed within ${fee.refundDaysLeft}d`,
-      reason: `the $${Math.round(fee.annualFee)} fee just posted — cancel or downgrade within ${fee.refundDaysLeft}d for a full refund`,
+      reason: `the $${Math.round(fee.annualFee)} fee posted — cancel or downgrade within ${fee.refundDaysLeft}d for a full refund`,
       date: fee.refundDeadline,
+    }
+  }
+
+  // Cycle date reached, nothing confirmed: the fee is billed on the next
+  // statement, so it hasn't hit yet — cancelling now still dodges it entirely.
+  if (fee?.awaitingPost) {
+    return {
+      tone: 'act',
+      verdict: 'Fee lands any day',
+      summary: fee.overdue ? 'check your statement' : 'bills on the next statement',
+      reason: `the $${Math.round(fee.annualFee)} fee was due on the cycle date and posts with the next statement — cancel or downgrade before it hits and you owe nothing; once it shows up, mark it posted on the card and you get ${fee.refundDays}d to cancel for a full refund`,
+      date: fee.expectedBy,
     }
   }
 
@@ -97,8 +109,8 @@ export function getCancelGuidance(card) {
     return {
       tone: soon ? 'act' : 'decide',
       verdict: soon ? 'Cancel or downgrade soon' : 'No rush yet',
-      summary: soon ? `fee posts in ${fee.daysUntilFee}d` : `next fee in ${fee.daysUntilFee}d`,
-      reason: `the next $${Math.round(fee.annualFee)} fee posts in ${fee.daysUntilFee}d — downgrading to a no-fee card keeps the credit line and account age; cancelling before it posts also works${shield?.safe ? ' (clawback-safe)' : ''}`,
+      summary: soon ? `fee due in ${fee.daysUntilFee}d` : `next fee in ${fee.daysUntilFee}d`,
+      reason: `the next $${Math.round(fee.annualFee)} fee is due in ${fee.daysUntilFee}d${fee.confirmed ? '' : ' and bills on the statement after that'} — downgrading to a no-fee card keeps the credit line and account age; cancelling before it posts also works${shield?.safe ? ' (clawback-safe)' : ''}`,
       date: fee.feeDate,
     }
   }
