@@ -25,7 +25,9 @@ const AGE_RANGES = [
   { value: '2to4', label: '2–4yr' },
   { value: 'gt4',  label: '4+yr' },
 ]
-const DEFAULT_FILTERS = { statuses: [], issuers: [], ageRange: 'any', hasAnnualFee: false, bonusPending: false, hideClosed: false }
+// Keep-alive cards are long-term holds that need no action, so they're hidden
+// by default to keep the list focused on cards that do.
+const DEFAULT_FILTERS = { statuses: [], issuers: [], ageRange: 'any', hasAnnualFee: false, bonusPending: false, hideClosed: false, hideKeepAlive: true }
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -93,27 +95,33 @@ export default function CreditCardsView() {
     filters.hasAnnualFee,
     filters.bonusPending,
     filters.hideClosed,
+    filters.hideKeepAlive !== DEFAULT_FILTERS.hideKeepAlive,
     sortBy !== 'newest',
   ].filter(Boolean).length
 
-  function applyFiltersAndSort(cards) {
+  // `overrides` lets callers re-run the same pipeline with one filter flipped
+  // (used to count how many cards the keep-alive filter is hiding).
+  function applyFiltersAndSort(cards, overrides) {
+    const f = { ...filters, ...overrides }
     let result = cards.filter(c => {
       if (filterMember !== 'all' && c.memberId !== filterMember) return false
-      if (filters.hideClosed && (c.status === 'Closed' || c.status === 'Downgraded')) return false
-      if (filters.statuses.length && !filters.statuses.includes(c.status)) return false
-      if (filters.issuers.length) {
+      if (f.hideClosed && (c.status === 'Closed' || c.status === 'Downgraded')) return false
+      // Explicitly picking the Keep Alive status pill overrides the hide.
+      if (f.hideKeepAlive && c.status === 'Keep Alive' && !f.statuses.includes('Keep Alive')) return false
+      if (f.statuses.length && !f.statuses.includes(c.status)) return false
+      if (f.issuers.length) {
         const name = getIssuerMeta(c.issuer || c.cardName).name
-        if (!filters.issuers.includes(name)) return false
+        if (!f.issuers.includes(name)) return false
       }
-      if (filters.hasAnnualFee && !(c.annualFee > 0)) return false
-      if (filters.bonusPending && c.status !== 'Active Churn') return false
-      if (filters.ageRange !== 'any') {
+      if (f.hasAnnualFee && !(c.annualFee > 0)) return false
+      if (f.bonusPending && c.status !== 'Active Churn') return false
+      if (f.ageRange !== 'any') {
         const age = getCardAge(c)
         const m = age?.totalMonths ?? -1
-        if (filters.ageRange === 'lt1'  && !(m >= 0  && m < 12))  return false
-        if (filters.ageRange === '1to2' && !(m >= 12 && m < 24))  return false
-        if (filters.ageRange === '2to4' && !(m >= 24 && m < 48))  return false
-        if (filters.ageRange === 'gt4'  && m < 48)               return false
+        if (f.ageRange === 'lt1'  && !(m >= 0  && m < 12))  return false
+        if (f.ageRange === '1to2' && !(m >= 12 && m < 24))  return false
+        if (f.ageRange === '2to4' && !(m >= 24 && m < 48))  return false
+        if (f.ageRange === 'gt4'  && m < 48)               return false
       }
       return true
     })
@@ -127,6 +135,11 @@ export default function CreditCardsView() {
   }
 
   const allFiltered = applyFiltersAndSort(allCards)
+  // How many cards the keep-alive filter alone is suppressing — surfaced as a
+  // one-click "show them" hint so hidden cards never look like missing data.
+  const hiddenKeepAlive = filters.hideKeepAlive
+    ? applyFiltersAndSort(allCards, { hideKeepAlive: false }).length - allFiltered.length
+    : 0
   const filteredCards = allFiltered.filter(c => c.status !== 'Closed' && c.status !== 'Downgraded')
   const closedCards = allFiltered.filter(c => c.status === 'Closed' || c.status === 'Downgraded')
   // Grouping is opt-in via the "Group by brand" toggle. When off, the flat list
@@ -188,6 +201,15 @@ export default function CreditCardsView() {
   const addStatus = newCard?.status
   const showAddEarn = addStatus === 'Active Churn' || addStatus === 'Applied'
   const showAddBonus = addStatus !== 'Closed' && addStatus !== 'Downgraded'
+
+  const keepAliveHint = hiddenKeepAlive > 0 ? (
+    <button
+      onClick={() => setFilters(f => ({ ...f, hideKeepAlive: false }))}
+      className="text-xs text-ink-tertiary hover:text-ink-secondary transition-colors"
+    >
+      {hiddenKeepAlive} keep-alive card{hiddenKeepAlive === 1 ? '' : 's'} hidden — show {hiddenKeepAlive === 1 ? 'it' : 'them'}
+    </button>
+  ) : null
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -255,6 +277,7 @@ export default function CreditCardsView() {
           <Chip active={filters.hasAnnualFee}  onClick={() => setFilters(f => ({ ...f, hasAnnualFee: !f.hasAnnualFee }))}>Has annual fee</Chip>
           <Chip active={filters.bonusPending}  onClick={() => setFilters(f => ({ ...f, bonusPending: !f.bonusPending }))}>Bonus pending</Chip>
           <Chip active={filters.hideClosed}    onClick={() => setFilters(f => ({ ...f, hideClosed: !f.hideClosed }))}>Hide closed/downgraded</Chip>
+          <Chip active={filters.hideKeepAlive} onClick={() => setFilters(f => ({ ...f, hideKeepAlive: !f.hideKeepAlive }))}>Hide keep-alive</Chip>
         </FilterRow>
       </FilterBar>
 
@@ -425,12 +448,15 @@ export default function CreditCardsView() {
               <div className="text-base font-medium text-ink-muted mb-1">No cards match these filters</div>
               <button onClick={clearFilters} className="text-sm text-accent-ink hover:text-accent-ink transition-colors">Clear filters</button>
             </>
+          ) : hiddenKeepAlive > 0 ? (
+            <div className="text-base font-medium text-ink-muted mb-1">No cards needing attention{filterMember !== 'all' ? ' for this person' : ''}</div>
           ) : (
             <>
               <div className="text-base font-medium text-ink-muted mb-1">No cards{filterMember !== 'all' ? ' for this person' : ''}</div>
               <div className="text-sm">Click &ldquo;Add Card&rdquo; to get started.</div>
             </>
           )}
+          {keepAliveHint && <div className="mt-2">{keepAliveHint}</div>}
         </div>
       ) : (
         <>
@@ -466,6 +492,8 @@ export default function CreditCardsView() {
               </div>
             </section>
           )}
+
+          {keepAliveHint && <div className="mt-4 text-center">{keepAliveHint}</div>}
         </>
       )}
     </div>
