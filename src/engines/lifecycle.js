@@ -1,4 +1,5 @@
 import { isRetired } from '../utils/statusMeta'
+import { daysSinceUsed, WARN_DAYS, CRITICAL_DAYS } from './creditAge'
 
 // How many days after an annual fee posts you can cancel (or downgrade) and
 // still get it refunded IN FULL. 30 days is the industry norm (Chase, Amex,
@@ -259,9 +260,63 @@ function monthsDiff(from, to) {
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
 }
 
-// The account's next lifecycle step, from the 181-day clawback rule. Checked
-// safe-first, so an account that already cleared the window jumps straight to
-// Safe to Close instead of parking in Holding for a step.
+// ── Attention score (the "Recommended" card order) ──────────────────────────
+// Higher score = needs you sooner = sorted further up the list.
+//
+// The base tier comes from the card's lifecycle status: a card actively
+// working a bonus outranks a long-term keep, and retired cards sink to the
+// bottom. Urgency bumps are then added on top, and they're deliberately large
+// enough to cross tiers — a keep-alive card that's drifted 6 months without a
+// swipe (real inactivity-closure risk) should outrank a quiet Bonus Met card.
+const STATUS_BASE = {
+  'Active Churn':        600, // Earning Bonus — the clock is running
+  'Applied':             550, // waiting on approval / just opened
+  'Downgrade/Close Due': 500, // Cancel or Downgrade — a decision is owed
+  'Bonus Met':           400, // Bonus Earned — watch the fee and the 12mo mark
+  'Keep Alive':          200, // deliberate long-term hold
+  'Downgraded':          100,
+  'Closed':                0,
+}
+
+export function getCardAttentionScore(card) {
+  if (!card) return 0
+  let score = STATUS_BASE[card.status] ?? 300
+  if (isRetired(card)) return score
+
+  // Unmet spend requirement — the most time-sensitive thing a card can have.
+  const si = getSpendDeadlineInfo(card)
+  if (si && !si.met) {
+    if (si.daysLeft < 0)       score += 400 // deadline blown, call the issuer
+    else if (si.daysLeft <= 7) score += 350
+    else if (si.daysLeft <= 30) score += 250
+    else                        score += 100
+  }
+
+  // Annual fee — an open refund window is a hard deadline; an upcoming fee is
+  // a retention-call opportunity.
+  const fi = getAnnualFeeInfo(card)
+  if (fi) {
+    if (fi.inRefundWindow)             score += fi.refundDaysLeft !== null && fi.refundDaysLeft <= 5 ? 380 : 300
+    else if (fi.daysUntilFee <= 7)     score += 260
+    else if (fi.daysUntilFee <= 14)    score += 200
+    else if (fi.daysUntilFee <= 45)    score += 120
+  }
+
+  // Dormancy — issuers close cards after prolonged inactivity, which shortens
+  // credit history. This is the one thing that pulls a Keep Alive card up.
+  const dsu = daysSinceUsed(card)
+  if (dsu !== null) {
+    if (dsu >= CRITICAL_DAYS)   score += 300
+    else if (dsu >= WARN_DAYS)  score += 150
+  }
+
+  // Past the 12-month clawback shield with the bonus earned — free to act on.
+  const cs = getCardCloseShield(card)
+  if (cs?.safe) score += 80
+
+  return score
+}
+
 export function getAccountNextStatus(account) {
   if (!account) return null
   const { status, openedDate } = account
