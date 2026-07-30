@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
@@ -7,12 +7,71 @@ import DateField from '../shared/DateField'
 import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountNextStatus } from '../../engines/lifecycle'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
-import { fmt$, fmtDate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Shield, ExternalLink } from 'lucide-react'
+import { fmt$, fmtDate, todayISODate } from '../../utils/format'
+import { ChevronDown, ChevronUp, Trash2, Shield, ExternalLink, RotateCcw } from 'lucide-react'
 
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
+// Statuses that mean the bonus already landed (matches the Earnings and Tax
+// engines, so all three agree on what "received" means).
+const RECEIVED_STATUSES = ['Bonus Received', 'Cooling Period', 'Safe to Close', 'Closed']
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
+
+// Same button grammar as the credit-card quick actions: the primary next step
+// is a solid, filled button; anything else stays outlined.
+const btnColors = {
+  emerald: 'border border-edge-strong text-ink-tertiary hover:text-success-ink hover:border-success/50',
+  blue:    'border border-edge-strong text-ink-tertiary hover:text-accent-ink hover:border-accent/50',
+  red:     'border border-edge-strong text-ink-tertiary hover:text-danger-ink hover:border-danger/50',
+  zinc:    'border border-edge-strong text-ink-tertiary hover:text-ink-secondary hover:border-edge-strong',
+}
+const btnSolid = {
+  emerald: 'bg-success text-white hover:bg-success/85 border border-transparent',
+  blue:    'bg-accent text-white hover:bg-accent-hover border border-transparent',
+  red:     'bg-danger text-white hover:bg-danger/85 border border-transparent',
+  zinc:    'bg-overlay text-ink hover:bg-overlay/80 border border-edge-strong',
+}
+
+// The account's next step in the bonus lifecycle, as one-tap buttons — the bank
+// counterpart to the card status actions. Logging direct deposits leads while
+// any are still outstanding, because that's the actual work between opening the
+// account and the bonus landing; after the bonus posts the 181-day clawback
+// rule (getAccountNextStatus) decides between holding and closing.
+function getAccountQuickActions(account, nextStatus) {
+  const today = todayISODate()
+  const needed = account.requiredDDCount ?? 1
+  const made = account.ddsMade ?? 0
+  const needsDD = Number(account.requiredDD) > 0 || Number(account.requiredDDCount) > 0 || !!account.ddSourceDescription
+
+  const logDD = needed > 1
+    ? { label: `+ Direct Deposit ${Math.min(made + 1, needed)}/${needed}`, color: 'blue',
+        payload: { ddsMade: made + 1, status: 'DD Linked', ddLinkedDate: account.ddLinkedDate || today } }
+    : { label: '✓ Direct Deposit Linked', color: 'blue',
+        payload: { ddsMade: Math.max(made, 1), status: 'DD Linked', ddLinkedDate: account.ddLinkedDate || today } }
+  // Sets the received date as well as the status — that date is what puts the
+  // bonus in the right tax year and starts the clawback countdown.
+  const bonusPosted = { label: '✓ Bonus Posted', color: 'emerald',
+    payload: { status: 'Bonus Received', bonusReceived: true, bonusReceivedDate: account.bonusReceivedDate || today } }
+  const pending = { label: '→ Bonus Pending', color: 'zinc', payload: { status: 'Bonus Pending' } }
+
+  switch (account.status || 'Opened') {
+    case 'Opened':
+      return needsDD ? [logDD, bonusPosted] : [{ ...pending, color: 'blue' }, bonusPosted]
+    case 'DD Linked':
+      return made < needed ? [logDD, bonusPosted] : [bonusPosted, pending]
+    case 'Bonus Pending':
+      return [bonusPosted]
+    case 'Bonus Received':
+    case 'Cooling Period':
+      if (nextStatus === 'Safe to Close') return [{ label: '✓ Safe to Close', color: 'emerald', payload: { status: 'Safe to Close' } }]
+      if (nextStatus === 'Cooling Period') return [{ label: '→ Holding (Clawback)', color: 'zinc', payload: { status: 'Cooling Period' } }]
+      return []
+    case 'Safe to Close':
+      return [{ label: '✓ Mark Closed', color: 'red', payload: { status: 'Closed' } }]
+    default:
+      return []
+  }
+}
 
 function ddDeadlineInfo(account) {
   if (!account.openedDate || account.ddLinkedDate) return null
@@ -41,10 +100,31 @@ export default function AccountItem({ account, members }) {
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
   const [confirming, setConfirming] = useState(false)
+  const [undoSnapshot, setUndoSnapshot] = useState(null)
+  const undoTimerRef = useRef(null)
 
   const shield = getClawbackStatus(account)
   const nextStatus = getAccountNextStatus(account)
   const ddInfo = ddDeadlineInfo(account)
+  const quickActions = getAccountQuickActions(account, nextStatus)
+
+  useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
+
+  function applyQuickAction(e, payload) {
+    e.stopPropagation()
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    setUndoSnapshot({ ...account })
+    undoTimerRef.current = setTimeout(() => setUndoSnapshot(null), 6000)
+    dispatch({ type: 'UPDATE_ACCOUNT', payload: { ...account, ...payload } })
+  }
+
+  function undoAction(e) {
+    e.stopPropagation()
+    if (!undoSnapshot) return
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    dispatch({ type: 'UPDATE_ACCOUNT', payload: undoSnapshot })
+    setUndoSnapshot(null)
+  }
 
   function startEdit() {
     setDraft({ ...account })
@@ -78,6 +158,9 @@ export default function AccountItem({ account, members }) {
         openedDate,
         ddLinkedDate: draft.ddLinkedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
+        // Keep the stored flag in step with what the form actually captures
+        // (the date and the status), so exports and the tax page agree.
+        bonusReceived: !!draft.bonusReceivedDate || RECEIVED_STATUSES.includes(draft.status),
         offerUrl: draft.offerUrl || null,
         safeToCloseDate,
       }
@@ -131,9 +214,10 @@ export default function AccountItem({ account, members }) {
 
   return (
     <div id={`item-${account.id}`} className="bg-surface border border-edge rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
-      {/* Collapsed header */}
-      <button
-        className="w-full text-left p-4"
+      {/* Collapsed header. A div, not a button — it holds the offer link and
+          the quick-action buttons, which can't legally nest inside one. */}
+      <div
+        className="w-full p-4 cursor-pointer select-none"
         onClick={() => expanded ? cancelEdit() : startEdit()}
       >
         <div className="flex items-start justify-between gap-2">
@@ -208,11 +292,39 @@ export default function AccountItem({ account, members }) {
             <span className={shield.safe ? 'text-success-ink' : 'text-warning-ink'}>{shield.message}</span>
           </div>
         </div>
+      </div>
 
-        {nextStatus && !expanded && (
-          <div className="mt-1.5 text-xs text-warning-ink">→ Suggest: {nextStatus}</div>
-        )}
-      </button>
+      {/* Quick action buttons — the next step in the bonus lifecycle, one tap,
+          undoable. Only while collapsed, so they can't fight the edit form. */}
+      {!expanded && (quickActions.length > 0 || undoSnapshot) && (
+        <div className="px-4 pb-3 pt-0 flex gap-2 flex-wrap items-center border-t border-edge">
+          <div className="flex gap-2 flex-wrap pt-2.5 flex-1 items-center">
+            {quickActions.length > 0 && (
+              <span className="text-[10px] text-ink-faint uppercase tracking-wider font-medium flex-shrink-0">Mark as</span>
+            )}
+            {quickActions.map((action, i) => (
+              <button
+                key={action.label}
+                onClick={e => applyQuickAction(e, action.payload)}
+                className={`text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors ${
+                  i === 0 ? (btnSolid[action.color] ?? btnSolid.zinc) : (btnColors[action.color] ?? btnColors.zinc)
+                }`}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+          {undoSnapshot && (
+            <button
+              onClick={undoAction}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium bg-raised hover:bg-overlay border border-edge-strong text-ink-muted hover:text-ink transition-colors mt-2.5 ml-auto flex-shrink-0"
+            >
+              <RotateCcw size={11} />
+              Undo
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Expanded edit form */}
       {expanded && draft && (

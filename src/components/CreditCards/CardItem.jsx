@@ -4,15 +4,15 @@ import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
-import { getSpendProgress, getReeligibilityInfo, getCardCloseShield } from '../../engines/lifecycle'
+import { getSpendProgress, getReeligibilityInfo, getCardCloseShield, getFeeRefundDays } from '../../engines/lifecycle'
 import { getCardFeeSchedule } from '../../engines/annualFees'
 import { getCancelGuidance } from '../../engines/cancelGuidance'
 import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
 import { valueCardBonus, isCardBonusPending } from '../../engines/earnings'
 import { CARD_STATUSES } from '../../utils/statusMeta'
-import { fmt$, fmt$0, fmtPts, fmtDate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Lightbulb } from 'lucide-react'
+import { fmt$, fmt$0, fmtPts, fmtDate, fmtDateCompact, todayISODate } from '../../utils/format'
+import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Lightbulb, Receipt } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -46,10 +46,13 @@ function FactRow({ label, value, tone = 'text-ink' }) {
   )
 }
 
-// The next annual fee as a fact row — or, when a fee just posted, the 30-day
-// cancel-for-full-refund countdown. Same numbers as the Annual Fee tracker
-// (getCardFeeSchedule), so the two never disagree.
-function FeeFactRow({ feeSchedule }) {
+// The annual fee as a fact row, in whichever of the three states the card is
+// in: scheduled (cycle date ahead), awaiting (cycle date reached, the issuer
+// bills it on the next statement — so it hasn't actually posted and there's a
+// one-tap Fee posted confirm), or posted (confirmed, so the
+// cancel-for-full-refund countdown is real). Same numbers as the Annual Fee
+// tracker (getCardFeeSchedule), so the two never disagree.
+function FeeFactRow({ feeSchedule, onConfirmPosted }) {
   if (feeSchedule.inRefundWindow) {
     return (
       <FactRow
@@ -57,6 +60,29 @@ function FeeFactRow({ feeSchedule }) {
         tone="text-warning-ink"
         value={`refund by ${fmtDate(feeSchedule.refundDeadline)} · ${feeSchedule.refundDaysLeft}d`}
       />
+    )
+  }
+  if (feeSchedule.awaitingPost) {
+    return (
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-ink-muted flex-shrink-0">Annual fee due</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className="font-medium tabular-nums text-right text-warning-ink truncate"
+            title={`Due ${fmtDate(feeSchedule.feeDate)}. Issuers bill the fee on the next statement, so it can land up to ${feeSchedule.lagDays} days later — it hasn’t posted until you confirm it.`}
+          >
+            ${Math.round(feeSchedule.annualFee)} · not posted · by {fmtDateCompact(feeSchedule.expectedBy)}
+          </span>
+          <button
+            onClick={onConfirmPosted}
+            title={`Mark the fee as posted today — starts the ${feeSchedule.refundDays}-day cancel-for-full-refund clock`}
+            className="flex items-center gap-1 border border-edge-strong text-ink-tertiary hover:text-warning-ink hover:border-warning/50 px-2.5 py-1 rounded-full transition-colors flex-shrink-0"
+          >
+            <Receipt size={11} />
+            <span>Fee posted</span>
+          </button>
+        </div>
+      </div>
     )
   }
   return (
@@ -120,7 +146,7 @@ function GuidanceLine({ guidance, compact = false }) {
 }
 
 function getQuickActions(card) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISODate()
   const hasBonus = Number(card.spendRequirement) > 0 || Number(card.bonusValue) > 0
   switch (card.status) {
     case 'Applied':
@@ -256,7 +282,15 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
 
   function markUsedToday(e) {
     e.stopPropagation()
-    dispatch({ type: 'UPDATE_CARD', payload: { ...card, lastUsedDate: new Date().toISOString().slice(0, 10) } })
+    dispatch({ type: 'UPDATE_CARD', payload: { ...card, lastUsedDate: todayISODate() } })
+  }
+
+  // Confirm that the annual fee actually hit the statement. Recording the real
+  // date is what starts the refund countdown (nothing else does) and pins every
+  // later cycle to the card's true statement date. Goes through the quick-action
+  // path so it's undoable for 6 seconds like the status buttons.
+  function markFeePosted(e) {
+    applyQuickAction(e, { feePostDate: todayISODate() })
   }
 
   function submitLogSpend(e) {
@@ -444,6 +478,16 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
           </div>
         )}
 
+        {/* Earning stage stays focused on the spend, with one exception: a fee
+            that's live right now. The sign-up fee bills on the first statement,
+            so a brand-new fee card needs the confirm button (and the refund
+            countdown after) long before it reaches the decision stages. */}
+        {stage === 'earning' && feeSchedule && (feeSchedule.awaitingPost || feeSchedule.inRefundWindow) && (
+          <div className="mt-2">
+            <FeeFactRow feeSchedule={feeSchedule} onConfirmPosted={markFeePosted} />
+          </div>
+        )}
+
         {/* Bonus Earned / Cancel-or-Downgrade: the decision facts — what the
             bonus was worth and when the next fee posts (or the refund window) —
             plus the engine's one-line verdict, which carries the clawback /
@@ -460,7 +504,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                       <span className="text-ink-muted font-normal">≈ {fmt$0(earnedValue.value)}{earnedValue.estimated ? ' est.' : ''}</span></>}
               />
             )}
-            {feeSchedule && <FeeFactRow feeSchedule={feeSchedule} />}
+            {feeSchedule && <FeeFactRow feeSchedule={feeSchedule} onConfirmPosted={markFeePosted} />}
             {guidance && <div className="pt-0.5"><GuidanceLine guidance={guidance} compact /></div>}
           </div>
         )}
@@ -481,7 +525,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 <span>Used today</span>
               </button>
             </div>
-            {feeSchedule && <FeeFactRow feeSchedule={feeSchedule} />}
+            {feeSchedule && <FeeFactRow feeSchedule={feeSchedule} onConfirmPosted={markFeePosted} />}
           </div>
         )}
 
@@ -777,9 +821,20 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                     First-year fee waived
                   </label>
                   <div>
-                    <label className="text-xs text-ink-muted block mb-1">Annual Fee Post Date</label>
-                    <DateField value={draft.feePostDate} onChange={v => set('feePostDate', v)} />
-                    <p className="text-[11px] text-ink-faint mt-1">When the fee actually posts (any year — statement dates often lag the open date). Anchors the next-fee countdown, the 30-day refund window, the calendar, and the Earnings fees-paid estimate. Blank = open-date anniversary.</p>
+                    <label className="text-xs text-ink-muted block mb-1">Annual Fee Post Date (confirmed)</label>
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1 min-w-0">
+                        <DateField value={draft.feePostDate} onChange={v => set('feePostDate', v)} />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => set('feePostDate', todayISODate())}
+                        className="text-xs px-2.5 py-2 rounded-lg transition-colors border border-edge-strong text-ink-tertiary hover:text-warning-ink hover:border-warning/50 flex-shrink-0"
+                      >
+                        Posted today
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-ink-faint mt-1">The date the fee <em>actually</em> hit the statement, from the most recent time it posted. Issuers bill it on the first statement after the anniversary, so nothing starts the {getFeeRefundDays(card)}-day cancel-for-full-refund clock until this is set — and setting it once pins every later cycle to your real statement date. Blank = the open-date anniversary is used as the cycle date, with the fee expected on the statement after it.</p>
                   </div>
                 </>
               )}
