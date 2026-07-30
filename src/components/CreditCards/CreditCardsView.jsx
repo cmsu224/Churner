@@ -8,11 +8,12 @@ import DateField from '../shared/DateField'
 import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/FilterBar'
 import { getIssuerMeta } from '../../utils/issuers'
 import { CARD_STATUSES } from '../../utils/statusMeta'
-import { getSmartCardStatus } from '../../engines/lifecycle'
+import { getSmartCardStatus, getCardAttentionScore } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { Plus, X, Layers, ChevronDown, ChevronUp } from 'lucide-react'
 
 const SORT_OPTIONS = [
+  { value: 'recommended', label: 'Recommended' },
   { value: 'newest',   label: 'Newest first' },
   { value: 'oldest',   label: 'Oldest first' },
   { value: 'fee',      label: 'Highest annual fee' },
@@ -25,6 +26,9 @@ const AGE_RANGES = [
   { value: '2to4', label: '2–4yr' },
   { value: 'gt4',  label: '4+yr' },
 ]
+// Cards are ordered by how much attention they need by default — see
+// getCardAttentionScore in the lifecycle engine.
+const DEFAULT_SORT = 'recommended'
 // Keep-alive cards are long-term holds that need no action, so they're hidden
 // by default to keep the list focused on cards that do.
 const DEFAULT_FILTERS = { statuses: [], issuers: [], ageRange: 'any', hasAnnualFee: false, bonusPending: false, hideClosed: false, hideKeepAlive: true }
@@ -62,7 +66,7 @@ export default function CreditCardsView() {
   const [newCard, setNewCard] = useState(null)
   const [filterMember, setFilterMember] = useState(() => params.get('member') ?? 'all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
-  const [sortBy, setSortBy] = useState('newest')
+  const [sortBy, setSortBy] = useState(DEFAULT_SORT)
   // Grouping is now an explicit, opt-in view mode — decoupled from the sort so
   // "Newest first" shows a true global newest-first order instead of silently
   // bucketing by issuer first.
@@ -86,7 +90,7 @@ export default function CreditCardsView() {
   function toggleIssuer(i) {
     setFilters(f => ({ ...f, issuers: f.issuers.includes(i) ? f.issuers.filter(x => x !== i) : [...f.issuers, i] }))
   }
-  function clearFilters() { setFilters(DEFAULT_FILTERS); setSortBy('newest') }
+  function clearFilters() { setFilters(DEFAULT_FILTERS); setSortBy(DEFAULT_SORT) }
 
   const activeCount = [
     filters.statuses.length > 0,
@@ -96,7 +100,7 @@ export default function CreditCardsView() {
     filters.bonusPending,
     filters.hideClosed,
     filters.hideKeepAlive !== DEFAULT_FILTERS.hideKeepAlive,
-    sortBy !== 'newest',
+    sortBy !== DEFAULT_SORT,
   ].filter(Boolean).length
 
   // `overrides` lets callers re-run the same pipeline with one filter flipped
@@ -126,6 +130,10 @@ export default function CreditCardsView() {
       return true
     })
     const sortFn = {
+      // Most attention-needing first; equally urgent cards fall back to newest.
+      recommended: (a, b) =>
+        getCardAttentionScore(b) - getCardAttentionScore(a) ||
+        new Date(b.openDate || '1970') - new Date(a.openDate || '1970'),
       newest:  (a, b) => new Date(b.openDate || '1970') - new Date(a.openDate || '1970'),
       oldest:  (a, b) => new Date(a.openDate || '9999') - new Date(b.openDate || '9999'),
       fee:     (a, b) => (b.annualFee ?? 0) - (a.annualFee ?? 0),
