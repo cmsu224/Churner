@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
 import { useHighlight } from '../../hooks/useHighlight'
 import AccountItem from './AccountItem'
+import ReapplyTracker from './ReapplyTracker'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
 import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/FilterBar'
@@ -123,7 +124,7 @@ export default function BankAccountsView() {
       ddSourceDescription: '', ddLinkedDate: '',
       minimumBalance: '', bonusDeadlineDays: '', etfDays: '',
       bonusAmount: '', bonusReceivedDate: '', isTaxable: true,
-      offerUrl: '', notes: '',
+      closedDate: '', offerUrl: '', notes: '',
     })
     setMoreOpen(false)
     setAdding(true)
@@ -159,6 +160,8 @@ export default function BankAccountsView() {
         openedDate,
         ddLinkedDate: newAcct.ddLinkedDate || null,
         bonusReceivedDate: newAcct.bonusReceivedDate || null,
+        // Only a closed account runs a reapply clock (see bankReeligibility.js)
+        closedDate: newAcct.status === 'Closed' ? (newAcct.closedDate || null) : null,
         offerUrl: newAcct.offerUrl || null,
         safeToCloseDate,
       }
@@ -288,6 +291,15 @@ export default function BankAccountsView() {
               <DateField value={newAcct.openedDate} onChange={v => setN('openedDate', v)} />
             </div>
 
+            {/* Logging an account that's already closed — the reapply tracker
+                picks it up straight away */}
+            {acctStatus === 'Closed' && (
+              <div>
+                <label className="text-xs text-ink-tertiary block mb-1">Closed Date</label>
+                <DateField value={newAcct.closedDate} onChange={v => setN('closedDate', v)} />
+              </div>
+            )}
+
             {/* Sign-Up Bonus — the reason you opened the account */}
             {showAddAcctBonus && (
               <div className="bg-raised/50 rounded-lg p-3 space-y-2">
@@ -389,6 +401,9 @@ export default function BankAccountsView() {
           </div>
         </div>
       )}
+
+      {/* The second bank clock — when each CLOSED account's bank pays again */}
+      <ReapplyTracker accounts={allAccounts} members={members} memberId={filterMember} />
 
       {filteredAccounts.length === 0 && !adding ? (
         <div className="text-center py-12 text-ink-tertiary">

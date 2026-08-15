@@ -4,7 +4,9 @@ import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
+import ReapplyClock from './ReapplyClock'
 import { getClawbackStatus } from '../../engines/clawbackShield'
+import { getAccountReeligibility } from '../../engines/bankReeligibility'
 import { getAccountNextStatus } from '../../engines/lifecycle'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { fmt$, fmtDate, todayISODate } from '../../utils/format'
@@ -67,7 +69,10 @@ function getAccountQuickActions(account, nextStatus) {
       if (nextStatus === 'Cooling Period') return [{ label: '→ Holding (Clawback)', color: 'zinc', payload: { status: 'Cooling Period' } }]
       return []
     case 'Safe to Close':
-      return [{ label: '✓ Mark Closed', color: 'red', payload: { status: 'Closed' } }]
+      // Stamping the close date is what turns the clawback clock off and the
+      // reapply clock on, so the one-tap close records it.
+      return [{ label: '✓ Mark Closed', color: 'red',
+        payload: { status: 'Closed', closedDate: account.closedDate || today } }]
     default:
       return []
   }
@@ -96,7 +101,7 @@ function intOpt(v) {
 }
 
 export default function AccountItem({ account, members }) {
-  const { dispatch } = useChurn()
+  const { state, dispatch } = useChurn()
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
   const [confirming, setConfirming] = useState(false)
@@ -104,6 +109,9 @@ export default function AccountItem({ account, members }) {
   const undoTimerRef = useRef(null)
 
   const shield = getClawbackStatus(account)
+  // The second clock: once the account is closed the clawback shield is spent
+  // and the only date left that matters is when this bank pays again.
+  const reapply = getAccountReeligibility(account, state.bankAccounts ?? [])
   const nextStatus = getAccountNextStatus(account)
   const ddInfo = ddDeadlineInfo(account)
   const quickActions = getAccountQuickActions(account, nextStatus)
@@ -158,6 +166,9 @@ export default function AccountItem({ account, members }) {
         openedDate,
         ddLinkedDate: draft.ddLinkedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
+        // Only a closed account runs a reapply clock, so the date is kept
+        // paired with the status rather than lingering on a reopened account.
+        closedDate: draft.status === 'Closed' ? (draft.closedDate || null) : null,
         // Keep the stored flag in step with what the form actually captures
         // (the date and the status), so exports and the tax page agree.
         bonusReceived: !!draft.bonusReceivedDate || RECEIVED_STATUSES.includes(draft.status),
@@ -210,6 +221,10 @@ export default function AccountItem({ account, members }) {
 
   const showBonusReceivedDate = draft
     ? (draft.status === 'Bonus Received' || !!draft.bonusReceivedDate)
+    : false
+
+  const showClosedDate = draft
+    ? (draft.status === 'Closed' || !!draft.closedDate)
     : false
 
   return (
@@ -287,10 +302,17 @@ export default function AccountItem({ account, members }) {
               <span className="text-success-ink">{fmtDate(account.bonusReceivedDate)}</span>
             </div>
           )}
-          <div className="flex items-center gap-1 pt-1 border-t border-edge">
-            <Shield size={11} className={shield.safe ? 'text-success-ink' : 'text-warning-ink'} />
-            <span className={shield.safe ? 'text-success-ink' : 'text-warning-ink'}>{shield.message}</span>
-          </div>
+          {/* Two clocks, one at a time: the clawback shield governs an open
+              account; a closed one has already cleared it, so the only date
+              left that matters is when this bank will pay a bonus again. */}
+          {reapply ? (
+            <ReapplyClock reapply={reapply} openedDate={account.openedDate} className="pt-1.5 border-t border-edge" />
+          ) : (
+            <div className="flex items-center gap-1 pt-1 border-t border-edge">
+              <Shield size={11} className={shield.safe ? 'text-success-ink' : 'text-warning-ink'} />
+              <span className={shield.safe ? 'text-success-ink' : 'text-warning-ink'}>{shield.message}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -374,6 +396,18 @@ export default function AccountItem({ account, members }) {
               <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
             </div>
           </div>
+
+          {/* Closed accounts are the only ones the reapply tracker follows */}
+          {showClosedDate && (
+            <div>
+              <label className="text-xs text-ink-tertiary block mb-1">Closed Date</label>
+              <DateField value={draft.closedDate} onChange={v => set('closedDate', v)} />
+              <p className="text-xs text-ink-faint mt-1">
+                Closing the account is what starts the reapply clock. The cooldown itself counts from the
+                opened date (or the bonus received date, when there was one).
+              </p>
+            </div>
+          )}
 
           {/* Sign-Up Bonus — shown for active bonus statuses or when bonus data exists */}
           {showBonusSection && (

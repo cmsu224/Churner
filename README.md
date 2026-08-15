@@ -95,6 +95,7 @@ The engine generates these item types:
 - **Minimum-balance reminder** — reminds you to keep the required balance to avoid fees and qualify.
 - **Bonus deadline** — overall offer-window countdown; if it expires, prompts you to call the bank to claim a manually-earned bonus.
 - **Clawback / cooling period** — counts down the **181-day** hold before a bonus is safe from clawback, then flips to "safe to close."
+- **Reapply for a bonus** — fires once a **closed** account's bank cooldown has cleared, so the bank should pay a new-account bonus again (see the [reapply clock](#8-bank-account-tracking)). Paired with a **reapply window opens in Nd** heads-up inside 30 days, so the direct-deposit source can be lined up before the window opens. One reminder per member + bank (the latest, binding cooldown — three closed Chase accounts produce one item, not three), and never while that person still holds an open account at the same bank.
 
 **Keep-alive items (every open card)**
 - **At risk** (critical, 180+ days unused), **use soon** (120+ days), and **track usage** (no last-used date set on one of your 3 oldest cards). The three oldest cards get the highest priority because they anchor your credit history.
@@ -191,7 +192,7 @@ Page: `/applications`. The application funnel the app used to ignore until appro
 
 Page: `/accounts`. Same expand-in-place pattern; only **bank name is required**. Accounts are **grouped by bank** with the bank's **logo** in each group header.
 
-**Tracked fields:** person, status, bank name, account type, last 4, opened date, **current balance**, bonus amount, bonus received date, **direct-deposit requirements** (direct deposit amount, # of direct deposits required, # completed, direct deposit deadline in days, direct deposit linked date, direct deposit source — e.g. payroll, Social Security, ACH), minimum balance, bonus deadline (days), **early-termination-fee window (days)**, taxable (1099-INT) flag, offer link, and notes.
+**Tracked fields:** person, status, bank name, account type, last 4, opened date, **closed date**, **current balance**, bonus amount, bonus received date, **direct-deposit requirements** (direct deposit amount, # of direct deposits required, # completed, direct deposit deadline in days, direct deposit linked date, direct deposit source — e.g. payroll, Social Security, ACH), minimum balance, bonus deadline (days), **early-termination-fee window (days)**, taxable (1099-INT) flag, offer link, and notes.
 
 **Statuses:** Opened → Direct Deposit Linked → Bonus Pending → Bonus Received → Holding (Clawback) → Safe to Close → Closed.
 
@@ -200,11 +201,28 @@ Page: `/accounts`. Same expand-in-place pattern; only **bank name is required**.
 - *Direct Deposit Linked* → **+ Direct Deposit N/M** while qualifying deposits are still outstanding (each tap increments the completed count, exactly like logging spend on a card), then **✓ Bonus Posted** / **→ Bonus Pending**.
 - *Bonus Pending* → **✓ Bonus Posted** — sets the status, the received flag, **and the received date**, which is what puts the bonus in the right year on the [Tax page](#16-tax-liability-predictor) and starts the clawback countdown.
 - *Bonus Received / Holding* → **→ Holding (Clawback)** until the 181-day window clears, then **✓ Safe to Close** (the step is chosen by `getAccountNextStatus`, so the button always matches the clawback rule).
-- *Safe to Close* → **✓ Mark Closed**.
+- *Safe to Close* → **✓ Mark Closed** (stamps the **closed date**, which is what switches the account from the first clock to the second).
 
 The direct deposit fields drive the multi-tier direct-deposit reminders, the multi-DD progress tracker, and the minimum-balance and bonus-deadline countdowns in the [Action Engine](#2-action-engine-the-brain). The **181-day clawback shield** tells you when each account is safe to close, and the optional ETF window feeds an "early-termination fee window ends" event on the [Timeline](#4-timeline--calendar--ics-export).
 
-**Contextual edit form** — both the add and edit forms adapt to the account's status. The **Sign-Up Bonus** section (bonus amount, deadline, minimum balance, ETF window, taxable checkbox, bonus received date) only appears when the account is in a bonus-earning status or bonus data exists. The **Direct Deposit Requirements** section only appears when the status is Opened/DD Linked or when direct deposit data is present. On the add form, current balance, minimum balance, bonus received date, offer link, and notes stay tucked under **More details (optional)**. "Direct Deposit" is always spelled out in full — never abbreviated.
+**The two clocks.** A churned bank account runs on two independent clocks, and only one is ever live at a time:
+
+1. **Clawback shield** (`src/engines/clawbackShield.js`) — **181 days** from opening, after which the bank can no longer reverse the bonus and the account is safe to close. This is the clock on every **open** account, shown on its collapsed card.
+2. **Reapply clock** (`src/engines/bankReeligibility.js`) — once the account **is closed**, when that bank will pay a **new-account bonus again**. Closed accounts show this instead of the (already spent) clawback line.
+
+**Reapply clock — closed accounts only.** While an account is still open the first clock is what matters, and virtually every bank's offer terms disqualify current customers outright, so there is nothing to count down until the account is gone.
+
+- **Per-account readout** on every closed account's card: the account's own history (**opened → closed**), a progress bar toward the reapply date, and the verdict — **Eligible now**, **Nd · \<date\>**, **Once per lifetime**, or a nudge to add an opened date when the clock can't be anchored. Under it, the rule being applied and where it counts from (e.g. *"~24mo rule · from bonus Jun 6, 2024"*).
+- **Anchor** = the **bonus received date**, falling back to the **opened date** when no bonus ever posted — the same anchor the bank-level [Bank Bonus Eligibility](#10-issuer-rule-engines) widget uses, so the two never disagree.
+- **Cooldown windows are not redefined here** — the engine imports `BANK_RULES` from `bankEligibility.js`, so there is exactly one source of truth per bank (Chase ~24mo, Wells Fargo ~12mo, Capital One/TD ~12mo, once-per-lifetime for Discover and SoFi, conservative 24-month default for unknown banks).
+- **"Another \<bank\> account is still open"** — if the member still holds a non-closed account at the same bank, the row says so and the reminder is suppressed, because a new-customer offer won't pay a current customer no matter what the date math says.
+- **Reapply Eligibility panel** at the top of `/accounts` — every closed account's clock in one collapsible list, action-ordered (**eligible now** first, then cooldowns by how soon they open, with lifetime bans and undated accounts last). The header summarizes at a glance (*"4 closed accounts · 1 eligible to reapply now"*, or the next window to open); each row jumps to that account in the list below. It honors the person filter and hides itself entirely when nothing is closed.
+- Feeds the **reapply action items** in the [Action Engine](#2-action-engine-the-brain). Calendar reminders come from the existing bank-level **bank bonus re-eligibility** event on the [Timeline](#4-timeline--calendar--ics-export) — the per-account clock deliberately adds no second event, since for a bank you've fully exited the two dates are the same.
+- Cooldowns are **estimates** — the panel footnote says so and points at Doctor of Credit to verify current offer terms.
+
+**Closed date** is captured by the one-tap **✓ Mark Closed** action, and appears as an editable field on the add and edit forms whenever the status is *Closed* (so a historical account can be logged with its real dates). It is the flag that starts the reapply clock; the cooldown length itself still counts from the anchor above.
+
+**Contextual edit form** — both the add and edit forms adapt to the account's status. The **Sign-Up Bonus** section (bonus amount, deadline, minimum balance, ETF window, taxable checkbox, bonus received date) only appears when the account is in a bonus-earning status or bonus data exists. The **Direct Deposit Requirements** section only appears when the status is Opened/DD Linked or when direct deposit data is present. The **Closed Date** field appears when the status is Closed or a date is already set. On the add form, current balance, minimum balance, bonus received date, offer link, and notes stay tucked under **More details (optional)**. "Direct Deposit" is always spelled out in full — never abbreviated.
 
 ### 9. Points & Loyalty Balances
 
@@ -239,6 +257,8 @@ A compact **Application Eligibility** section also appears on the Dashboard show
 The widget only shows cards where the bonus has been received (`bonusReceived: true`). Rows are sorted with in-cooldown cards first (soonest-to-unlock), then eligible cards. Uses the bonus received date as the anchor, with openDate as fallback. Shown per person on the Eligibility page as **Card Sign-up Bonus Re-eligibility**.
 
 **Bank bonus eligibility** (`bankEligibility.js`) — the bank equivalent of card re-eligibility. For each bank a person has used, it shows when they can earn that bank's new-account bonus again, based on a per-bank cooldown measured from the last bonus received (or last account opened if none yet). Known windows include Chase ~24mo, Wells Fargo ~12mo, Capital One/TD ~12mo, and once-per-lifetime banks like Discover and SoFi; unknown banks default to a conservative 24 months. Windows are estimates flagged to verify on Doctor of Credit. Shown per person on the Eligibility page as **Bank Bonus Eligibility** (eligible now / cooldown countdown + date / lifetime).
+
+**Bank reapply clock** (`bankReeligibility.js`) — the same rules applied at the **account** level instead of the bank level, for **closed accounts only**: the per-account second clock on the [Bank Accounts page](#8-bank-account-tracking). It imports `BANK_RULES` from `bankEligibility.js` rather than restating any window, so a change to a bank's cooldown moves both views at once.
 
 ### 11. What-If Eligibility Simulator
 
@@ -344,7 +364,7 @@ Page: `/import`.
 - **Export** — downloads your full state as a JSON backup file.
 - **AI Import Helper** — the fastest way to bulk-load. The prompt is **generated dynamically** with your actual household member names (e.g. Me | Wife | Mom | Dad) so the AI knows exactly who to assign each card to. Copy the prompt, open Claude (or any AI chat), paste the prompt + your credit-report PDF or screenshot, tell the AI whose cards you're importing ("These are Wife's cards" or "assign each to the right person"), and paste the returned JSON back into the app. The AI outputs a `member` field on each item; the import automatically resolves it to the correct member. Works for single-person and multi-person imports in one batch.
   - Credit report import: extracts every open revolving account, maps "Date Opened" → openDate, skips closed accounts/loans/mortgages, auto-flags business cards and authorized-user accounts.
-  - Manual/screenshot import: supports all fields including bonus details, spend requirements, DD requirements, annual fees, and status.
+  - Manual/screenshot import: supports all fields including bonus details, spend requirements, DD requirements, annual fees, and status. A bank account imported as *Closed* carries its **closed date** through, so historical accounts land in the [reapply tracker](#8-bank-account-tracking) immediately.
   - A **fallback member** selector in the import UI handles any items the AI couldn't assign.
   - The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card.
 - **Import** — paste or file-load JSON, preview what will be added (with per-member assignment breakdown and an unassigned-items warning), then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
@@ -439,7 +459,9 @@ creditCards[]      { id, memberId, status, cardName, issuer, last4,
                      bonusReceived, bonusReceivedDate,
                      isBusiness, isAuthorizedUser, downgradedToCard, notes }
 bankAccounts[]     { id, memberId, status, bankName, accountType, last4,
-                     openedDate, currentBalance, bonusAmount,
+                     openedDate,
+                     closedDate,           ← starts the reapply clock
+                     currentBalance, bonusAmount,
                      bonusReceived,        ← derived from the date/status on save
                      bonusReceivedDate, requiredDD, requiredDDCount, ddsMade,
                      ddDeadlineDays, ddLinkedDate, ddSourceDescription,
@@ -461,7 +483,7 @@ settings           { taxBracket, pointValueCents, notifyEnabled,
                      programValueCents { programName: centsPerPoint } }
 ```
 
-Engines with no synced state of their own: `events.js` (timeline), `annualFees.js` (fee tracker), `earnings.js`, `burnRate.js`, `whatIf.js` (simulator inputs are deliberately not persisted).
+Engines with no synced state of their own: `events.js` (timeline), `annualFees.js` (fee tracker), `earnings.js`, `burnRate.js`, `bankReeligibility.js` (bank reapply clock — derived entirely from account dates + `bankEligibility.js`'s windows), `whatIf.js` (simulator inputs are deliberately not persisted).
 
 ---
 
