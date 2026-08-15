@@ -1,5 +1,6 @@
 import { getSpendDeadlineInfo, getAnnualFeeInfo, getReeligibilityInfo, getCardCloseShield } from './lifecycle'
 import { getClawbackStatus } from './clawbackShield'
+import { getClosedAccountReeligibility, latestPerBank } from './bankReeligibility'
 import { getKeepAliveCards } from './creditAge'
 import { getBurnRate } from './burnRate'
 import { fmt$ } from '../utils/format'
@@ -253,6 +254,26 @@ export function generateActionItems(state) {
         title: `Hold open ${shield.daysRemaining}d more: ${n}`,
         detail: `Bonus received! Keep this account open${(acct.minimumBalance ?? 0) > 0 ? ' and above ' + fmt$(acct.minimumBalance) : ''} for ${shield.daysRemaining} more days to clear the 181-day clawback window. Closing early risks losing the bonus. ${pn}'s account.`,
         dueDate: shield.safeDate, action: 'Keep account open' })
+    }
+  }
+
+  // ── BANK REAPPLY CLOCK: closed accounts only ──────────────────────────────
+  // The second bank clock. One reminder per member + bank (the binding
+  // cooldown), and never while they still hold an open account there.
+  for (const row of latestPerBank(getClosedAccountReeligibility(state.bankAccounts ?? []))) {
+    if (row.lifetime || row.state === 'unknown' || row.bankStillOpen) continue
+    const pn = mName(members, row.memberId)
+    const anchorNote = row.anchorFromBonus ? 'last bonus' : 'account opening'
+    if (row.eligible) {
+      items.push({ id: `bank-reapply-${row.accountId}`, type: 'info', category: 'reeligible', accountId: row.accountId, memberId: row.memberId,
+        title: `Reapply for a bonus: ${row.bankName}`,
+        detail: `The ~${row.months}-month window since ${pn}'s ${anchorNote} at ${row.bankName} has passed, and the account is closed — a new-account bonus should be available again. ${row.note} Verify the current offer terms on Doctor of Credit before applying. ${pn}'s account.`,
+        dueDate: null, action: 'Check current offer' })
+    } else if (row.daysUntil <= 30) {
+      items.push({ id: `bank-reapply-soon-${row.accountId}`, type: 'info', category: 'reeligible', accountId: row.accountId, memberId: row.memberId,
+        title: `Reapply window opens in ${row.daysUntil}d: ${row.bankName}`,
+        detail: `${pn} can likely earn ${row.bankName}'s new-account bonus again on ${new Date(row.eligibleDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} (~${row.months} months after their ${anchorNote}). Line up the direct deposit source now so the offer can start the day it opens. ${pn}'s account.`,
+        dueDate: row.eligibleDate, action: 'Plan the next application' })
     }
   }
 

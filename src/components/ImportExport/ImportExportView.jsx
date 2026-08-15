@@ -91,6 +91,7 @@ status (accounts) — use the most accurate:
   "Bonus Received"  — bonus posted
   "Cooling Period"  — within 181-day clawback window
   "Safe to Close"   — past 181 days, safe to close
+  "Closed"          — account closed (include closedDate so the reapply clock can track it)
 accountType       — "Checking" | "Savings" | "Money Market" | "CD"
 isBusiness        — true for any business card (Ink, Plum, Blue Business, Spark, etc.)
 isAuthorizedUser  — true only if this person is an authorized user, not the primary cardholder
@@ -179,6 +180,7 @@ function mergeAiImport(state, aiData, members, fallbackMemberId) {
       accountType: a.accountType ?? 'Checking',
       last4: a.last4 ?? '',
       openedDate,
+      closedDate: a.status === 'Closed' ? (a.closedDate ?? null) : null,
       status: a.status ?? 'Opened',
       requiredDD: a.requiredDD ?? undefined,
       requiredDDCount: a.requiredDDCount ?? undefined,
