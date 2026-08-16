@@ -34,6 +34,7 @@ No backend, no subscription, no database server. The whole app is a static singl
   - [20. Import / Export & AI Import Helper](#20-import--export--ai-import-helper)
   - [21. Data Sync (GitHub Gist)](#21-data-sync-github-gist)
   - [22. UI / UX & Design System](#22-ui--ux--design-system)
+  - [23. Installable App (PWA) & Offline Support](#23-installable-app-pwa--offline-support)
 - [Privacy & Security](#privacy--security)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -397,12 +398,29 @@ Page: `/import`.
 
 ---
 
+### 23. Installable App (PWA) & Offline Support
+
+Churner is an installable Progressive Web App — Chrome/Edge offer **Install app**, and iOS Safari's *Add to Home Screen* produces a real app icon rather than a bookmark.
+
+- **Web app manifest** (`public/manifest.webmanifest`) — name "Churner — Bonus Tracker", short name "Churner", `display: standalone` (no browser chrome), `start_url`/`scope` both relative (`./`) so they stay correct under the `/Churner/` Pages base path, and `background_color`/`theme_color` `#09090b` to match the default dark theme.
+- **Icons** (`public/`) — `icon-192.png` and `icon-512.png` (purpose `any`, rounded), `icon-maskable-512.png` (purpose `maskable`, full-bleed with the artwork inside the safe zone so Android's adaptive shapes don't clip it), `apple-touch-icon.png` (180×180) for iOS, and `icon.svg` as the scalable source and browser favicon.
+- **Service worker** (`public/sw.js`), registered from `src/registerSW.js`:
+  - **Navigations are network-first**, falling back to the cached app shell when offline — a new Pages deploy is picked up on the next load, and the app still opens with no connection.
+  - **Static build assets are cache-first with background refresh.** Vite fingerprints its output, so a cached filename is always the right bytes.
+  - **Everything cross-origin is skipped entirely** — no interception, no caching (see [Privacy & Security](#privacy--security)).
+  - Caches are versioned (`churner-<VERSION>`); older caches are deleted on activate. **Bump `VERSION` in `public/sw.js` whenever that file changes.**
+  - Registration is **production-only**, so `npm run dev` is never served from cache.
+- **Theme-aware app chrome** — the `theme-color` meta tag is set before first render and updated by the Settings light/dark toggle, so the installed app's title/status bar tracks the theme.
+
+---
+
 ## Privacy & Security
 
 - Your **Personal Access Token is stored in `localStorage` only** — never committed to the repo and never written into the Gist data.
 - Your data lives in a **private GitHub Gist that only you can see.**
 - **Your PAT is never sent anywhere except GitHub's API.**
 - The token needs only the **`gist`** scope — nothing more.
+- **The service worker never touches your data.** It only handles same-origin requests inside the app's own scope (the shell, build assets, icons). Gist sync calls to `api.github.com` — and every other third-party request — are cross-origin, so they pass straight through untouched: nothing private is ever written to the Cache API, and a stale cached response can never shadow a live sync.
 
 ---
 
@@ -413,6 +431,7 @@ Page: `/import`.
 - **lucide-react** icons
 - State via **`useReducer` + Context API**
 - Data sync via the **GitHub Gist REST API**
+- **PWA**: hand-written web app manifest + service worker (no build plugin), served from `public/`
 - Charts are hand-rolled SVG — no chart library
 
 ---
@@ -437,7 +456,9 @@ Deployed to **GitHub Pages via GitHub Actions** (`.github/workflows/deploy.yml`)
 
 > **Repo setting required:** Settings → Pages → Build and deployment → **Source: GitHub Actions**.
 
-`vite.config.js` sets `base: '/Churner/'` so asset paths resolve correctly under the project's Pages URL.
+`vite.config.js` sets `base: '/Churner/'` so asset paths resolve correctly under the project's Pages URL. `index.html` references the manifest and icons through Vite's `%BASE_URL%` placeholder, and the service worker registers under that same base — so the app installs correctly from the project Pages URL without hard-coded paths.
+
+Pages serves over HTTPS, which is what makes the service worker (and therefore installability) work in the first place.
 
 ---
 
