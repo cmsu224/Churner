@@ -8,7 +8,7 @@ import BonusPipeline from './BonusPipeline'
 import SpendProgress from './SpendProgress'
 import CreditAgeSection from './CreditAgeSection'
 import EligibilitySection from './EligibilitySection'
-import { isCardBonusPending, isAccountBonusPending } from '../../engines/earnings'
+import { isCardBonusPending, isAccountBonusPending, valueCardBonus } from '../../engines/earnings'
 import { fmt$ } from '../../utils/format'
 import { CheckCircle, ChevronUp, ChevronDown, SlidersHorizontal } from 'lucide-react'
 
@@ -54,6 +54,12 @@ export default function DashboardView() {
   const activeCards = (state.creditCards ?? []).filter(c => c.status !== 'Closed' && c.status !== 'Downgraded')
   const activeAccounts = (state.bankAccounts ?? []).filter(a => a.status !== 'Closed')
 
+  // The two pipeline tiles split the Bonus Pipeline total by how certain the
+  // money is: cash is a hard dollar figure (cashback bonuses + bank bonuses),
+  // rewards is points/miles converted at their program rate, so it's an
+  // estimate that moves with the Settings rates. Cash + rewards is exactly the
+  // itemized Bonus Pipeline total — same isCardBonusPending predicate, same
+  // valueCardBonus valuation.
   const cashPipeline =
     (state.creditCards ?? [])
       .filter(c => isCardBonusPending(c) && c.bonusType === 'cashback')
@@ -61,6 +67,10 @@ export default function DashboardView() {
     (state.bankAccounts ?? [])
       .filter(isAccountBonusPending)
       .reduce((s, a) => s + (a.bonusAmount ?? 0), 0)
+
+  const rewardsPipeline = (state.creditCards ?? [])
+    .filter(c => isCardBonusPending(c) && c.bonusType !== 'cashback')
+    .reduce((s, c) => s + valueCardBonus(c, state.settings).value, 0)
 
   const pendingSpend = (state.creditCards ?? []).filter(c => {
     if (c.status === 'Closed' || c.status === 'Downgraded') return false
@@ -108,10 +118,17 @@ export default function DashboardView() {
 
   const SECTIONS = {
     stats: (
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <button onClick={goToPipeline} className={statTile}>
           <div className="text-xs text-ink-tertiary mb-1">Cash Pipeline</div>
           <div className="text-lg font-bold text-success-ink">{fmt$(cashPipeline)}</div>
+        </button>
+        <button onClick={goToPipeline} className={statTile} title="Points/miles bonuses in flight, valued at their program rate">
+          <div className="text-xs text-ink-tertiary mb-1">Rewards Pipeline</div>
+          <div className="text-lg font-bold text-success-ink">
+            {fmt$(rewardsPipeline)}
+            <span className="text-warning-ink text-[10px] font-medium ml-0.5">est.</span>
+          </div>
         </button>
         <button onClick={() => navigate('/cards')} className={statTile}>
           <div className="text-xs text-ink-tertiary mb-1">Active Cards</div>
