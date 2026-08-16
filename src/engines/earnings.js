@@ -30,13 +30,24 @@ export function valueCardBonus(card, settings) {
 // still count toward the pipeline.
 const CARD_BONUS_DONE_STATUSES = ['Bonus Met', 'Keep Alive', 'Downgrade/Close Due', 'Closed', 'Downgraded']
 
-// Shared pipeline predicate: is this card still working toward its bonus?
-// Used by the Dashboard stats, member summaries, and the itemized Bonus
-// Pipeline so every total agrees on what counts as money in flight.
+// Is this card in the bonus-earning stage at all — whether or not anyone has
+// entered what the bonus is worth? Cards imported from a credit report arrive
+// with no bonusValue (a report shows the account, not the offer it was opened
+// under), so the dollar-valued predicate below can't see them. Anything that
+// LISTS cards — the Bonus Pipeline, the Cards page "Bonus pending" filter —
+// uses this, so an unvalued card is shown and flagged rather than silently
+// dropped. Anything that SUMS DOLLARS uses isCardBonusPending instead.
+export function isCardChasingBonus(card) {
+  return !card.bonusReceived && !CARD_BONUS_DONE_STATUSES.includes(card.status ?? '')
+}
+
+// Shared pipeline predicate: is this card still working toward a bonus we can
+// put a dollar figure on? Used by the Dashboard stats, member summaries, and
+// the Bonus Pipeline total so every total agrees on what counts as money in
+// flight. A card with no bonus value contributes nothing, so it is excluded
+// here — isCardChasingBonus is what keeps it visible in the list.
 export function isCardBonusPending(card) {
-  return !card.bonusReceived
-    && (card.bonusValue ?? 0) > 0
-    && !CARD_BONUS_DONE_STATUSES.includes(card.status ?? '')
+  return isCardChasingBonus(card) && (card.bonusValue ?? 0) > 0
 }
 
 // Account statuses that are already past the bonus stage — a "Bonus Received"

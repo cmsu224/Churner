@@ -10,6 +10,7 @@ import { getIssuerMeta } from '../../utils/issuers'
 import { CARD_STATUSES } from '../../utils/statusMeta'
 import { getSmartCardStatus, getCardAttentionScore } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
+import { isCardChasingBonus } from '../../engines/earnings'
 import { Plus, X, Layers, ChevronDown, ChevronUp } from 'lucide-react'
 
 const SORT_OPTIONS = [
@@ -118,7 +119,9 @@ export default function CreditCardsView() {
         if (!f.issuers.includes(name)) return false
       }
       if (f.hasAnnualFee && !(c.annualFee > 0)) return false
-      if (f.bonusPending && c.status !== 'Active Churn') return false
+      // Same predicate the Dashboard's Bonus Pipeline lists on, so the two
+      // views can't disagree about which cards are still chasing a bonus.
+      if (f.bonusPending && !isCardChasingBonus(c)) return false
       if (f.ageRange !== 'any') {
         const age = getCardAge(c)
         const m = age?.totalMonths ?? -1
