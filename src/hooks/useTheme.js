@@ -12,6 +12,9 @@ export function useTheme() {
     } else {
       html.classList.remove('dark')
     }
+    // Keep the installed-app chrome (title bar, status bar) matching the theme.
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#09090b' : '#f4f4f5')
     try { localStorage.setItem('churner_theme', theme) } catch { /* ignore */ }
   }, [theme])
 
