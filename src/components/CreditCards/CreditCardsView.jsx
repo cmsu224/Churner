@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
-import { useHighlight } from '../../hooks/useHighlight'
+import { useHighlight, flashItem } from '../../hooks/useHighlight'
 import CardItem from './CardItem'
+import CardTable from './CardTable'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
 import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/FilterBar'
@@ -11,7 +12,7 @@ import { CARD_STATUSES } from '../../utils/statusMeta'
 import { getSmartCardStatus, getCardAttentionScore } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { isCardChasingBonus } from '../../engines/earnings'
-import { Plus, X, Layers, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, X, Layers, Table, ChevronDown, ChevronUp } from 'lucide-react'
 
 const SORT_OPTIONS = [
   { value: 'recommended', label: 'Recommended' },
@@ -72,6 +73,9 @@ export default function CreditCardsView() {
   // "Newest first" shows a true global newest-first order instead of silently
   // bucketing by issuer first.
   const [groupByBrand, setGroupByBrand] = useState(false)
+  // 'cards' = the expand-in-place list; 'table' = the dense milestone grid.
+  // Both read the same filtered+sorted set, so the two views can't disagree.
+  const [view, setView] = useState('cards')
   const [moreOpen, setMoreOpen] = useState(false)
 
   useHighlight()
@@ -155,8 +159,18 @@ export default function CreditCardsView() {
   const closedCards = allFiltered.filter(c => c.status === 'Closed' || c.status === 'Downgraded')
   // Grouping is opt-in via the "Group by brand" toggle. When off, the flat list
   // honors the chosen sort exactly (so newest-first is truly newest-first).
-  const useGroups = groupByBrand
+  const useGroups = groupByBrand && view === 'cards'
   const groups = useGroups ? groupByIssuer(filteredCards) : null
+  // The table carries a Status column and a Closed column of its own, so
+  // retired cards need no separate section down there.
+  const tableCards = [...filteredCards, ...closedCards]
+
+  // Tapping a table row hands off to the card list, where every edit and
+  // one-tap lifecycle action already lives.
+  function openCard(card) {
+    setView('cards')
+    flashItem(card.id, 60)
+  }
 
   function startAdd() {
     setNewCard({
@@ -261,10 +275,18 @@ export default function CreditCardsView() {
         sortOptions={SORT_OPTIONS}
         onClear={clearFilters}
         trailing={
-          <Toggle active={groupByBrand} onClick={() => setGroupByBrand(g => !g)}>
-            <Layers size={12} />
-            Group by brand
-          </Toggle>
+          <>
+            {view === 'cards' && (
+              <Toggle active={groupByBrand} onClick={() => setGroupByBrand(g => !g)}>
+                <Layers size={12} />
+                Group by brand
+              </Toggle>
+            )}
+            <Toggle active={view === 'table'} onClick={() => setView(v => (v === 'table' ? 'cards' : 'table'))}>
+              <Table size={12} />
+              Table
+            </Toggle>
+          </>
         }
       >
         <FilterRow label="Status">
@@ -469,6 +491,11 @@ export default function CreditCardsView() {
           )}
           {keepAliveHint && <div className="mt-2">{keepAliveHint}</div>}
         </div>
+      ) : view === 'table' ? (
+        <>
+          <CardTable cards={tableCards} members={members} onRowClick={openCard} />
+          {keepAliveHint && <div className="mt-4 text-center">{keepAliveHint}</div>}
+        </>
       ) : (
         <>
           {filteredCards.length > 0 && (useGroups ? (

@@ -5,6 +5,8 @@ import BofAWidget from './BofAWidget'
 import CapitalOneWidget from './CapitalOneWidget'
 import BankEligibilityWidget from './BankEligibilityWidget'
 import CardReeligibilityWidget from './CardReeligibilityWidget'
+import ChexSystemsWidget from './ChexSystemsWidget'
+import BankRulesTable from './BankRulesTable'
 export default function RulesView() {
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-4">
@@ -16,6 +18,8 @@ export default function RulesView() {
       <CapitalOneWidget />
       <CardReeligibilityWidget />
       <BankEligibilityWidget />
+      <ChexSystemsWidget />
+      <BankRulesTable />
 
       <div className="bg-surface border border-edge-strong rounded-xl p-5">
         <h3 className="text-base font-semibold text-ink mb-3">Key Churning Rules</h3>
@@ -41,6 +45,15 @@ export default function RulesView() {
             <p className="text-ink-muted text-xs leading-relaxed">
               Set autopay to <strong className="text-ink-secondary">statement balance</strong> (never minimum) on every card.
               One missed payment can cost more than the bonus and trigger penalty APR.
+            </p>
+          </div>
+          <div className="pb-4 border-b border-edge">
+            <div className="font-medium text-ink mb-1">ChexSystems</div>
+            <p className="text-ink-muted text-xs leading-relaxed">
+              The bureau most banks pull for checking/savings applications. Inquiries and closed accounts stay on
+              your file for <strong className="text-ink-secondary">5 years</strong>, and Chex-sensitive banks
+              (Chase, Citi, U.S. Bank, PNC, TD, Huntington, Fifth Third, M&amp;T, Santander, BMO) deny outright when
+              too many land too fast. Pace bank applications the way you pace 5/24.
             </p>
           </div>
           <div>

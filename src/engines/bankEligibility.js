@@ -1,40 +1,139 @@
 // Bank bonus eligibility.
 //
-// Most banks only let you earn a NEW-account bonus again after a cooldown
-// measured from your last bonus (or, if no bonus has posted yet, from when you
-// last opened an account there). The windows below are common, widely-cited
-// values — banks change these often, so treat them as guidance and verify the
-// current terms on DoctorofCredit before applying.
+// A bank's new-account bonus is gated by three different things, and this file
+// is the single source of truth for all three:
 //
-// monthsRule = 0 is treated as "once per lifetime" (not repeatable).
+//   months — the cooldown before the SAME bank pays a new-account bonus again.
+//            0 means "once per lifetime" (not repeatable).
+//   basis  — WHAT the cooldown counts from. This is the part offer terms
+//            actually disagree on, and getting it wrong moves the date by
+//            months: some banks measure from the day your last bonus posted,
+//            others from the day you CLOSED the account, others from the day
+//            you last opened one.
+//   chex   — how the bank treats your ChexSystems file. Banks that deny for
+//            too many recent inquiries ('sensitive') are the ones worth
+//            pacing your applications around; see engines/chexSystems.js.
+//
+// These are common, widely-cited community values — banks change them often,
+// so treat them as guidance and verify current terms on DoctorofCredit before
+// applying. A bank with no entry here falls through to DEFAULT_RULE rather
+// than getting a made-up window: a conservative 24 months, flagged as such.
 
-import { getIssuerMeta } from '../utils/issuers'
+import { getIssuerMeta, getIssuerName } from '../utils/issuers'
+import { parseDay, startOfToday, daysBetweenDays } from '../utils/format'
 
-const BANK_RULES = {
-  chase:       { months: 24, note: 'Chase: ~24 months since your last checking/savings bonus.' },
-  citi:        { months: 24, note: 'Citi: roughly once per 24 months per bonus; some require no open/closed account in the prior 6 months.' },
-  bofa:        { months: 24, note: 'Bank of America: typically once per 24 months (some offers are once per lifetime).' },
-  wellsfargo:  { months: 12, note: 'Wells Fargo: about once every 12 months.' },
-  usbank:      { months: 24, note: 'U.S. Bank: roughly once per 24 months.' },
-  capitalone:  { months: 12, note: 'Capital One: generally not eligible if you hold/held the account recently; ~12 months.' },
-  pnc:         { months: 24, note: 'PNC: about once per 24 months.' },
-  td:          { months: 12, note: 'TD Bank: about once per 12 months.' },
-  citizens:    { months: 24, note: 'Citizens: about once per 24 months.' },
-  truist:      { months: 24, note: 'Truist: about once per 24 months.' },
-  discover:    { months: 0,  note: 'Discover: bank bonus is once per lifetime.' },
-  sofi:        { months: 0,  note: 'SoFi: new-member bonus is generally once per lifetime.' },
-  ally:        { months: 12, note: 'Ally: bonuses are occasional/targeted; ~12 months when offered.' },
-  fidelity:    { months: 24, note: 'Fidelity: about once per 24 months.' },
-  schwab:      { months: 24, note: 'Charles Schwab: about once per 24 months.' },
-  navyfederal: { months: 24, note: 'Navy Federal: about once per 24 months.' },
-  usaa:        { months: 24, note: 'USAA: about once per 24 months.' },
-  bilt:        { months: 12, note: 'Bilt: varies; ~12 months.' },
+// basis values, and what each one means for the anchor date:
+//   'bonus' — "you have not received a bonus from us in the past N months"
+//             (the most common offer language). Counts from the bonus date.
+//   'close' — "no open OR closed account with us in the past N months".
+//             Counts from the day the account closed, which is why these
+//             banks are the ones that check ChexSystems: closed accounts stay
+//             on your Chex file for five years, so they can see it.
+//   'open'  — "new customers only / no account opened in the past N months".
+//             Counts from the last opening, whether or not a bonus posted.
+export const BASIS_LABEL = {
+  bonus: 'last bonus',
+  close: 'account closing',
+  open:  'account opening',
 }
 
-const DEFAULT_RULE = { months: 24, note: 'No specific rule on file — using a conservative 24-month estimate. Verify on DoctorofCredit.' }
+// What the anchor date on a row actually IS. A 'close'-basis bank whose
+// account is still open has no closing date to count from, so the fallback
+// chain lands on the opening — and the UI has to say "opened", not "closed",
+// or the date reads as something it isn't.
+export const ANCHOR_SHORT = {
+  bonus: 'bonus',
+  close: 'closed',
+  open:  'opened',
+}
 
-function daysBetween(a, b) {
-  return Math.ceil((a - b) / 86400000)
+// chex values:
+//   'sensitive' — known to deny over recent ChexSystems inquiries or a busy
+//                 file. Pace your applications; these are the ones the
+//                 inquiry counter is really about.
+//   'standard'  — pulls ChexSystems (so opening here costs an inquiry) but is
+//                 generally relaxed about how many you already have.
+//   'none'      — typically no ChexSystems inquiry at all: brokerage and
+//                 cash-management accounts, or a bank using another bureau.
+export const CHEX_LABEL = {
+  sensitive: 'Chex-sensitive',
+  standard:  'Pulls ChexSystems',
+  none:      'No ChexSystems pull',
+}
+
+const BANK_RULES = {
+  chase:       { months: 24, basis: 'bonus', chex: 'sensitive', note: 'Chase: ~24 months since your last checking/savings bonus. Chex-sensitive — too many recent inquiries draws a denial on its own.' },
+  citi:        { months: 24, basis: 'close', chex: 'sensitive', note: 'Citi: roughly once per 24 months per bonus, and most offers also require no open OR closed Citi account in the prior 6 months — so the clock runs from closing.' },
+  bofa:        { months: 24, basis: 'bonus', chex: 'standard',  note: 'Bank of America: typically once per 24 months (some offers are once per lifetime).' },
+  wellsfargo:  { months: 12, basis: 'bonus', chex: 'standard',  note: 'Wells Fargo: about once every 12 months.' },
+  usbank:      { months: 24, basis: 'close', chex: 'sensitive', note: 'U.S. Bank: roughly once per 24 months, measured from closing. Chex-sensitive.' },
+  capitalone:  { months: 12, basis: 'close', chex: 'standard',  note: 'Capital One: generally not eligible while you hold — or recently held — the account; ~12 months from closing.' },
+  pnc:         { months: 24, basis: 'close', chex: 'sensitive', note: 'PNC: about once per 24 months, and current/recent customers are excluded. Chex-sensitive.' },
+  td:          { months: 12, basis: 'close', chex: 'sensitive', note: 'TD Bank: about once per 12 months. Chex-sensitive.' },
+  citizens:    { months: 24, basis: 'close', chex: 'sensitive', note: 'Citizens: about once per 24 months from closing.' },
+  truist:      { months: 24, basis: 'close', chex: 'sensitive', note: 'Truist: about once per 24 months, excluding current and recent customers.' },
+  discover:    { months: 0,  basis: 'bonus', chex: 'standard',  note: 'Discover: bank bonus is once per lifetime.' },
+  sofi:        { months: 0,  basis: 'bonus', chex: 'standard',  note: 'SoFi: new-member bonus is generally once per lifetime.' },
+  ally:        { months: 12, basis: 'bonus', chex: 'standard',  note: 'Ally: bonuses are occasional/targeted; ~12 months when offered. Relaxed about inquiries.' },
+  fidelity:    { months: 24, basis: 'bonus', chex: 'none',      note: 'Fidelity: about once per 24 months. Brokerage/cash-management account — normally no ChexSystems inquiry.' },
+  schwab:      { months: 24, basis: 'bonus', chex: 'none',      note: 'Charles Schwab: about once per 24 months. Brokerage-linked checking — normally no ChexSystems inquiry.' },
+  navyfederal: { months: 24, basis: 'bonus', chex: 'standard',  note: 'Navy Federal: about once per 24 months.' },
+  usaa:        { months: 24, basis: 'bonus', chex: 'standard',  note: 'USAA: about once per 24 months.' },
+  bilt:        { months: 12, basis: 'bonus', chex: 'standard',  note: 'Bilt: varies; ~12 months.' },
+  huntington:  { months: 12, basis: 'close', chex: 'sensitive', note: 'Huntington: no Huntington checking open or closed in the prior ~12 months. Notably Chex-sensitive.' },
+  fifththird:  { months: 12, basis: 'close', chex: 'sensitive', note: 'Fifth Third: about once per 12 months from closing. Chex-sensitive.' },
+  mandt:       { months: 24, basis: 'close', chex: 'sensitive', note: 'M&T: about once per 24 months from closing. Chex-sensitive.' },
+  keybank:     { months: 12, basis: 'close', chex: 'sensitive', note: 'KeyBank: about once per 12 months from closing.' },
+  santander:   { months: 12, basis: 'close', chex: 'sensitive', note: 'Santander: about once per 12 months, excluding recent customers. Chex-sensitive.' },
+  bmo:         { months: 12, basis: 'close', chex: 'sensitive', note: 'BMO: about once per 12 months from closing. Chex-sensitive.' },
+  regions:     { months: 12, basis: 'close', chex: 'standard',  note: 'Regions: typically no Regions checking in the prior ~12 months.' },
+}
+
+export const DEFAULT_RULE = {
+  months: 24,
+  basis: 'bonus',
+  chex: 'standard',
+  fallback: true,
+  note: 'No specific rule on file — using a conservative 24-month estimate and assuming a ChexSystems pull. Verify on DoctorofCredit.',
+}
+
+// The rule for a free-text bank name, always resolved through the same issuer
+// normalization the rest of the app uses ("Chase Bank" → chase).
+export function getBankRule(bankName) {
+  const meta = getIssuerMeta(bankName)
+  return BANK_RULES[meta.key] ?? DEFAULT_RULE
+}
+
+// Every bank with a rule on file, for the reference table on the Eligibility
+// page. Sorted by display name.
+export function getBankRuleList() {
+  return Object.entries(BANK_RULES)
+    .map(([key, rule]) => ({ key, name: getIssuerName(key), ...rule }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+// Which date one account's cooldown counts from, per its bank's basis.
+//
+// Each basis has a fallback chain, because an account logged from memory
+// rarely has every date: a 'close'-basis bank with no closed date still gets a
+// clock off the bonus (or opening) rather than silently having none. `from`
+// says which date was actually used, so the UI can be honest about it.
+export function getBonusAnchor(account, rule) {
+  const dates = {
+    bonus: parseDay(account?.bonusReceivedDate),
+    close: parseDay(account?.closedDate),
+    open:  parseDay(account?.openedDate),
+  }
+  const chains = {
+    bonus: ['bonus', 'open', 'close'],
+    close: ['close', 'bonus', 'open'],
+    open:  ['open', 'bonus', 'close'],
+  }
+  const chain = chains[rule?.basis] ?? chains.bonus
+  for (const from of chain) {
+    if (dates[from]) return { date: dates[from], from, exact: from === (rule?.basis ?? 'bonus') }
+  }
+  return { date: null, from: null, exact: false }
 }
 
 // One eligibility row per bank the member has touched.
@@ -45,42 +144,52 @@ export function getBankEligibility(memberId, allBankAccounts) {
   for (const acct of accounts) {
     const meta = getIssuerMeta(acct.bankName)
     const key = meta.key
-    // Anchor date = most recent bonus received, else most recent open date.
-    const anchorStr = acct.bonusReceivedDate || acct.openedDate
-    if (!byBank[key]) byBank[key] = { meta, anchor: null, anchorFromBonus: false, accounts: 0 }
+    const rule = BANK_RULES[key] ?? DEFAULT_RULE
+    if (!byBank[key]) byBank[key] = { meta, rule, anchor: null, anchorFrom: null, accounts: 0, stillOpen: false }
     byBank[key].accounts++
-    if (anchorStr) {
-      const d = new Date(anchorStr)
-      if (!byBank[key].anchor || d > byBank[key].anchor) {
-        byBank[key].anchor = d
-        byBank[key].anchorFromBonus = !!acct.bonusReceivedDate
-      }
+    if (acct.status !== 'Closed') byBank[key].stillOpen = true
+    // Latest anchor across the member's accounts at this bank — that's the one
+    // whose cooldown actually binds.
+    const { date, from } = getBonusAnchor(acct, rule)
+    if (date && (!byBank[key].anchor || date > byBank[key].anchor)) {
+      byBank[key].anchor = date
+      byBank[key].anchorFrom = from
     }
   }
 
-  const now = new Date()
-  const rows = Object.values(byBank).map(({ meta, anchor, anchorFromBonus, accounts }) => {
-    const rule = BANK_RULES[meta.key] ?? DEFAULT_RULE
+  const today = startOfToday()
+  const rows = Object.values(byBank).map(({ meta, rule, anchor, anchorFrom, accounts, stillOpen }) => {
     const lifetime = rule.months === 0
+    const base = {
+      key: meta.key,
+      bankName: meta.name,
+      accounts,
+      stillOpen,
+      lifetime,
+      months: rule.months,
+      basis: rule.basis ?? 'bonus',
+      chex: rule.chex ?? 'standard',
+      fallbackRule: !!rule.fallback,
+      note: rule.note,
+      anchor: anchor ? anchor.toISOString() : null,
+      anchorFrom,
+      // Kept for older callers that only asked "was this anchored on a bonus?"
+      anchorFromBonus: anchorFrom === 'bonus',
+    }
 
-    if (!anchor) {
-      return { key: meta.key, bankName: meta.name, accounts, lifetime, months: rule.months,
-        note: rule.note, eligible: true, daysUntil: 0, eligibleDate: null, anchor: null, anchorFromBonus }
-    }
-    if (lifetime) {
-      return { key: meta.key, bankName: meta.name, accounts, lifetime, months: 0,
-        note: rule.note, eligible: false, daysUntil: null, eligibleDate: null, anchor: anchor.toISOString(), anchorFromBonus }
-    }
+    if (!anchor) return { ...base, eligible: !stillOpen, daysUntil: 0, eligibleDate: null }
+    if (lifetime) return { ...base, eligible: false, daysUntil: null, eligibleDate: null }
+
     const eligibleDate = new Date(anchor)
     eligibleDate.setMonth(eligibleDate.getMonth() + rule.months)
-    const daysUntil = daysBetween(eligibleDate, now)
+    const daysUntil = daysBetweenDays(today, eligibleDate)
     return {
-      key: meta.key, bankName: meta.name, accounts, lifetime, months: rule.months, note: rule.note,
-      eligible: daysUntil <= 0,
+      ...base,
+      // A current customer is never eligible for a new-customer bonus, however
+      // the date math comes out.
+      eligible: daysUntil <= 0 && !stillOpen,
       daysUntil: Math.max(0, daysUntil),
       eligibleDate: eligibleDate.toISOString(),
-      anchor: anchor.toISOString(),
-      anchorFromBonus,
     }
   })
 
@@ -93,4 +202,4 @@ export function getBankEligibility(memberId, allBankAccounts) {
   })
 }
 
-export { BANK_RULES, DEFAULT_RULE }
+export { BANK_RULES }

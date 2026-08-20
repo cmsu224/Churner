@@ -52,7 +52,7 @@ export default function ReapplyClock({ reapply, openedDate, className = '' }) {
 
       <div className="text-ink-faint">
         {reapply.lifetime ? 'lifetime rule' : `~${reapply.months}mo rule`}
-        {reapply.anchor && ` · from ${reapply.anchorFromBonus ? 'bonus' : 'opening'} ${fmtDate(reapply.anchor)}`}
+        {reapply.anchor && ` · from ${reapply.anchorLabel ?? 'opening'} ${fmtDate(reapply.anchor)}`}
       </div>
 
       {reapply.bankStillOpen && (

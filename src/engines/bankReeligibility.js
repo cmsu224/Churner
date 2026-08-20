@@ -12,31 +12,14 @@
 // disqualify current customers outright — so there is nothing to count down
 // until the account is gone.
 //
-// The per-bank cooldown windows are deliberately NOT redefined here: they come
-// from BANK_RULES in bankEligibility.js, so the Eligibility page's bank-level
-// view and this per-account tracker can never disagree about a bank's rule.
+// The per-bank cooldown windows are deliberately NOT redefined here: the rule,
+// its basis, and the anchor date all come from bankEligibility.js, so the
+// Eligibility page's bank-level view and this per-account tracker can never
+// disagree about a bank's rule.
 
-import { BANK_RULES, DEFAULT_RULE } from './bankEligibility'
+import { getBankRule, getBonusAnchor, BASIS_LABEL } from './bankEligibility'
 import { getIssuerMeta } from '../utils/issuers'
-
-// ── Calendar-day helpers ──────────────────────────────────────────────────
-// Stored dates are calendar days ('YYYY-MM-DD'). `new Date('2026-07-15')`
-// parses as UTC midnight, which renders (and subtracts) as the day before in
-// every negative-offset timezone — a day of error on a countdown that can run
-// for years. Parse to LOCAL midnight so day math and formatting agree.
-function parseDay(value) {
-  if (!value) return null
-  const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  const d = new Date(value)
-  return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate())
-}
-function startOfToday() {
-  const n = new Date()
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate())
-}
-// Whole days between two local midnights (Math.round absorbs DST's ±1 hour).
-function daysBetween(from, to) { return Math.round((to - from) / 86400000) }
+import { parseDay, startOfToday, daysBetweenDays } from '../utils/format'
 
 export function isClosedAccount(account) {
   return account?.status === 'Closed'
@@ -53,14 +36,13 @@ export function getAccountReeligibility(account, allAccounts) {
   if (!isClosedAccount(account)) return null
 
   const meta = getIssuerMeta(account.bankName)
-  const rule = BANK_RULES[meta.key] ?? DEFAULT_RULE
+  const rule = getBankRule(account.bankName)
   const lifetime = rule.months === 0
 
-  // Same anchor rule as the bank-level engine: the cooldown counts from the
-  // last bonus that actually landed, falling back to the open date when no
-  // bonus was ever received (nothing to wait out but the relationship itself).
-  const anchorDate = parseDay(account.bonusReceivedDate) ?? parseDay(account.openedDate)
-  const anchorFromBonus = !!parseDay(account.bonusReceivedDate)
+  // The anchor follows the bank's own rule basis — from the last bonus, from
+  // the day the account closed, or from the day it was opened — with the
+  // fallback chain in getBonusAnchor covering accounts missing that date.
+  const { date: anchorDate, from: anchorFrom } = getBonusAnchor(account, rule)
 
   const bankStillOpen = (allAccounts ?? []).some(a =>
     a.id !== account.id &&
@@ -80,8 +62,13 @@ export function getAccountReeligibility(account, allAccounts) {
     openedDate: account.openedDate ?? null,
     closedDate: account.closedDate ?? null,
     anchor: anchorDate ? anchorDate.toISOString() : null,
-    anchorFromBonus,
+    anchorFrom,
+    anchorFromBonus: anchorFrom === 'bonus',
+    anchorLabel: anchorFrom ? BASIS_LABEL[anchorFrom] : null,
     months: rule.months,
+    basis: rule.basis ?? 'bonus',
+    chex: rule.chex ?? 'standard',
+    fallbackRule: !!rule.fallback,
     lifetime,
     note: rule.note,
     bankStillOpen,
@@ -99,8 +86,8 @@ export function getAccountReeligibility(account, allAccounts) {
   const eligibleDate = new Date(anchorDate)
   eligibleDate.setMonth(eligibleDate.getMonth() + rule.months)
   const today = startOfToday()
-  const daysUntil = daysBetween(today, eligibleDate)
-  const total = Math.max(1, daysBetween(anchorDate, eligibleDate))
+  const daysUntil = daysBetweenDays(today, eligibleDate)
+  const total = Math.max(1, daysBetweenDays(anchorDate, eligibleDate))
   const pct = Math.min(100, Math.max(0, Math.round(((total - Math.max(0, daysUntil)) / total) * 100)))
   const eligible = daysUntil <= 0
 
@@ -134,7 +121,8 @@ export function getClosedAccountReeligibility(allAccounts, memberId) {
     if (d !== 0) return d
     if (a.state === 'cooling') return a.daysUntil - b.daysUntil
     // Within a tier, most recently closed (then opened) first.
-    return new Date(b.closedDate || b.openedDate || 0) - new Date(a.closedDate || a.openedDate || 0)
+    return (parseDay(b.closedDate) ?? parseDay(b.openedDate) ?? 0) -
+           (parseDay(a.closedDate) ?? parseDay(a.openedDate) ?? 0)
   })
 }
 

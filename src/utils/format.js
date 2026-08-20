@@ -19,6 +19,17 @@ export const fmtDateCompact = (iso) => {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(iso))
 }
 
+// Month, day and a two-digit year — for the tracker tables, whose columns span
+// several years at once. The year can't be dropped there (a card opened in
+// 2023 and a reapply date in 2026 both read as "Feb 2"), but it has to stay
+// narrow enough for a dozen date columns to fit.
+export const fmtDateTracker = (iso) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  const md = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(d)
+  return `${md} ’${String(d.getFullYear()).slice(-2)}`
+}
+
 export const fmtDateShort = (iso) => {
   if (!iso) return '—'
   return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(new Date(iso))
@@ -43,3 +54,24 @@ export const daysAgo = (iso) => {
   if (!iso) return null
   return Math.ceil((new Date() - new Date(iso)) / 86400000)
 }
+
+// ── Calendar-day parsing ───────────────────────────────────────────────────
+// Stored dates are calendar days ('YYYY-MM-DD'). `new Date('2026-07-15')`
+// parses as UTC midnight, which renders (and subtracts) as the day before in
+// every negative-offset timezone — a day of error on countdowns that can run
+// for years. Parse to LOCAL midnight so day math and formatting agree.
+export const parseDay = (value) => {
+  if (!value) return null
+  const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  const d = new Date(value)
+  return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+export const startOfToday = () => {
+  const n = new Date()
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate())
+}
+
+// Whole days between two local midnights (Math.round absorbs DST's ±1 hour).
+export const daysBetweenDays = (from, to) => Math.round((to - from) / 86400000)
