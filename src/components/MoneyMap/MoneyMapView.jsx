@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
-import { buildMoneyMap, getLedgerMismatches, moveNode } from '../../engines/moneyFlow'
+import { buildMoneyMap, getLedgerMismatches, moveNode, reorderNode } from '../../engines/moneyFlow'
 import { collectReminders, reminderCounts } from '../../engines/reminders'
 import FlowDiagram from './FlowDiagram'
 import QuickTransferBar from './QuickTransferBar'
@@ -8,6 +8,7 @@ import TransferList from './TransferList'
 import ReminderBoard from './ReminderBoard'
 import CashSourceEditor from './CashSourceEditor'
 import TransferSheet from './TransferSheet'
+import NodeEditModal from './NodeEditModal'
 import ReconcileStrip from './ReconcileStrip'
 import PageHeader from '../shared/PageHeader'
 import StatCard from '../shared/StatCard'
@@ -32,6 +33,8 @@ export default function MoneyMapView() {
   // instead of the typed bar. Held here rather than in the diagram so the sheet
   // renders above the whole page, not inside a horizontally-scrolling box.
   const [sheetKey, setSheetKey] = useState(null)
+  // Direct bank & source editing from inside the Money Map
+  const [editingNodeKey, setEditingNodeKey] = useState(null)
 
   const map = useMemo(() => buildMoneyMap(state), [state])
   const reminders = useMemo(() => collectReminders(state, { horizonDays: 60 }), [state])
@@ -82,12 +85,17 @@ export default function MoneyMapView() {
   // Resolved from the map each render so the sheet always shows live balances,
   // and closes itself if the account behind it disappears.
   const sheetNode = sheetKey ? map.byKey.get(sheetKey) : null
+  const editingNode = editingNodeKey ? map.byKey.get(editingNodeKey) : null
 
   // Arranging rewrites both columns at once, so the move is computed in the
   // engine and stored whole.
   const cardLayout = state.moneyMapLayout ?? {}
   function moveCard(key, direction) {
     dispatch({ type: 'SET_MAP_LAYOUT', layout: moveNode(map.nodes, cardLayout, key, direction) })
+  }
+
+  function reorderCard(key, targetSide, targetIndex) {
+    dispatch({ type: 'SET_MAP_LAYOUT', layout: reorderNode(map.nodes, cardLayout, key, targetSide, targetIndex) })
   }
 
   const nothingLogged = map.transfers.length === 0
@@ -158,12 +166,14 @@ export default function MoneyMapView() {
           <FlowDiagram
             map={map}
             selectedKey={selectedKey}
-            onSelect={(key) => setSelectedKey(k => (k === key ? null : key))}
+            onSelect={(key) => setSelectedKey(k => (key === null || k === key ? null : key))}
             onOpenSheet={(node) => setSheetKey(node.key)}
             onPushTo={pushTo}
             onSweep={sweep}
             cardLayout={cardLayout}
             onMove={moveCard}
+            onReorder={reorderCard}
+            onEdit={(node) => setEditingNodeKey(node.key)}
             onResetLayout={() => dispatch({ type: 'SET_MAP_LAYOUT', layout: {} })}
             onSetHub={(key) => dispatch({ type: 'SET_HUB', key })}
           />
@@ -202,6 +212,14 @@ export default function MoneyMapView() {
           map={map}
           onClose={() => setSheetKey(null)}
           onShowTransfers={(key) => setSelectedKey(key)}
+          onEdit={(node) => setEditingNodeKey(node.key)}
+        />
+      )}
+
+      {editingNode && (
+        <NodeEditModal
+          node={editingNode}
+          onClose={() => setEditingNodeKey(null)}
         />
       )}
     </div>

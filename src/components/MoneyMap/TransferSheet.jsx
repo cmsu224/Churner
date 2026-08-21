@@ -10,7 +10,7 @@ import { fmt$, fmt$0, todayISODate, addDaysISO } from '../../utils/format'
 import DateField from '../shared/DateField'
 import {
   ArrowUpRight, ArrowDownLeft, List, ChevronLeft, Check, Landmark, Wallet, Home,
-  Search, Bell, CornerDownLeft,
+  Search, Bell, CornerDownLeft, Pencil,
 } from 'lucide-react'
 
 // Tap-driven entry, for the phone. Typing an amount, a source and a destination
@@ -76,7 +76,7 @@ function TapRow({ icon, title, subtitle, trailing, onClick, tone = 'default' }) 
   )
 }
 
-export default function TransferSheet({ node, map, onClose, onShowTransfers }) {
+export default function TransferSheet({ node, map, onClose, onShowTransfers, onEdit }) {
   const logTransfer = useLogTransfer()
   const [step, setStep] = useState('direction')
   const [direction, setDirection] = useState(null) // 'out' = leaving node, 'in' = arriving
@@ -183,8 +183,12 @@ export default function TransferSheet({ node, map, onClose, onShowTransfers }) {
       {/* ── 1. Which way is the money going? ─────────────────────────────── */}
       {step === 'direction' && (
         <div className="-mx-5">
-          <div className="px-5 pb-3 flex items-center gap-2">
-            <NodeIcon node={node} className="text-ink-muted" />
+          <div className="px-5 pb-3 flex items-center gap-2.5">
+            {node.color ? (
+              <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: node.color }} />
+            ) : (
+              <NodeIcon node={node} className="text-ink-muted" />
+            )}
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-ink truncate">{node.name}</span>
               <span className="block text-xs text-ink-tertiary">
@@ -217,6 +221,12 @@ export default function TransferSheet({ node, map, onClose, onShowTransfers }) {
                   : 'Nothing logged here yet'
               }
               onClick={() => { onShowTransfers(node.key); onClose() }}
+            />
+            <TapRow
+              icon={<Pencil size={18} />}
+              title="Edit details"
+              subtitle="Change name, balance, color, or settings"
+              onClick={() => { onClose(); onEdit?.(node) }}
             />
           </div>
           <p className="px-5 pt-3 text-[11px] text-ink-tertiary">

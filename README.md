@@ -200,7 +200,7 @@ Page: `/applications`. The application funnel the app used to ignore until appro
 
 Page: `/accounts`. Same expand-in-place pattern; only **bank name is required**. Accounts are **grouped by bank** with the bank's **logo** in each group header.
 
-**Tracked fields:** person, status, bank name, account type, last 4, opened date, **closed date**, **current balance**, bonus amount, bonus received date, **direct-deposit requirements** (direct deposit amount, # of direct deposits required, # completed, direct deposit deadline in days, direct deposit linked date, direct deposit source — e.g. payroll, Social Security, ACH), minimum balance, bonus deadline (days), **early-termination-fee window (days)**, taxable (1099-INT) flag, offer link, and notes.
+**Tracked fields:** person, status, bank name, account type, last 4, opened date, **closed date**, **current balance**, bonus amount, bonus received date, **custom color / accent**, **direct-deposit requirements** (direct deposit amount, # of direct deposits required, # completed, direct deposit deadline in days, direct deposit linked date, direct deposit source — e.g. payroll, Social Security, ACH), minimum balance, bonus deadline (days), **early-termination-fee window (days)**, taxable (1099-INT) flag, offer link, and notes.
 
 **Statuses:** Opened → Direct Deposit Linked → Bonus Pending → Bonus Received → Holding (Clawback) → Safe to Close → Closed.
 
@@ -252,10 +252,11 @@ Page: `/money`. Bank-bonus churning without a payroll direct deposit means pushi
 
 - **Solid ribbon = landed, marching dashed ribbon = in flight.** Ribbon thickness scales with the amount (√-scaled against the largest edge), and the color is the push's intent: **blue = direct deposit, amber = funding / minimum balance, green = sweep home**, grey for anything else. A sweep home runs right-to-left, so money coming back is visible as a direction, not just a color.
 - **In-flight amounts are always labelled** (that's the number you're waiting on); landed amounts appear when you select a node.
-- **Node cards** carry the name, the balance, an at-a-glance state (`2 more direct deposits`, `Requirements met · bonus pending`, `Bonus in · hold 43d`, `Bonus in · safe to close`, `Closed`) and a **`+$X` badge** for money in flight toward it. Accounts sort by urgency first, then by how much they're holding; the hub sits at the top of the left column.
-- **Tapping a node does the right thing for the device.** With a pointer it filters every ribbon and the whole ledger below to that account, and the node's two hover shortcuts — **Push here** and **Send home** — pre-fill the quick bar. On a phone it opens the **move-money sheet** below instead, since those shortcuts would be a 9px tap target; filtering is the sheet's third option.
-- **Arrange the cards yourself.** The columns have sensible defaults — hub first, then whichever accounts need attention, then the ones holding the most — but only you know how your accounts really relate. **Arrange** in the panel header turns every card into its own controls: **← ↑ ↓ →** to move it up and down its column or across to the other one, and **Set as hub** to nominate it. Arrows that would do nothing (up from the top, right from the right column) are disabled rather than hidden, so the card's position is legible without trial and error.
-  - The arrangement is stored per node in `moneyMapLayout` and **synced like everything else**, so the map looks the same on your laptop and your phone. Moving anything writes explicit sides and orders for *every* card, which is what stops an untouched card drifting past an arranged one the next time a balance or status changes. **Reset to automatic** clears it.
+- **Node cards** carry the bank name, the member/player attribution badge (`[● Me]`, `[● Partner]`), the balance, custom bank accent color (when set), an at-a-glance state (`2 more direct deposits`, `Requirements met · bonus pending`, `Bonus in · hold 43d`, `Bonus in · safe to close`, `Closed`) and a **`+$X` badge** for money in flight toward it. Accounts sort by urgency first, then by how much they're holding; the hub sits at the top of the left column.
+- **Edit bank / source details directly from the map (`NodeEditModal.jsx`).** **Double-click** on any node card (or click its pencil edit icon, or tap **Edit details** in the mobile transfer sheet) to modify its name, balance, custom brand/accent color (from a palette of curated bank presets or custom hex code), account type, member attribution, status, and hub flag. The modal is streamlined with the `···last4` digits positioned inline beside the bank name.
+- **Interactive Transfer Flow on the Map.** Click **Transfer** on any account or source to enter interactive connect mode (with a glowing pulse and dynamic animated connection ribbon when hovering targets). Clicking any second bank or source opens the **Log Transfer modal** with pre-filled counterparties, quick amount chips, purpose pills (`Direct Deposit`, `Funding`, `Sweep Home`, `Other Push`), date selector, and reminder checkbox. **Send home** remains a 1-click shortcut directly targeting the hub.
+- **Drag-and-drop & arrange the cards yourself.** Freely drag and drop cards to reorder them within a column or drag across columns from left to right (or right to left) with live visual insertion indicator lines. Click blank space on the canvas (or press Escape) to instantly deselect or cancel transfer mode. **Arrange Mode** also provides accessible keyboard and tap arrows (**← ↑ ↓ →**) to move cards step-by-step and a **Set as hub** button.
+  - The arrangement is stored per node in `moneyMapLayout` and **synced like everything else**, so the map looks the same on your laptop and your phone. Moving or dragging anything writes explicit sides and orders for *every* card, which is what stops an untouched card drifting past an arranged one the next time a balance or status changes. **Reset to automatic** clears it.
   - A node with no entry keeps the automatic placement, and the hub defaults to the left column whichever kind it is. Arranging widens the cards and tightens the gutter so every arrow is a real tap target on a phone (34×36px, the whole map still inside 390px); the ribbon amount labels step aside while you're arranging.
 - **Closed accounts with no balance and no transfer history are hidden** behind a `N closed & empty hidden` toggle, so a year of finished churns doesn't bury the live ones.
 - **Responsive:** the columns switch to a compact width below 640px so the whole map fits a phone without scrolling sideways. Reduced-motion users get the dashed ribbons without the marching.
@@ -297,7 +298,7 @@ Both entry points go through one `useLogTransfer` hook, so the typed line and th
   - **Cash with no reason to stay where it is** — an account whose bonus has posted *and* cleared the [181-day clawback window](#8-bank-account-tracking), or that is closed but still shows a balance, and has been sitting for **14+ days** (`STRANDED_CASH_DAYS`). Any required minimum balance is subtracted first, so money still doing a job never gets flagged, and the hub is skipped entirely — money there is already home. This is the one that stops $6,000 being forgotten in a bank you close a year later.
 - Rows are ordered overdue → due today → soonest → idle cash (biggest balance first), and each links to its account.
 
-**Reconciliation.** A churned account starts empty, so once its pushes are logged the ledger knows what it should hold. When the stored balance disagrees by $1 or more, a strip lists both numbers side by side with a one-tap **Use $X** — catching hand-typed figures, back-filled history, a transfer missing from the ledger, or one that landed without being marked. Interest and fees explain a small gap; a gap the size of a whole push doesn't.
+**Reconciliation.** A churned account starts empty, so once its pushes are logged the ledger knows what it should hold. When the stored balance disagrees by $1 or more, a strip lists both numbers side by side with a one-tap **Use $X** — catching hand-typed figures, back-filled history, a transfer missing from the ledger, or one that landed without being marked. Accounts with active in-flight transfers are exempted until settled to avoid false positives while money is moving. Interest and fees explain a small gap; a gap the size of a whole push doesn't.
 
 **Where it shows up elsewhere:**
 
@@ -598,7 +599,7 @@ creditCards[]      { id, memberId, status, cardName, issuer, last4,
 bankAccounts[]     { id, memberId, status, bankName, accountType, last4,
                      openedDate,
                      closedDate,           ← starts the reapply clock
-                     currentBalance, bonusAmount,
+                     currentBalance, bonusAmount, color,
                      bonusReceived,        ← derived from the date/status on save
                      bonusReceivedDate, requiredDD, requiredDDCount, ddsMade,
                      ddDeadlineDays, ddLinkedDate, ddSourceDescription,
@@ -610,7 +611,7 @@ pointsBalances[]   { id, memberId, program, balance,
 cashSources[]      { id, name, type: 'brokerage'|'bank'|'other',
                      isHub,               ← the one node money comes home to
                      balance,             ← null = deliberately not tracked
-                     notes }
+                     color, notes }
 moneyMapLayout     { [nodeKey]: { side: 'left'|'right', order } }
                                           ← how you arranged the map's cards;
                                             sparse, absent = automatic placement

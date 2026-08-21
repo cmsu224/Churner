@@ -120,6 +120,8 @@ function accountNodeState(account) {
 }
 
 export function buildNodes(state) {
+  const memberMap = new Map((state.members ?? []).map(m => [m.id, m]))
+
   const sources = (state.cashSources ?? []).map(s => ({
     key: nodeKey('source', s.id),
     kind: 'source',
@@ -129,22 +131,29 @@ export function buildNodes(state) {
     // null means "not tracked" — never render it as $0.
     balance: s.balance == null || s.balance === '' ? null : round2(s.balance),
     isHub: !!s.isHub,
+    color: s.color || null,
     source: s,
   }))
 
-  const accounts = (state.bankAccounts ?? []).map(a => ({
-    key: nodeKey('account', a.id),
-    kind: 'account',
-    id: a.id,
-    name: a.bankName || 'Untitled account',
-    sublabel: [a.accountType, a.last4 ? `···${a.last4}` : null].filter(Boolean).join(' '),
-    balance: round2(a.currentBalance),
-    isHub: !!a.isHub,
-    memberId: a.memberId,
-    status: a.status,
-    ...accountNodeState(a),
-    account: a,
-  }))
+  const accounts = (state.bankAccounts ?? []).map(a => {
+    const member = memberMap.get(a.memberId)
+    return {
+      key: nodeKey('account', a.id),
+      kind: 'account',
+      id: a.id,
+      name: a.bankName || 'Untitled account',
+      memberName: member?.name ?? null,
+      memberHex: member?.hex ?? null,
+      sublabel: [member?.name, a.accountType, a.last4 ? `···${a.last4}` : null].filter(Boolean).join(' · '),
+      balance: round2(a.currentBalance),
+      isHub: !!a.isHub,
+      memberId: a.memberId,
+      status: a.status,
+      color: a.color || null,
+      ...accountNodeState(a),
+      account: a,
+    }
+  })
 
   return { sources, accounts, all: [...sources, ...accounts] }
 }
@@ -279,6 +288,9 @@ export function getLedgerMismatches(map) {
     if (node.ghost) continue
     const flow = map.perNode.get(node.key)
     if (!flow || flow.transfers === 0) continue
+    // While money is still moving to or from this account the balance is
+    // expected to be uncertain — flagging it is noise, not signal.
+    if (flow.inflightIn > 0 || flow.inflightOut > 0) continue
     const ledger = flow.netFlow ?? 0
     const balance = node.balance ?? 0
     const delta = round2(balance - ledger)
@@ -431,6 +443,38 @@ export function moveNode(nodes, layout, key, direction) {
   return next
 }
 
+// Moves a node to a specific column ('left' or 'right') and target slot index,
+// supporting direct drag-and-drop reordering within or across columns.
+export function reorderNode(nodes, layout, key, targetSide, targetIndex) {
+  if (!key || (targetSide !== 'left' && targetSide !== 'right')) return layout
+  const cols = layoutColumns(nodes, layout)
+
+  let sourceSide = null
+  let sourceIndex = -1
+  for (const side of ['left', 'right']) {
+    const idx = cols[side].findIndex(n => n.key === key)
+    if (idx >= 0) {
+      sourceSide = side
+      sourceIndex = idx
+      break
+    }
+  }
+  if (!sourceSide) return layout
+
+  const [moved] = cols[sourceSide].splice(sourceIndex, 1)
+  let insertIdx = targetIndex
+  if (sourceSide === targetSide && sourceIndex < targetIndex) {
+    insertIdx = targetIndex - 1
+  }
+  const clampedIndex = Math.max(0, Math.min(insertIdx, cols[targetSide].length))
+  cols[targetSide].splice(clampedIndex, 0, moved)
+
+  const next = {}
+  cols.left.forEach((n, i) => { next[n.key] = { side: 'left', order: i } })
+  cols.right.forEach((n, i) => { next[n.key] = { side: 'right', order: i } })
+  return next
+}
+
 // ── Picking the other end, and what to send ────────────────────────────────
 // Tap-driven entry doesn't get to read a typed sentence, so it has to be smart
 // about what it offers: the accounts you actually move money between, the
@@ -548,13 +592,16 @@ function matchScore(node, query) {
   const q = query.trim().toLowerCase()
   if (!q) return 0
   const name = (node.name ?? '').toLowerCase()
+  const member = (node.memberName ?? '').toLowerCase()
   const full = nodeLabel(node).toLowerCase()
   const last4 = node.account?.last4 ? String(node.account.last4) : ''
   if (name === q || full === q) return 100
   if (last4 && q.includes(last4)) return 95
+  if (member && q === member) return 90
   if (name.startsWith(q)) return 80
   if (full.startsWith(q)) return 70
   if (name.includes(q)) return 60
+  if (member && member.includes(q)) return 55
   if (full.includes(q)) return 50
   // Initials: "wf" → "Wells Fargo"
   const initials = name.split(/\s+/).map(w => w[0]).join('')
