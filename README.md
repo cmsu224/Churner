@@ -253,11 +253,11 @@ Page: `/money`. Bank-bonus churning without a payroll direct deposit means pushi
 - **Solid ribbon = landed, marching dashed ribbon = in flight.** Ribbon thickness scales with the amount (√-scaled against the largest edge), and the color is the push's intent: **blue = direct deposit, amber = funding / minimum balance, green = sweep home**, grey for anything else. A sweep home runs right-to-left, so money coming back is visible as a direction, not just a color.
 - **In-flight amounts are always labelled** (that's the number you're waiting on); landed amounts appear when you select a node.
 - **Node cards** carry the name, the balance, an at-a-glance state (`2 more direct deposits`, `Requirements met · bonus pending`, `Bonus in · hold 43d`, `Bonus in · safe to close`, `Closed`) and a **`+$X` badge** for money in flight toward it. Accounts sort by urgency first, then by how much they're holding; the hub sits at the top of the left column.
-- **Tap a node** to filter every ribbon and the whole ledger below to just that account. Each node carries the two one-tap moves — **Push here** and **Send home** — which pre-fill the quick bar rather than opening a form.
+- **Tapping a node does the right thing for the device.** With a pointer it filters every ribbon and the whole ledger below to that account, and the node's two hover shortcuts — **Push here** and **Send home** — pre-fill the quick bar. On a phone it opens the **move-money sheet** below instead, since those shortcuts would be a 9px tap target; filtering is the sheet's third option.
 - **Closed accounts with no balance and no transfer history are hidden** behind a `N closed & empty hidden` toggle, so a year of finished churns doesn't bury the live ones.
 - **Responsive:** the columns switch to a compact width below 640px so the whole map fits a phone without scrolling sideways. Reduced-motion users get the dashed ribbons without the marching.
 
-**Quick entry — one line, one Enter.** Typing beats four dropdowns when you're logging the eighth push of the afternoon, so the bar parses a whole entry out of free text (`parseQuickTransfer` in `src/engines/moneyFlow.js`):
+**Quick entry — one line, one Enter.** On a keyboard, typing beats four dropdowns when you're logging the eighth push of the afternoon, so the bar parses a whole entry out of free text (`parseQuickTransfer` in `src/engines/moneyFlow.js`). (On a phone, tap a node and use the sheet instead — see below.)
 
 | Type this | It logs |
 |---|---|
@@ -271,6 +271,15 @@ Page: `/money`. Bank-bonus churning without a payroll direct deposit means pushi
 - **`+3w` / `+21d` / `+2m`** (or `check 3w`) attaches a check-back reminder.
 - A **live preview** shows exactly what was understood, with one-tap chips to correct the purpose, pick between ambiguous name matches, set the send date, or mark it **Already landed** (for back-filling). The bar **never saves a half-read line** — the Log button stays disabled until amount, source and destination all resolve.
 - A name it can't place gets an inline **"Add source *Fidelity*"** button, so a new brokerage is created without leaving the field. After saving, focus stays in the bar for the next push.
+
+**Tap entry — the phone's version (`TransferSheet.jsx`).** Typing an amount, a source and a destination into one line is quick on a keyboard and miserable on glass, so under 640px tapping an account on the map opens a guided bottom sheet: **which way is the money going → which account → how much.** One decision per screen, every target thumb-sized, and a **Back** step at each stage.
+
+1. **Direction** — *Send money out* (this account is the source), *Pull money in* (this account is the destination), or *See its transfers* (filters the ledger and closes). The sheet says outright that both directions record the same thing; which end you tapped only decides which side the account sits on.
+2. **The other account** — pulled into **Recent** (counterparties you've actually moved money with, newest first), then **Cash sources** (hub first) and **Bank accounts**, each row showing its live balance. A search box appears once there are more than seven nodes.
+3. **Amount** — a large numeric field (`inputMode="decimal"`, so it raises the keypad and not the spinner), with the amounts *this pair* implies offered as one-tap chips: the destination's **required deposit**, the shortfall **up to its minimum**, **all but the minimum** or **everything in it** when money is leaving an account, then round fallbacks. The purpose chip is pre-selected by `defaultPurposeFor` — a destination that still owes direct deposits gets **DD**, the hub gets **Return** — and the same *Already landed*, *Sent date*, and *Remind me in 1w/2w/3w/30d* controls sit underneath.
+4. **Confirmation** — with **Log another**, which keeps the account you started from, because several pushes into one new account in a sitting is the realistic pattern.
+
+Both entry points go through one `useLogTransfer` hook, so the typed line and the tapped sheet can't drift on what a logged push records. The smart purpose default applies to the bar too, whenever nothing in the typed text named an intent.
 
 **The ledger.** Two tabs — **In the pipeline** and **Hit the account** — newest first, filtered by whichever node you selected:
 

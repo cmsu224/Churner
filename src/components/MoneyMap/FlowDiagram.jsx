@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { nodeLabel } from '../../engines/moneyFlow'
 import { fmt$0 } from '../../utils/format'
 import { Landmark, Wallet, Home, AlertTriangle, EyeOff } from 'lucide-react'
 
@@ -59,7 +60,7 @@ function ribbonPath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`
 }
 
-function NodeCard({ node, size, inflightIn, selected, dimmed, onSelect, onPushTo, onSweep }) {
+function NodeCard({ node, size, compact, inflightIn, selected, dimmed, onActivate, onPushTo, onSweep }) {
   const Icon = node.kind === 'source' ? (node.isHub ? Home : Wallet) : Landmark
   const ring = selected ? 'border-accent shadow-pop' : (TONE_RING[node.tone] ?? 'border-edge')
   const hasBalance = node.balance != null
@@ -68,11 +69,20 @@ function NodeCard({ node, size, inflightIn, selected, dimmed, onSelect, onPushTo
       className={`absolute rounded-xl border bg-surface shadow-card transition-all ${ring} ${dimmed ? 'opacity-35' : 'opacity-100'}`}
       style={{ left: node.x, top: node.y, width: size.NODE_W, height: size.NODE_H }}
     >
+      {/* Read aloud, the card's own text is a run of numbers and fragments, so
+          the button carries a written-out label instead. */}
       <button
-        onClick={() => onSelect(node.key)}
+        onClick={() => onActivate(node)}
         className="w-full h-full text-left px-2.5 py-2 flex flex-col justify-between focus:outline-none focus-visible:rounded-xl"
-        aria-pressed={selected}
-        title={`${node.name}${node.sublabel ? ` · ${node.sublabel}` : ''} — tap to filter the ledger`}
+        aria-pressed={compact ? undefined : selected}
+        aria-label={[
+          nodeLabel(node),
+          hasBalance ? fmt$0(node.balance) : 'balance not tracked',
+          node.label,
+          inflightIn > 0 ? `${fmt$0(inflightIn)} in flight toward it` : null,
+          compact ? 'move money or see its transfers' : 'filter the ledger',
+        ].filter(Boolean).join(' — ')}
+        title={`${nodeLabel(node)} — tap to ${compact ? 'move money or see its transfers' : 'filter the ledger'}`}
       >
         <span className="flex items-center gap-1.5 min-w-0">
           <Icon size={13} className={`flex-shrink-0 ${TONE_TEXT[node.tone] ?? 'text-ink-tertiary'}`} aria-hidden="true" />
@@ -99,8 +109,10 @@ function NodeCard({ node, size, inflightIn, selected, dimmed, onSelect, onPushTo
           )}
         </span>
       </button>
-      {/* Both one-tap moves live on the node itself, so a push never starts
-          with a trip through a form. */}
+      {/* Pointer-sized shortcuts that prefill the typed bar. Hidden on a phone,
+          where they'd be a 9px tap target and the node itself opens the sheet
+          that does the same two things with room to press them. */}
+      {!compact && (
       <div className="absolute -bottom-2 left-2 flex gap-1">
         {node.kind === 'account' && (node.balance ?? 0) > 0 && (
           <button
@@ -117,11 +129,12 @@ function NodeCard({ node, size, inflightIn, selected, dimmed, onSelect, onPushTo
           Push here
         </button>
       </div>
+      )}
     </div>
   )
 }
 
-export default function FlowDiagram({ map, selectedKey, onSelect, onPushTo, onSweep }) {
+export default function FlowDiagram({ map, selectedKey, onSelect, onOpenSheet, onPushTo, onSweep }) {
   const { sources, accounts, edges, perNode, totals } = map
   // Same breakpoint idea as AppShell's sidebar switch: read the viewport, not
   // the element, so the map picks its column widths before it first paints.
@@ -170,6 +183,11 @@ export default function FlowDiagram({ map, selectedKey, onSelect, onPushTo, onSw
     const positions = new Map(placed.map(n => [n.key, n]))
     return { nodes: placed, positions, width: rightX + size.NODE_W, height }
   }, [sources, shownAccounts, size])
+
+  // On a phone the node IS the entry point: tapping opens the move-money sheet,
+  // which offers filtering as its third option. With a pointer, tapping filters
+  // straight away and the hover shortcuts handle the moves.
+  const activate = (n) => (compact ? onOpenSheet(n) : onSelect(n.key))
 
   const maxEdge = Math.max(1, ...edges.map(e => e.total))
   const strokeFor = (amount) => 1.5 + 7 * Math.sqrt(Math.max(0, amount) / maxEdge)
@@ -283,10 +301,11 @@ export default function FlowDiagram({ map, selectedKey, onSelect, onPushTo, onSw
               key={node.key}
               node={node}
               size={size}
+              compact={compact}
               inflightIn={perNode.get(node.key)?.inflightIn ?? 0}
               selected={selectedKey === node.key}
               dimmed={!!selectedKey && selectedKey !== node.key && !drawn.some(e => e.active && (e.from === node.key || e.to === node.key))}
-              onSelect={onSelect}
+              onActivate={activate}
               onPushTo={onPushTo}
               onSweep={onSweep}
             />

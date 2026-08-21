@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
-export default function Modal({ title, onClose, children, wide = false }) {
+// `sheet` docks the dialog to the bottom of the screen on phones (thumb reach,
+// and it doesn't fight the on-screen keyboard) while staying a normal centered
+// dialog from sm up. Everything else — focus trap, Esc, focus restore — is the
+// same either way.
+export default function Modal({ title, onClose, children, wide = false, sheet = false }) {
   const panelRef = useRef(null)
   const prevFocusRef = useRef(null)
 
@@ -29,9 +34,16 @@ export default function Modal({ title, onClose, children, wide = false }) {
     }
   }, [onClose])
 
-  return (
+  // Rendered into <body>, not in place. The page-transition wrapper in AppShell
+  // animates with fill-mode `both`, which leaves a stacking context behind for
+  // good — inside it, this z-50 overlay loses to the z-40 mobile bottom nav and
+  // the nav paints over the dialog. A portal puts the overlay back in the root
+  // stacking context where its z-index means what it says.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 animate-fade-in"
+      className={`fixed inset-0 z-50 flex justify-center bg-black/70 animate-fade-in ${
+        sheet ? 'items-end sm:items-center p-0 sm:p-4' : 'items-center p-4'
+      }`}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
@@ -40,7 +52,11 @@ export default function Modal({ title, onClose, children, wide = false }) {
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`bg-surface border border-edge-strong rounded-xl shadow-pop w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} max-h-[90vh] flex flex-col animate-scale-in focus:outline-none`}
+        className={`bg-surface border border-edge-strong shadow-pop w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} flex flex-col focus:outline-none ${
+          sheet
+            ? 'rounded-t-2xl sm:rounded-xl max-h-[88vh] pb-[env(safe-area-inset-bottom)] animate-slide-up sm:animate-scale-in'
+            : 'rounded-xl max-h-[90vh] animate-scale-in'
+        }`}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-edge flex-shrink-0">
           <h2 className="text-base font-semibold text-ink">{title}</h2>
@@ -48,8 +64,9 @@ export default function Modal({ title, onClose, children, wide = false }) {
             <X size={18} />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 px-5 py-4">{children}</div>
+        <div className="overflow-y-auto overscroll-contain flex-1 px-5 py-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
