@@ -139,6 +139,7 @@ export function buildNodes(state) {
     name: a.bankName || 'Untitled account',
     sublabel: [a.accountType, a.last4 ? `···${a.last4}` : null].filter(Boolean).join(' '),
     balance: round2(a.currentBalance),
+    isHub: !!a.isHub,
     memberId: a.memberId,
     status: a.status,
     ...accountNodeState(a),
@@ -227,11 +228,15 @@ export function buildMoneyMap(state) {
   const inAccounts = accounts.reduce((s, n) => s + (n.balance ?? 0), 0)
   const trackedSources = sources.filter(n => n.balance != null)
   const inSources = trackedSources.reduce((s, n) => s + n.balance, 0)
-  const hub = sources.find(n => n.isHub) ?? null
+  // The hub is whichever node you nominated — usually a cash source, but a
+  // checking account you actually live out of works just as well.
+  const hub = all.find(n => n.isHub) ?? null
   // "Away from home" is money you can't spend today: sitting in a churned
   // account or still moving. Cash parked at a brokerage isn't away — you put
-  // it there on purpose.
-  const awayFromHub = round2(inAccounts + inFlight)
+  // it there on purpose, and neither is the hub itself when the hub is one of
+  // your tracked accounts.
+  const hubInAccounts = hub?.kind === 'account' ? (hub.balance ?? 0) : 0
+  const awayFromHub = round2(inAccounts - hubInAccounts + inFlight)
 
   return {
     nodes: all,
@@ -292,6 +297,8 @@ export function getStrandedCash(state) {
   const rows = []
   const today = startOfToday()
   for (const a of (state.bankAccounts ?? [])) {
+    // Cash in the hub is already home — that's the whole point of the hub.
+    if (a.isHub) continue
     const balance = round2(a.currentBalance)
     if (balance <= 0) continue
     // Money still doing a job: below the required minimum, or the bonus hasn't
@@ -333,6 +340,95 @@ export function getStrandedCash(state) {
     })
   }
   return rows.sort((a, b) => (b.daysIdle ?? 0) - (a.daysIdle ?? 0) || b.amount - a.amount)
+}
+
+// ── Where each card sits on the map ────────────────────────────────────────
+// The two columns have sensible defaults — money comes from the left and lands
+// on the right — but only you know how your accounts actually relate. So the
+// layout is an override map, `moneyMapLayout`, keyed by node:
+//
+//   { 'account:a1': { side: 'left', order: 2 }, … }
+//
+// A node with no entry keeps the smart default: hub first, then the accounts
+// that need attention, then the ones holding the most. Moving anything writes
+// explicit sides and orders for every card, so the arrangement stops shifting
+// under you the moment a balance or a status changes.
+
+const TONE_RANK = { danger: 0, warning: 1, accent: 2, success: 3, closed: 4 }
+
+// Which column a node belongs in: your override, else the hub and the cash
+// sources on the left and the churned accounts on the right.
+export function nodeSide(node, layout) {
+  const override = layout?.[node?.key]?.side
+  if (override === 'left' || override === 'right') return override
+  return node?.isHub || node?.kind === 'source' ? 'left' : 'right'
+}
+
+// Urgency first, then size — the order the map uses until you arrange it.
+function smartOrder(a, b) {
+  if (!!a.isHub !== !!b.isHub) return a.isHub ? -1 : 1
+  const tone = (TONE_RANK[a.tone] ?? 9) - (TONE_RANK[b.tone] ?? 9)
+  if (tone !== 0) return tone
+  return (b.balance ?? 0) - (a.balance ?? 0) || a.name.localeCompare(b.name)
+}
+
+export function layoutColumns(nodes, layout = {}) {
+  const left = []
+  const right = []
+  for (const n of nodes ?? []) (nodeSide(n, layout) === 'left' ? left : right).push(n)
+  // Arranged cards hold their positions; anything you haven't touched keeps the
+  // smart order and sits after them.
+  const sort = (list) => list.sort((a, b) => {
+    const ao = layout?.[a.key]?.order
+    const bo = layout?.[b.key]?.order
+    if (ao != null && bo != null) return ao - bo
+    if (ao != null) return -1
+    if (bo != null) return 1
+    return smartOrder(a, b)
+  })
+  return { left: sort(left), right: sort(right) }
+}
+
+export const MOVE_DIRECTIONS = ['up', 'down', 'left', 'right']
+
+// Can this card move that way? Drives the disabled state on the arrows, so a
+// card at the top of its column doesn't offer a move that does nothing.
+export function canMove(nodes, layout, key, direction) {
+  const cols = layoutColumns(nodes, layout)
+  const side = nodeSide((nodes ?? []).find(n => n.key === key), layout)
+  if (direction === 'left') return side === 'right'
+  if (direction === 'right') return side === 'left'
+  const i = cols[side].findIndex(n => n.key === key)
+  if (i < 0) return false
+  return direction === 'up' ? i > 0 : i < cols[side].length - 1
+}
+
+// Returns the next layout. Both columns are written out in full so the result
+// is stable — a half-specified layout would let untouched cards drift past the
+// arranged ones as their urgency changed.
+export function moveNode(nodes, layout, key, direction) {
+  if (!canMove(nodes, layout, key, direction)) return layout
+  const cols = layoutColumns(nodes, layout)
+
+  if (direction === 'left' || direction === 'right') {
+    const from = direction === 'left' ? 'right' : 'left'
+    const to = direction === 'left' ? 'left' : 'right'
+    const i = cols[from].findIndex(n => n.key === key)
+    const [moved] = cols[from].splice(i, 1)
+    // Land at roughly the same height in the new column rather than the bottom.
+    cols[to].splice(Math.min(i, cols[to].length), 0, moved)
+  } else {
+    const side = nodeSide(nodes.find(n => n.key === key), layout)
+    const list = cols[side]
+    const i = list.findIndex(n => n.key === key)
+    const j = direction === 'up' ? i - 1 : i + 1
+    ;[list[i], list[j]] = [list[j], list[i]]
+  }
+
+  const next = {}
+  cols.left.forEach((n, i) => { next[n.key] = { side: 'left', order: i } })
+  cols.right.forEach((n, i) => { next[n.key] = { side: 'right', order: i } })
+  return next
 }
 
 // ── Picking the other end, and what to send ────────────────────────────────

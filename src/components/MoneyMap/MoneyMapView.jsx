@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
-import { buildMoneyMap, getLedgerMismatches } from '../../engines/moneyFlow'
+import { buildMoneyMap, getLedgerMismatches, moveNode } from '../../engines/moneyFlow'
 import { collectReminders, reminderCounts } from '../../engines/reminders'
 import FlowDiagram from './FlowDiagram'
 import QuickTransferBar from './QuickTransferBar'
@@ -25,7 +25,7 @@ import { Waypoints, Info } from 'lucide-react'
 // you close a year later.
 
 export default function MoneyMapView() {
-  const { state } = useChurn()
+  const { state, dispatch } = useChurn()
   const [selectedKey, setSelectedKey] = useState(null)
   const [prefill, setPrefill] = useState(null)
   // The phone's entry point: tapping a node opens a guided move-money sheet
@@ -82,6 +82,13 @@ export default function MoneyMapView() {
   // Resolved from the map each render so the sheet always shows live balances,
   // and closes itself if the account behind it disappears.
   const sheetNode = sheetKey ? map.byKey.get(sheetKey) : null
+
+  // Arranging rewrites both columns at once, so the move is computed in the
+  // engine and stored whole.
+  const cardLayout = state.moneyMapLayout ?? {}
+  function moveCard(key, direction) {
+    dispatch({ type: 'SET_MAP_LAYOUT', layout: moveNode(map.nodes, cardLayout, key, direction) })
+  }
 
   const nothingLogged = map.transfers.length === 0
   const noAccounts = (state.bankAccounts ?? []).length === 0
@@ -155,6 +162,10 @@ export default function MoneyMapView() {
             onOpenSheet={(node) => setSheetKey(node.key)}
             onPushTo={pushTo}
             onSweep={sweep}
+            cardLayout={cardLayout}
+            onMove={moveCard}
+            onResetLayout={() => dispatch({ type: 'SET_MAP_LAYOUT', layout: {} })}
+            onSetHub={(key) => dispatch({ type: 'SET_HUB', key })}
           />
 
           <ReconcileStrip rows={mismatches} />

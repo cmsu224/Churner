@@ -245,7 +245,7 @@ Page: `/money`. Bank-bonus churning without a payroll direct deposit means pushi
 - A **transfer** moves money between two **nodes**. It is debited from the source on the day it's **sent** and credited to the destination on the day it **lands**. Between those two dates it is **in flight** and belongs to neither — that gap *is* the pipeline figure, and it's why "what I pushed" and "what actually hit the account" are never the same number here.
 - A **node** is either a **cash source** (a brokerage, your everyday bank — anything that isn't itself being churned) or a tracked **bank account**. Account balances live on the account's own `currentBalance`; source balances live on the source's `balance`.
 - Balance effects are applied in the store, in the same dispatch that records the transfer (`src/store/ChurnContext.jsx`, the same pattern `LOG_SPEND` uses for a card's spend) — so the ledger and the balances can't drift apart. Sending, landing, un-landing, editing, and deleting all apply or back out the same effects.
-- One source is the **hub**: the main account money is expected to come home to. It's what "send home" targets and what the sweep-back reminders point at.
+- Exactly one node is the **hub**: the main account money is expected to come home to. It's what "send home" targets and what the sweep-back reminders point at. Usually a cash source, but a **bank account works too** — plenty of people live out of a checking account — so the flag is exclusive across both kinds, and cash sitting in the hub is never flagged as stranded or counted as "away from home".
 - A source's balance is **optional**. Left blank it means *"I don't track this here"* — it renders as "not tracked", never as $0, it's excluded from the household total, and pushes out of it don't invent a running balance for it.
 
 **The graphic (`src/components/MoneyMap/FlowDiagram.jsx`).** Cash sources on the left, churned accounts on the right, one ribbon per source→destination pair:
@@ -254,6 +254,9 @@ Page: `/money`. Bank-bonus churning without a payroll direct deposit means pushi
 - **In-flight amounts are always labelled** (that's the number you're waiting on); landed amounts appear when you select a node.
 - **Node cards** carry the name, the balance, an at-a-glance state (`2 more direct deposits`, `Requirements met · bonus pending`, `Bonus in · hold 43d`, `Bonus in · safe to close`, `Closed`) and a **`+$X` badge** for money in flight toward it. Accounts sort by urgency first, then by how much they're holding; the hub sits at the top of the left column.
 - **Tapping a node does the right thing for the device.** With a pointer it filters every ribbon and the whole ledger below to that account, and the node's two hover shortcuts — **Push here** and **Send home** — pre-fill the quick bar. On a phone it opens the **move-money sheet** below instead, since those shortcuts would be a 9px tap target; filtering is the sheet's third option.
+- **Arrange the cards yourself.** The columns have sensible defaults — hub first, then whichever accounts need attention, then the ones holding the most — but only you know how your accounts really relate. **Arrange** in the panel header turns every card into its own controls: **← ↑ ↓ →** to move it up and down its column or across to the other one, and **Set as hub** to nominate it. Arrows that would do nothing (up from the top, right from the right column) are disabled rather than hidden, so the card's position is legible without trial and error.
+  - The arrangement is stored per node in `moneyMapLayout` and **synced like everything else**, so the map looks the same on your laptop and your phone. Moving anything writes explicit sides and orders for *every* card, which is what stops an untouched card drifting past an arranged one the next time a balance or status changes. **Reset to automatic** clears it.
+  - A node with no entry keeps the automatic placement, and the hub defaults to the left column whichever kind it is. Arranging widens the cards and tightens the gutter so every arrow is a real tap target on a phone (34×36px, the whole map still inside 390px); the ribbon amount labels step aside while you're arranging.
 - **Closed accounts with no balance and no transfer history are hidden** behind a `N closed & empty hidden` toggle, so a year of finished churns doesn't bury the live ones.
 - **Responsive:** the columns switch to a compact width below 640px so the whole map fits a phone without scrolling sideways. Reduced-motion users get the dashed ribbons without the marching.
 
@@ -291,7 +294,7 @@ Both entry points go through one `useLogTransfer` hook, so the typed line and th
 - **Yours (stored, synced):** created by the `+3w` shorthand when you log a push, or added freehand with 3d/1w/2w/3w presets. Ticking one keeps it, stamped, in a collapsed **Done** drawer with a restore button (the same pattern as the notification center's *Snoozed & dismissed*), so a mis-tap isn't lost; the 30 most recent are kept, so the list can't grow without bound.
 - **Derived (never stored, and self-resolving):**
   - **A transfer that should have landed** — an ACH push is treated as late after **5 calendar days** (`EXPECTED_LANDING_DAYS`), because pushes do silently fail and a lost $10k is worth a phone call. Marking it landed clears it.
-  - **Cash with no reason to stay where it is** — an account whose bonus has posted *and* cleared the [181-day clawback window](#8-bank-account-tracking), or that is closed but still shows a balance, and has been sitting for **14+ days** (`STRANDED_CASH_DAYS`). Any required minimum balance is subtracted first, so money still doing a job never gets flagged. This is the one that stops $6,000 being forgotten in a bank you close a year later.
+  - **Cash with no reason to stay where it is** — an account whose bonus has posted *and* cleared the [181-day clawback window](#8-bank-account-tracking), or that is closed but still shows a balance, and has been sitting for **14+ days** (`STRANDED_CASH_DAYS`). Any required minimum balance is subtracted first, so money still doing a job never gets flagged, and the hub is skipped entirely — money there is already home. This is the one that stops $6,000 being forgotten in a bank you close a year later.
 - Rows are ordered overdue → due today → soonest → idle cash (biggest balance first), and each links to its account.
 
 **Reconciliation.** A churned account starts empty, so once its pushes are logged the ledger knows what it should hold. When the stored balance disagrees by $1 or more, a strip lists both numbers side by side with a one-tap **Use $X** — catching hand-typed figures, back-filled history, a transfer missing from the ledger, or one that landed without being marked. Interest and fees explain a small gap; a gap the size of a whole push doesn't.
@@ -600,13 +603,17 @@ bankAccounts[]     { id, memberId, status, bankName, accountType, last4,
                      bonusReceivedDate, requiredDD, requiredDDCount, ddsMade,
                      ddDeadlineDays, ddLinkedDate, ddSourceDescription,
                      minimumBalance, bonusDeadlineDays, etfDays, isTaxable,
+                     isHub,                ← this account is the money-map hub
                      offerUrl, notes }
 pointsBalances[]   { id, memberId, program, balance,
                      expirationDate, updatedAt, notes }
 cashSources[]      { id, name, type: 'brokerage'|'bank'|'other',
-                     isHub,               ← the one account money comes home to
+                     isHub,               ← the one node money comes home to
                      balance,             ← null = deliberately not tracked
                      notes }
+moneyMapLayout     { [nodeKey]: { side: 'left'|'right', order } }
+                                          ← how you arranged the map's cards;
+                                            sparse, absent = automatic placement
 transfers[]        { id, amount,
                      fromKey, toKey,      ← 'source:<id>' or 'account:<id>'
                      purpose: 'dd'|'fund'|'return'|'other',
