@@ -1,6 +1,6 @@
 # Churner — Four-Person Churning Management System
 
-A fast, lightweight web dashboard for running credit-card sign-up bonuses and bank-account bonuses across a **four-person household** — built for two high-velocity churners plus two retired seniors on Social Security. It tells you, in advance, exactly what to do next: when to spend, when to cancel, when a fee posts, when a bonus clears clawback, and when you're eligible to apply again — and now also what you're actually earning, what to apply for next, and how today's application ripples through 5/24 for the next two years.
+A fast, lightweight web dashboard for running credit-card sign-up bonuses and bank-account bonuses across a **four-person household** — built for two high-velocity churners plus two retired seniors on Social Security. It tells you, in advance, exactly what to do next: when to spend, when to cancel, when a fee posts, when a bonus clears clawback, and when you're eligible to apply again — and now also what you're actually earning, what to apply for next, how today's application ripples through 5/24 for the next two years, and **where every dollar of your churning cash currently sits.**
 
 No backend, no subscription, no database server. The whole app is a static single-page application that syncs your data through a **private GitHub Gist** you control. Host it free on GitHub Pages.
 
@@ -20,22 +20,23 @@ No backend, no subscription, no database server. The whole app is a static singl
   - [6. Spend Logging & Burn-Rate Projection](#6-spend-logging--burn-rate-projection)
   - [7. Application Tracker](#7-application-tracker)
   - [8. Bank Account Tracking](#8-bank-account-tracking)
-  - [9. Points & Loyalty Balances](#9-points--loyalty-balances)
-  - [10. Issuer Rule Engines](#10-issuer-rule-engines)
-  - [11. What-If Eligibility Simulator](#11-what-if-eligibility-simulator)
-  - [12. Card Lifecycle: Annual Fees, Retention & Re-Eligibility](#12-card-lifecycle-annual-fees-retention--re-eligibility)
-  - [13. Annual Fee Tracker](#13-annual-fee-tracker)
-  - [14. Credit Age & Keep-Alive Tracker](#14-credit-age--keep-alive-tracker)
-  - [15. Earnings & ROI Analytics](#15-earnings--roi-analytics)
-  - [16. Tax Liability Predictor](#16-tax-liability-predictor)
-  - [17. Command Palette & Global Search](#17-command-palette--global-search)
-  - [18. Member Management](#18-member-management)
-  - [19. Resources Hub](#19-resources-hub)
-  - [20. Import / Export & AI Import Helper](#20-import--export--ai-import-helper)
-  - [21. Data Sync (GitHub Gist)](#21-data-sync-github-gist)
-  - [22. UI / UX & Design System](#22-ui--ux--design-system)
-  - [23. Installable App (PWA) & Offline Support](#23-installable-app-pwa--offline-support)
-  - [24. Milestone Tracker Table](#24-milestone-tracker-table)
+  - [9. Money Map: Transfers, Cash Position & Check-Backs](#9-money-map-transfers-cash-position--check-backs)
+  - [10. Points & Loyalty Balances](#10-points--loyalty-balances)
+  - [11. Issuer Rule Engines](#11-issuer-rule-engines)
+  - [12. What-If Eligibility Simulator](#12-what-if-eligibility-simulator)
+  - [13. Card Lifecycle: Annual Fees, Retention & Re-Eligibility](#13-card-lifecycle-annual-fees-retention--re-eligibility)
+  - [14. Annual Fee Tracker](#14-annual-fee-tracker)
+  - [15. Credit Age & Keep-Alive Tracker](#15-credit-age--keep-alive-tracker)
+  - [16. Earnings & ROI Analytics](#16-earnings--roi-analytics)
+  - [17. Tax Liability Predictor](#17-tax-liability-predictor)
+  - [18. Command Palette & Global Search](#18-command-palette--global-search)
+  - [19. Member Management](#19-member-management)
+  - [20. Resources Hub](#20-resources-hub)
+  - [21. Import / Export & AI Import Helper](#21-import--export--ai-import-helper)
+  - [22. Data Sync (GitHub Gist)](#22-data-sync-github-gist)
+  - [23. UI / UX & Design System](#23-ui--ux--design-system)
+  - [24. Installable App (PWA) & Offline Support](#24-installable-app-pwa--offline-support)
+  - [25. Milestone Tracker Table](#25-milestone-tracker-table)
 - [Privacy & Security](#privacy--security)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -56,7 +57,7 @@ The household has **four members** by default, each with a role:
 | Mom | `senior` | Retired, on Social Security |
 | Dad | `senior` | Retired, on Social Security |
 
-Members are **fully editable** — none of the names, colors, or roles are hardcoded. Add, rename, recolor, or delete members freely (see [Member Management](#18-member-management)). Every card, account, application, and rule check is attributed to a member. The default member colors are a colorblind-validated categorical set (they double as chart series colors on the Earnings page), but any color can be chosen.
+Members are **fully editable** — none of the names, colors, or roles are hardcoded. Add, rename, recolor, or delete members freely (see [Member Management](#19-member-management)). Every card, account, application, and rule check is attributed to a member. The default member colors are a colorblind-validated categorical set (they double as chart series colors on the Earnings page), but any color can be chosen.
 
 ---
 
@@ -64,13 +65,13 @@ Members are **fully editable** — none of the names, colors, or roles are hardc
 
 ### 1. Command Center Dashboard
 
-The home screen (`/`) is a prioritized command center, not a passive summary. **Every section is reorderable** — tap **Customize** to move sections up/down; the layout is saved per device (localStorage). Default order: Individual Summary → Bonus Pipeline → Application Eligibility → Credit Age & Usage → Spend Challenges → Action Items → Stats. The dashboard is also **fluid**: summary cards, pipeline rows, spend tiles, and stat tiles are all clickable drill-downs into their detail screens.
+The home screen (`/`) is a prioritized command center, not a passive summary. **Every section is reorderable** — tap **Customize** to move sections up/down; the layout is saved per device (localStorage). Default order: Individual Summary → Bonus Pipeline → Money Map → Application Eligibility → Credit Age & Usage → Spend Challenges → Action Items → Stats. The dashboard is also **fluid**: summary cards, pipeline rows, spend tiles, and stat tiles are all clickable drill-downs into their detail screens.
 
 - **Individual Summary** — per-person rollup of activity, including a **Bonus Pipeline** (dollar value of bonuses still being worked toward; points/miles are valued at their global program rate, never counted as raw dollars, and flagged `est.` when estimated). **Clicking a member's card opens the Cards page pre-filtered to that person** (`/cards?member=…`); the Accounts mini-tile opens their bank accounts instead.
 - **Bonus Pipeline** — the household's money in flight, itemized: every bonus still being worked toward as its own line (brand, member, dollar value), sorted by value, with the running total in the header. **Only in-flight bonuses count** (one shared engine rule): a card must be in Applied or Earning Bonus — a card marked **Bonus Earned drops out even if its "bonus received" checkbox hasn't been ticked yet** — and an account already at Bonus Received / Holding / Safe to Close is out even without a received date. Card points/miles are valued the same way as everywhere else — the card's global program rate, flagged `est.` — so you can see exactly which bonuses make up the pipeline, not just the sum. **Each row is a drill-down**: clicking jumps to that card or account on its own page and flashes it.
   - **Cards with no bonus value recorded are still listed**, sorted to the bottom and marked **"Add bonus value"** instead of a dollar figure, with a **"N without a value"** count next to the header total. They contribute nothing to the total, but they aren't hidden either — a credit-report import leaves `bonusValue` empty by design, and those cards would otherwise vanish from the pipeline while still showing as actively earning on the Cards page. Clicking the row jumps to the card so the value can be filled in. (Two engine predicates back this: `isCardChasingBonus` decides what gets **listed**, `isCardBonusPending` decides what gets **summed into dollar totals**.)
 - **Application Eligibility** — compact per-member issuer bars (Chase 5/24, Amex, Citi, BofA, Capital One), only shown when a window has active cards counted. Shows "next slot" dates when blocked.
-- **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#14-credit-age--keep-alive-tracker)).
+- **Credit Age & Card Usage** — per-person panels showing average account age and keep-alive status of every open card (see [Credit Age Tracker](#15-credit-age--keep-alive-tracker)).
 - **Active Spend Challenges** — live progress bars for every card with an open minimum-spend requirement, showing dollars spent vs. required, days remaining, and the **burn-rate projection** (on pace / off pace — need $X/week). Cards whose deadline can't be computed yet (no open date or spend-window days) still show their progress bar with a "no deadline set" note instead of disappearing. Clicking a tile jumps to that card on the Cards page.
 - **Action Queue** — a single ranked list of *everything you need to do*, pulled from every card and account (see [Action Engine](#2-action-engine-the-brain)). Items can be **dismissed or snoozed (1/3/7 days)** — both synced across devices. If nothing is pending, you get an "all caught up" state instead.
 - **Stats bar** — four tiles (2×2 on mobile, one row from `sm` up): **Cash Pipeline**, **Rewards Pipeline**, count of active cards, and count of bank accounts. The two pipeline tiles split the money in flight by how certain it is — **cash** is hard dollars (cashback card bonuses + bank account bonuses), **rewards** is points/miles converted at their program rate and flagged `est.`, so it moves when the Settings rates change. **Cash + rewards equals the itemized Bonus Pipeline total exactly** (same `isCardBonusPending` predicate, same `valueCardBonus` valuation). Each tile drills in: both pipeline tiles scroll to the Bonus Pipeline section, the counts open the Cards / Accounts pages.
@@ -103,6 +104,9 @@ The engine generates these item types:
 **Keep-alive items (every open card)**
 - **At risk** (critical, 180+ days unused), **use soon** (120+ days), and **track usage** (no last-used date set on one of your 3 oldest cards). The three oldest cards get the highest priority because they anchor your credit history.
 
+**Money items (from the [Money Map](#9-money-map-transfers-cash-position--check-backs))**
+- **A transfer that should have landed** (critical) — an ACH push still unconfirmed more than 5 days after it was sent. **A check-back you set** (warning) once it's due or overdue. **Cash with no reason to stay where it is** (info) — an account past its clawback window, or closed, still holding money 14+ days on. All three carry the **Money** category and link to `/money`, where marking it landed or pushing it home actually happens. Upcoming check-backs stay out of the queue until they're due — a reminder set three weeks out isn't an action item today.
+
 **Dismiss & snooze, synced.** Every item can be dismissed (X) or snoozed for 1, 3, or 7 days (clock). This state lives in the synced Gist data — dismissing an item on your phone dismisses it on your laptop. Dismissals recorded under the old per-device model are migrated into the synced store automatically on first load.
 
 ### 3. Notification Center & Reminders
@@ -110,7 +114,7 @@ The engine generates these item types:
 A **bell icon in the header** (every screen) opens the notification center:
 
 - **Unread badge** — count of active action items you haven't seen yet; opening the panel marks the current items seen (synced, and pruned so state can't grow unbounded).
-- Each notification links straight to its card or account (jump + highlight flash), and has inline **dismiss** and **snooze (1/3/7d)** controls — the same synced state as the Dashboard queue.
+- Each notification links straight to its card or account (jump + highlight flash) — or to the [Money Map](#9-money-map-transfers-cash-position--check-backs) for a money item, since that's where marking a transfer landed or sweeping cash home actually happens — and has inline **dismiss** and **snooze (1/3/7d)** controls, the same synced state as the Dashboard queue.
 - A collapsed **"Snoozed & dismissed"** drawer lets you restore anything.
 
 **Browser notifications (opt-in, Settings):** while the app is open, a system notification fires the moment an action item *newly becomes critical*. Enabling walks through the browser permission prompt; blocked/unsupported browsers degrade gracefully with a clear status message. Notified-item tracking is per device.
@@ -121,9 +125,9 @@ A **bell icon in the header** (every screen) opens the notification center:
 
 Page: `/timeline`. Every dated event across the household, in one place, sourced from the existing engines (`src/engines/events.js` reuses their math — no duplicated rule logic):
 
-- **Event types:** spend deadlines, annual-fee cycle dates (plus an *"Annual fee expected by"* checkpoint when a due fee hasn't been confirmed as posted), fee-refund window closes, retention-call window opens (card turns 10 months old), card safe-to-close dates (the 12-month close shield clears), card bonus re-eligibility dates, direct-deposit deadlines, bank-bonus offer deadlines, clawback-clear ("safe to close") dates, early-termination-fee window ends, and bank bonus re-eligibility dates.
+- **Event types:** spend deadlines, annual-fee cycle dates (plus an *"Annual fee expected by"* checkpoint when a due fee hasn't been confirmed as posted), fee-refund window closes, retention-call window opens (card turns 10 months old), card safe-to-close dates (the 12-month close shield clears), card bonus re-eligibility dates, direct-deposit deadlines, bank-bonus offer deadlines, clawback-clear ("safe to close") dates, early-termination-fee window ends, bank bonus re-eligibility dates, and — from the [Money Map](#9-money-map-transfers-cash-position--check-backs) — **transfer check-back dates** and **expected landing dates** for pushes still in flight.
 - **Two views:** a **month calendar** (prev/today/next, event chips per day, tap a day for its agenda) and an **agenda list** grouped by month with an **Overdue** section on top. Mobile defaults to agenda.
-- **Filters** by member and by category (Spend / Fees / Banks / Eligibility).
+- **Filters** by member and by category (Spend / Fees / Banks / Eligibility / Money).
 - **Export .ics** — generates an iCalendar file client-side (RFC 5545: proper escaping, line folding, all-day VEVENTs, stable UIDs) from the *currently filtered upcoming events*, one VEVENT per item, summaries like `[Churner] Wife: Spend deadline: Sapphire Preferred`. Import or subscribe in Google/Apple Calendar for reminders while the app is closed.
 - Window: events from 30 days back (overdue) to 18 months out.
 
@@ -131,7 +135,7 @@ Page: `/timeline`. Every dated event across the household, in one place, sourced
 
 Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline, no modals. Only the **card name is required**; everything else is optional so data entry stays fluid. Cards are **grouped by issuer** (Chase, American Express, Citi, …, with an "Other" bucket), each group headed by the issuer's **logo**.
 
-**Tracked fields:** person, status, card name, issuer (with autocomplete for Chase, Amex, Capital One, Citi, Bank of America, Barclays, Wells Fargo, US Bank, Discover), last 4, open date, last-used date, **current balance**, **credit limit**, minimum-spend requirement / deadline days / current spend, **itemized spend log**, bonus value & type (points / cash / miles), annual fee, **first-year-fee-waived** flag, **annual-fee post date (confirmed)** — the date the fee *actually* hit the statement, the one thing that starts the refund clock and pins the card's later fee cycles (see [Annual fee timing](#12-card-lifecycle-annual-fees-retention--re-eligibility)); the edit form has a **Posted today** shortcut beside it — "bonus received" + received date, **closed/downgraded date**, and the **"Business card"** / **"Authorized user"** flags (which exclude a card from Chase 5/24 — see below).
+**Tracked fields:** person, status, card name, issuer (with autocomplete for Chase, Amex, Capital One, Citi, Bank of America, Barclays, Wells Fargo, US Bank, Discover), last 4, open date, last-used date, **current balance**, **credit limit**, minimum-spend requirement / deadline days / current spend, **itemized spend log**, bonus value & type (points / cash / miles), annual fee, **first-year-fee-waived** flag, **annual-fee post date (confirmed)** — the date the fee *actually* hit the statement, the one thing that starts the refund clock and pins the card's later fee cycles (see [Annual fee timing](#13-card-lifecycle-annual-fees-retention--re-eligibility)); the edit form has a **Posted today** shortcut beside it — "bonus received" + received date, **closed/downgraded date**, and the **"Business card"** / **"Authorized user"** flags (which exclude a card from Chase 5/24 — see below).
 
 **Statuses** (friendly labels; stored values stable): Applied → Earning Bonus → Bonus Earned → Keep Alive → Cancel or Downgrade → Downgraded / Closed. **The collapsed card adapts to the status** — each lifecycle stage surfaces only the facts that matter for it (see the status-aware display bullet below).
 
@@ -150,7 +154,7 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
   - *Bonus Earned* → **→ Keep Alive** or **Close / Downgrade** (→ Cancel or Downgrade). Which one is the solid primary button depends on the **12-month close shield**: Keep Alive leads until the card is safe to close, then Close / Downgrade takes over.
   - *Keep Alive* → no buttons on the collapsed card (deliberate keeps stay lean) — **Close / Downgrade** lives in the expanded card's **Mark as** strip
   - *Cancel or Downgrade* → **✓ Mark Closed**, **Keep It** (→ Keep Alive), or **Downgrade →** (type the no-fee replacement card's name — marks this card Downgraded and creates the new card, without inheriting the original's 5/24-counted open date)
-- **"Fee posted" ⧉ pill** — when a fee is due but hasn't shown up on the statement yet, the fee row carries a one-tap **Fee posted** button. It records today as the confirmed post date, which is the *only* thing that starts the cancel-for-full-refund countdown — and it's undoable like any other quick action. Same button on the [Annual Fee Tracker](#13-annual-fee-tracker) rows.
+- **"Fee posted" ⧉ pill** — when a fee is due but hasn't shown up on the statement yet, the fee row carries a one-tap **Fee posted** button. It records today as the confirmed post date, which is the *only* thing that starts the cancel-for-full-refund countdown — and it's undoable like any other quick action. Same button on the [Annual Fee Tracker](#14-annual-fee-tracker) rows.
 - **Undo button** — after any quick-action tap, an **↩ Undo** button appears for 6 seconds to instantly revert the change. No confirmation dialog.
 - **Smart status on import** — when importing cards from a credit report (where bonus status is unknown), the app infers the right status from the card's age: under 6 months → Earning Bonus; 6–10 months → Bonus Earned (bonus assumed received); 11–13 months → Annual Fee Decision; 14+ months → Keep Alive. Cards with no bonus details are set to Keep Alive regardless of age.
 - **Smart status on manual add** — same age-based logic applies when you add a card manually and leave the status at the default. If you explicitly pick a status in the dropdown, that choice is respected as-is.
@@ -163,11 +167,11 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
 - **Required fields are accent-highlighted**; optional fields are muted so you know what to ignore.
 - **Per-person filter** buttons plus a full **filter + sort bar** on both the Credit Cards and Bank Accounts pages:
   - **Credit cards** — filter by status (multi-select), issuer/brand (auto-populated, multi-select), age range (< 1yr / 1–2yr / 2–4yr / 4+yr), and toggle chips for "Has annual fee", "Bonus pending", "Hide closed/downgraded", "Hide keep-alive". **"Bonus pending" uses the same engine predicate the Dashboard's Bonus Pipeline lists on** (`isCardChasingBonus`), so the two views can't disagree: it includes Applied cards, and excludes cards whose bonus is already marked received. Sort by Recommended, Newest, Oldest, Highest annual fee, or Name A–Z.
-  - **"Recommended" is the default sort** — cards are ordered by how much attention they need right now, most urgent first, using the [attention score](#12-card-lifecycle-annual-fees-retention--re-eligibility) (`getCardAttentionScore`). Broadly: cards earning a bonus at the top, then applications, cancel-or-downgrade decisions and earned bonuses, with keep-alive cards at the bottom and retired cards last — except that a genuinely time-sensitive card (blown spend deadline, open fee-refund window, a keep-alive card drifting toward inactivity closure) floats above its tier. Ties break to newest first.
+  - **"Recommended" is the default sort** — cards are ordered by how much attention they need right now, most urgent first, using the [attention score](#13-card-lifecycle-annual-fees-retention--re-eligibility) (`getCardAttentionScore`). Broadly: cards earning a bonus at the top, then applications, cancel-or-downgrade decisions and earned bonuses, with keep-alive cards at the bottom and retired cards last — except that a genuinely time-sensitive card (blown spend deadline, open fee-refund window, a keep-alive card drifting toward inactivity closure) floats above its tier. Ties break to newest first.
   - **"Hide keep-alive" is on by default** — long-term keep cards need no action, so the list opens focused on cards that do. Whenever it's suppressing cards, a "*N* keep-alive cards hidden — show them" link appears under the list (and in the empty state) to bring them back in one click. Selecting the **Keep Alive** status pill overrides the hide, so filtering *for* keep-alive cards always works. Turning the chip off counts toward the active-filter badge, since the default state is on.
   - **Bank accounts** — filter by status, bank (auto-populated), account type (Checking/Savings/Money Market/CD), and toggle chips for "Has bonus offer", "Bonus pending". Sort by Newest, Oldest, Highest bonus, or Bank A–Z.
   - Active filter count badge on the "Clear filters" button. The list is a **flat, global** order that always honors the chosen sort — so "Newest first" is genuinely newest-first for the whole page, regardless of issuer. Grouping by issuer/bank (with brand logos) is an explicit, always-visible **Group by brand / Group by bank** toggle that's **off by default**.
-- **Table view** — a **Table** toggle beside *Group by brand* swaps the card list for the dense milestone grid described in [Milestone Tracker Table](#24-milestone-tracker-table). It reads the same filtered, sorted set the cards do, and includes the closed/downgraded cards inline (it has its own Status and Closed columns, so they need no separate section).
+- **Table view** — a **Table** toggle beside *Group by brand* swaps the card list for the dense milestone grid described in [Milestone Tracker Table](#25-milestone-tracker-table). It reads the same filtered, sorted set the cards do, and includes the closed/downgraded cards inline (it has its own Status and Closed columns, so they need no separate section).
 - **Contextual edit form** — the inline edit form adapts to the card's status so you only see relevant fields. The **Earning Bonus** section (spend req, days, spent, spend log) only appears for Earning Bonus cards or when spend data exists. The **Bonus & Rewards** section (bonus value, type, annual fee, received date, fee-waived flag) is hidden for Closed cards unless data is present. The **Last Used** field only appears on Keep Alive cards or when a date is already set. The **Closed Date** field appears for Closed/Downgraded cards. Current balance, credit limit, and notes live under a collapsed **More details (optional)** section since they're rarely updated.
 - **Progressive add form** — a new card starts short: person, status, card name, issuer, and open date. The **Earning Bonus** section shows only for *Earning Bonus* / *Applied* status; **Bonus & Rewards** (including a **First-year annual fee waived at sign-up** checkbox when a fee is entered) hides once a card is Closed/Downgraded; and balance, credit limit, and notes stay tucked under **More details (optional)**. Inline delete with confirmation.
 
@@ -203,7 +207,7 @@ Page: `/accounts`. Same expand-in-place pattern; only **bank name is required**.
 **Dynamic status action buttons** — the same one-tap lifecycle strip the credit cards have, so an account can be advanced without opening the edit form. The primary next step is a **solid, filled button**; secondary options stay outlined; and every tap gets a 6-second **↩ Undo**:
 - *Opened* → **✓ Direct Deposit Linked** (sets the linked date and the DD count) — or **→ Bonus Pending** when the offer needs no direct deposit. **✓ Bonus Posted** is always available as a secondary.
 - *Direct Deposit Linked* → **+ Direct Deposit N/M** while qualifying deposits are still outstanding (each tap increments the completed count, exactly like logging spend on a card), then **✓ Bonus Posted** / **→ Bonus Pending**.
-- *Bonus Pending* → **✓ Bonus Posted** — sets the status, the received flag, **and the received date**, which is what puts the bonus in the right year on the [Tax page](#16-tax-liability-predictor) and starts the clawback countdown.
+- *Bonus Pending* → **✓ Bonus Posted** — sets the status, the received flag, **and the received date**, which is what puts the bonus in the right year on the [Tax page](#17-tax-liability-predictor) and starts the clawback countdown.
 - *Bonus Received / Holding* → **→ Holding (Clawback)** until the 181-day window clears, then **✓ Safe to Close** (the step is chosen by `getAccountNextStatus`, so the button always matches the clawback rule).
 - *Safe to Close* → **✓ Mark Closed** (stamps the **closed date**, which is what switches the account from the first clock to the second).
 
@@ -217,7 +221,7 @@ The direct deposit fields drive the multi-tier direct-deposit reminders, the mul
 **Reapply clock — closed accounts only.** While an account is still open the first clock is what matters, and virtually every bank's offer terms disqualify current customers outright, so there is nothing to count down until the account is gone.
 
 - **Per-account readout** on every closed account's card: the account's own history (**opened → closed**), a progress bar toward the reapply date, and the verdict — **Eligible now**, **Nd · \<date\>**, **Once per lifetime**, or a nudge to add an opened date when the clock can't be anchored. Under it, the rule being applied and where it counts from (e.g. *"~24mo rule · from bonus Jun 6, 2024"*).
-- **Anchor follows the bank's own rule basis** — a bank whose terms read *"no bonus in the past N months"* counts from the **bonus received date**; one that reads *"no open **or closed** account in the past N months"* counts from the **closed date**; one that says *"new customers only"* counts from the **opened date**. Each basis has a fallback chain (`getBonusAnchor`) so a part-filled account still gets a clock, and the readout names the date it actually used — *"~24mo from account closing · closed Nov 1, 2024"* — so a fallback never reads as the real thing. Same anchor the bank-level [Bank Bonus Eligibility](#10-issuer-rule-engines) widget uses, so the two never disagree.
+- **Anchor follows the bank's own rule basis** — a bank whose terms read *"no bonus in the past N months"* counts from the **bonus received date**; one that reads *"no open **or closed** account in the past N months"* counts from the **closed date**; one that says *"new customers only"* counts from the **opened date**. Each basis has a fallback chain (`getBonusAnchor`) so a part-filled account still gets a clock, and the readout names the date it actually used — *"~24mo from account closing · closed Nov 1, 2024"* — so a fallback never reads as the real thing. Same anchor the bank-level [Bank Bonus Eligibility](#11-issuer-rule-engines) widget uses, so the two never disagree.
 - **Cooldown windows and their basis are not redefined here** — the engine imports the rule from `bankEligibility.js` via `getBankRule`, so there is exactly one source of truth per bank (Chase ~24mo from the bonus, Citi/U.S. Bank/PNC ~24mo from closing, Wells Fargo ~12mo, Capital One/TD/Huntington/Fifth Third ~12mo from closing, once-per-lifetime for Discover and SoFi, conservative 24-month default for unknown banks).
 - **"Another \<bank\> account is still open"** — if the member still holds a non-closed account at the same bank, the row says so and the reminder is suppressed, because a new-customer offer won't pay a current customer no matter what the date math says.
 - **Reapply Eligibility panel** at the top of `/accounts` — every closed account's clock in one collapsible list, action-ordered (**eligible now** first, then cooldowns by how soon they open, with lifetime bans and undated accounts last). The header summarizes at a glance (*"4 closed accounts · 1 eligible to reapply now"*, or the next window to open); each row jumps to that account in the list below. It honors the person filter and hides itself entirely when nothing is closed.
@@ -226,11 +230,73 @@ The direct deposit fields drive the multi-tier direct-deposit reminders, the mul
 
 **Closed date** is captured by the one-tap **✓ Mark Closed** action, and appears as an editable field on the add and edit forms whenever the status is *Closed* (so a historical account can be logged with its real dates). It is the flag that starts the reapply clock; the cooldown length itself still counts from the anchor above.
 
-**Table view** — a **Table** toggle beside *Group by bank* swaps the account list for the dense milestone grid described in [Milestone Tracker Table](#24-milestone-tracker-table), carrying the opened → requirement → direct deposit → posted → close-after → closed → reapply chain across one row per account.
+**Where the money for the direct deposits comes from** is tracked separately, on the [Money Map](#9-money-map-transfers-cash-position--check-backs): every ACH push into an account, what's still in flight, what the account is holding, and when to sweep it home. An account's `currentBalance` is the field both pages share — landing a transfer credits it here, and it stays hand-editable on this page.
+
+**Table view** — a **Table** toggle beside *Group by bank* swaps the account list for the dense milestone grid described in [Milestone Tracker Table](#25-milestone-tracker-table), carrying the opened → requirement → direct deposit → posted → close-after → closed → reapply chain across one row per account.
 
 **Contextual edit form** — both the add and edit forms adapt to the account's status. The **Sign-Up Bonus** section (bonus amount, deadline, minimum balance, ETF window, taxable checkbox, bonus received date) only appears when the account is in a bonus-earning status or bonus data exists. The **Direct Deposit Requirements** section only appears when the status is Opened/DD Linked or when direct deposit data is present. The **Closed Date** field appears when the status is Closed or a date is already set. On the add form, current balance, minimum balance, bonus received date, offer link, and notes stay tucked under **More details (optional)**. "Direct Deposit" is always spelled out in full — never abbreviated.
 
-### 9. Points & Loyalty Balances
+### 9. Money Map: Transfers, Cash Position & Check-Backs
+
+Page: `/money`. Bank-bonus churning without a payroll direct deposit means pushing ACH after ACH out of a brokerage or everyday bank into each new account — and then getting every dollar back once the bonus posts. With a dozen accounts live that is a lot of money in a lot of places. The Money Map is the one page that answers **where is all my cash, what's still moving, and what do I have to come back to?**
+
+**The model — money leaves, then money arrives.**
+
+- A **transfer** moves money between two **nodes**. It is debited from the source on the day it's **sent** and credited to the destination on the day it **lands**. Between those two dates it is **in flight** and belongs to neither — that gap *is* the pipeline figure, and it's why "what I pushed" and "what actually hit the account" are never the same number here.
+- A **node** is either a **cash source** (a brokerage, your everyday bank — anything that isn't itself being churned) or a tracked **bank account**. Account balances live on the account's own `currentBalance`; source balances live on the source's `balance`.
+- Balance effects are applied in the store, in the same dispatch that records the transfer (`src/store/ChurnContext.jsx`, the same pattern `LOG_SPEND` uses for a card's spend) — so the ledger and the balances can't drift apart. Sending, landing, un-landing, editing, and deleting all apply or back out the same effects.
+- One source is the **hub**: the main account money is expected to come home to. It's what "send home" targets and what the sweep-back reminders point at.
+- A source's balance is **optional**. Left blank it means *"I don't track this here"* — it renders as "not tracked", never as $0, it's excluded from the household total, and pushes out of it don't invent a running balance for it.
+
+**The graphic (`src/components/MoneyMap/FlowDiagram.jsx`).** Cash sources on the left, churned accounts on the right, one ribbon per source→destination pair:
+
+- **Solid ribbon = landed, marching dashed ribbon = in flight.** Ribbon thickness scales with the amount (√-scaled against the largest edge), and the color is the push's intent: **blue = direct deposit, amber = funding / minimum balance, green = sweep home**, grey for anything else. A sweep home runs right-to-left, so money coming back is visible as a direction, not just a color.
+- **In-flight amounts are always labelled** (that's the number you're waiting on); landed amounts appear when you select a node.
+- **Node cards** carry the name, the balance, an at-a-glance state (`2 more direct deposits`, `Requirements met · bonus pending`, `Bonus in · hold 43d`, `Bonus in · safe to close`, `Closed`) and a **`+$X` badge** for money in flight toward it. Accounts sort by urgency first, then by how much they're holding; the hub sits at the top of the left column.
+- **Tap a node** to filter every ribbon and the whole ledger below to just that account. Each node carries the two one-tap moves — **Push here** and **Send home** — which pre-fill the quick bar rather than opening a form.
+- **Closed accounts with no balance and no transfer history are hidden** behind a `N closed & empty hidden` toggle, so a year of finished churns doesn't bury the live ones.
+- **Responsive:** the columns switch to a compact width below 640px so the whole map fits a phone without scrolling sideways. Reduced-motion users get the dashed ribbons without the marching.
+
+**Quick entry — one line, one Enter.** Typing beats four dropdowns when you're logging the eighth push of the afternoon, so the bar parses a whole entry out of free text (`parseQuickTransfer` in `src/engines/moneyFlow.js`):
+
+| Type this | It logs |
+|---|---|
+| `5000 fidelity > chase` | $5,000 from Fidelity into your Chase account |
+| `8k schwab to citi dd` | $8,000, tagged as a direct-deposit push |
+| `chase back 4200` | $4,200 swept from Chase back to the **hub** |
+| `3000 fidelity > sofi +3w` | the push, plus a check-back reminder 3 weeks out |
+
+- Amount, source and destination in **any order**; `>`, `->`, `=>`, `→`, `to` and `into` all separate the two ends; `k`/`m` shorthand and `$`/commas are understood. Names match on full name, `···last4`, prefix, substring, or initials (`wf` → Wells Fargo).
+- **Purpose keywords** — `dd` / `direct deposit` / `payroll`, `fund` / `min` / `balance`, `back` / `return` / `sweep` / `home`. A `back` with no destination targets the hub automatically.
+- **`+3w` / `+21d` / `+2m`** (or `check 3w`) attaches a check-back reminder.
+- A **live preview** shows exactly what was understood, with one-tap chips to correct the purpose, pick between ambiguous name matches, set the send date, or mark it **Already landed** (for back-filling). The bar **never saves a half-read line** — the Log button stays disabled until amount, source and destination all resolve.
+- A name it can't place gets an inline **"Add source *Fidelity*"** button, so a new brokerage is created without leaving the field. After saving, focus stays in the bar for the next push.
+
+**The ledger.** Two tabs — **In the pipeline** and **Hit the account** — newest first, filtered by whichever node you selected:
+
+- In-flight rows carry the only action that matters day to day: **✓ It landed** (one tap, stamps today, credits the destination, and closes any "did it land?" reminder). Landed rows carry **Send back** (pre-fills the reverse push) and an **undo** that puts it back in flight.
+- Each row shows its purpose tag, send date, and either `In flight · day N`, `Nd in transit` once landed, or a red **should have landed by now**.
+
+**Reminders and check-backs (`src/engines/reminders.js`).** The *Check back on* board merges what you asked to be reminded of with what the app works out on its own:
+
+- **Yours (stored, synced):** created by the `+3w` shorthand when you log a push, or added freehand with 3d/1w/2w/3w presets. Ticking one keeps it, stamped, in a collapsed **Done** drawer with a restore button (the same pattern as the notification center's *Snoozed & dismissed*), so a mis-tap isn't lost; the 30 most recent are kept, so the list can't grow without bound.
+- **Derived (never stored, and self-resolving):**
+  - **A transfer that should have landed** — an ACH push is treated as late after **5 calendar days** (`EXPECTED_LANDING_DAYS`), because pushes do silently fail and a lost $10k is worth a phone call. Marking it landed clears it.
+  - **Cash with no reason to stay where it is** — an account whose bonus has posted *and* cleared the [181-day clawback window](#8-bank-account-tracking), or that is closed but still shows a balance, and has been sitting for **14+ days** (`STRANDED_CASH_DAYS`). Any required minimum balance is subtracted first, so money still doing a job never gets flagged. This is the one that stops $6,000 being forgotten in a bank you close a year later.
+- Rows are ordered overdue → due today → soonest → idle cash (biggest balance first), and each links to its account.
+
+**Reconciliation.** A churned account starts empty, so once its pushes are logged the ledger knows what it should hold. When the stored balance disagrees by $1 or more, a strip lists both numbers side by side with a one-tap **Use $X** — catching hand-typed figures, back-filled history, a transfer missing from the ledger, or one that landed without being marked. Interest and fees explain a small gap; a gap the size of a whole push doesn't.
+
+**Where it shows up elsewhere:**
+
+- **Action items** — every reminder that is overdue, due today, or idle-cash becomes an action item in the [Action Engine](#2-action-engine-the-brain) under a **Money** category, so it reaches the Dashboard queue and the header [notification center](#3-notification-center--reminders) (a late transfer is `critical`; those link to `/money`, where the fix actually lives).
+- **Timeline** — check-back dates and expected landing dates are [calendar events](#4-timeline--calendar--ics-export) under a **Money** filter, so they ride the **.ics export** too.
+- **Dashboard** — a Money Map card (reorderable like every other section) showing in-accounts / in-flight / at-the-hub, the accounts holding the most, and the next thing to check on.
+- **Nav** — `/money` sits in the sidebar under Accounts and takes a slot in the mobile bottom bar; Timeline moved into the **More** hub. The command palette has a **Money Map** page entry and a **Log a transfer** action.
+
+**Automatic balances are deliberately not here yet.** Every balance stays hand-editable on the Accounts page and in the Money Map, and the ledger's figure is offered rather than forced — so a future bank-balance feed can be dropped in as another writer of the same fields without any of this having to change.
+
+### 10. Points & Loyalty Balances
 
 Page: `/points`. One place to keep every program's balance — the points currently sitting on your cards and loyalty accounts — per person: Chase UR, Amex MR, airline miles, hotel points, or any custom program.
 
@@ -241,7 +307,7 @@ Page: `/points`. One place to keep every program's balance — the points curren
 - **Expiration tracking** — an optional expiration date per entry shows an amber **"Expires in Nd"** warning inside 90 days and red once expired (useful for programs that expire with inactivity).
 - **Sort & filter** — sort by highest value (default), highest balance, program A–Z, or recently updated; filter by person or program type; opt-in **Group by program** toggle with per-program subtotals (points + est. value).
 
-### 10. Issuer Rule Engines
+### 11. Issuer Rule Engines
 
 Page: `/rules`. Each issuer has a dedicated engine and a dashboard widget, evaluated **per member**:
 
@@ -281,7 +347,7 @@ Rules on file cover 25 banks: Chase ~24mo from the bonus; Citi, U.S. Bank, PNC, 
 
 **Bank reapply clock** (`bankReeligibility.js`) — the same rules applied at the **account** level instead of the bank level, for **closed accounts only**: the per-account second clock on the [Bank Accounts page](#8-bank-account-tracking). It calls `getBankRule` and `getBonusAnchor` from `bankEligibility.js` rather than restating any window or anchor rule, so a change to a bank's cooldown — or to what that cooldown counts from — moves both views at once.
 
-### 11. What-If Eligibility Simulator
+### 12. What-If Eligibility Simulator
 
 Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply for X on this date, what happens?"* — `src/engines/whatIf.js`:
 
@@ -290,7 +356,7 @@ Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply f
 - **24-month 5/24 projection** — a month-strip showing the member's 5/24 count at the 1st of each month (green under 4, amber at 4, red at 5+), with and without the planned applications, plus a **drop-off schedule** listing exactly when each existing card leaves the 24-month window and what the count becomes.
 - Business cards don't add a 5/24 slot but do count for issuer velocity — the simulator models both.
 
-### 12. Card Lifecycle: Annual Fees, Retention & Re-Eligibility
+### 13. Card Lifecycle: Annual Fees, Retention & Re-Eligibility
 
 `src/engines/lifecycle.js` powers the time-based intelligence:
 
@@ -298,28 +364,28 @@ Page: `/simulator`. A scratchpad (nothing persists) for answering *"if I apply f
   - **Scheduled** — the cycle date is still ahead. Cancel before it and you owe nothing.
   - **Awaiting** — the cycle date has passed with nothing confirmed: the fee is due to hit any day, through **expected-by** = cycle date + the statement lag (**35 days** from an open-date anchor; **7 days** once a real post date has pinned the card's statement day). Past expected-by it's flagged **overdue** — either it slipped by unnoticed or the card's dates are wrong. **No refund clock runs in this phase.**
   - **Posted** — you confirmed the date it actually hit (the **Fee posted** button, stored as `feePostDate`). Only this starts the cancel-for-full-refund countdown, and it counts from the real date.
-  - Confirming one posting also pins every later cycle to the card's true statement date, which is what makes year two onward exact. The engine also owns the **first-year-fee-waiver** skip, so the fee reminders, Timeline events, card verdicts, and [Annual Fee Tracker](#13-annual-fee-tracker) all honor it identically. Calendar dates are parsed at local midnight, so no countdown or displayed date shifts by a day in a negative-UTC timezone.
+  - Confirming one posting also pins every later cycle to the card's true statement date, which is what makes year two onward exact. The engine also owns the **first-year-fee-waiver** skip, so the fee reminders, Timeline events, card verdicts, and [Annual Fee Tracker](#14-annual-fee-tracker) all honor it identically. Calendar dates are parsed at local midnight, so no countdown or displayed date shifts by a day in a negative-UTC timezone.
 - **Per-issuer fee refund windows** (`getFeeRefundDays`) — how long after a fee posts you can still cancel or downgrade for a **full refund**: **30 days** for most issuers (Chase, Amex, US Bank — and the conservative default for issuers with no consistent policy, like Bank of America), **Citi 37 days**, **Capital One 39 days** (cancellations — downgrades there are inconsistent), **Barclays 60 days**. Verified against One Mile at a Time's refund-rules guide (Aug 2025) and Doctor of Credit's issuer refund rules; policies change, so re-verify before acting. This one map drives the refund countdowns everywhere: the card verdicts, the Annual Fee Tracker, the fee action items, the Timeline events, and the Earnings fees-paid estimate.
 - **12-month close shield** (`getCardCloseShield`) — the card version of the bank 181-day clawback rule: a card whose bonus has been earned becomes safe to close **365 days after opening** (closing earlier risks a bonus clawback). A card in *Bonus Earned* status counts as earned even without the received checkbox ticked — the same rule the pipeline uses. Powers the Wait-to-cancel verdict on each card, the primary quick-action flip on Bonus Earned cards, the approaching/cleared reminders, and the Timeline's card safe-to-close events.
 - **Cancel-or-downgrade guidance** (`src/engines/cancelGuidance.js`) — folds the close shield, the current fee cycle (`getCardFeeSchedule`), and the issuer's refund window into one per-card verdict (`wait` / `act` / `decide` / `keep`) with a plain-English reason and the date it hinges on. A fee that's due but not yet on the statement gets its own verdict — **Fee lands any day** — because that's the window where cancelling still costs nothing. For cards still inside the clawback year it computes the **best-exit window**: it opens the day the clawback clears and closes when the refund window of the first escapable fee cycle shuts — cancel or downgrade inside it and the bonus is safe **and** the annual fee never sticks (avoided if it hasn't posted, refunded in full if it has). If a fee cycle's refund deadline passes before the clawback clears, that fee is flagged as sunk and the window rolls to the next cycle. Only cards past the earning stage get a verdict — while a bonus is being earned, the spend tracker owns the advice.
 - **Re-eligibility** — per-issuer bonus-again windows: **Amex** = once-per-lifetime (not repeatable on the same product), **Chase Sapphire family** = 48 months, **Chase standard** = 24 months, **Citi** = 24 months, **Capital One** = 24 months. Computes your re-eligible date from the bonus-received date.
 - **Spend-deadline math** — deadline, days left, percent complete, and met/not-met from open date + deadline days + current spend. Spend **progress** (spent, percent, met) is computed separately from the deadline, so progress bars render even before the open date / spend window is entered — the deadline is attached only when it's computable.
 - **Status transitions** — smart status inference on import/add (age + bonus configuration → Earning Bonus / Bonus Earned / Keep Alive); the account version suggests Cooling Period / Safe to Close from the 181-day rule.
-- **Attention score** (`getCardAttentionScore`) — the single number behind the Credit Cards page's **Recommended** sort. A base tier comes from the status (Earning Bonus 600 → Applied 550 → Cancel or Downgrade 500 → Bonus Earned 400 → Keep Alive 200 → Downgraded 100 → Closed 0), then urgency bumps stack on top: unmet spend requirement (**+400** past deadline, **+350** ≤ 7d, **+250** ≤ 30d, **+100** otherwise), annual fee (**+380** in the refund window with ≤ 5d left, **+300** in the window, **+260** / **+200** / **+120** for a fee posting within 7 / 14 / 45 days), dormancy from the [credit-age engine](#7-credit-age--keep-alive-tracker) (**+300** past 180 days unused, **+150** past 120), and **+80** once the 12-month close shield has cleared. The bumps are deliberately big enough to cross tiers — a keep-alive card that's gone 6 months without a swipe (real inactivity-closure risk) outranks a quiet Bonus Earned card.
+- **Attention score** (`getCardAttentionScore`) — the single number behind the Credit Cards page's **Recommended** sort. A base tier comes from the status (Earning Bonus 600 → Applied 550 → Cancel or Downgrade 500 → Bonus Earned 400 → Keep Alive 200 → Downgraded 100 → Closed 0), then urgency bumps stack on top: unmet spend requirement (**+400** past deadline, **+350** ≤ 7d, **+250** ≤ 30d, **+100** otherwise), annual fee (**+380** in the refund window with ≤ 5d left, **+300** in the window, **+260** / **+200** / **+120** for a fee posting within 7 / 14 / 45 days), dormancy from the [credit-age engine](#15-credit-age--keep-alive-tracker) (**+300** past 180 days unused, **+150** past 120), and **+80** once the 12-month close shield has cleared. The bumps are deliberately big enough to cross tiers — a keep-alive card that's gone 6 months without a swipe (real inactivity-closure risk) outranks a quiet Bonus Earned card.
 
-### 13. Annual Fee Tracker
+### 14. Annual Fee Tracker
 
-Page: `/fees`. Every annual fee across the household on one screen, sorted by soonest due — so no card's fee ever slips past you. `src/engines/annualFees.js` gathers the per-card date math from the [Card Lifecycle engine](#12-card-lifecycle-annual-fees-retention--re-eligibility) (the same math behind the Timeline fee events and fee action items — no duplicated rules) and adds household totals.
+Page: `/fees`. Every annual fee across the household on one screen, sorted by soonest due — so no card's fee ever slips past you. `src/engines/annualFees.js` gathers the per-card date math from the [Card Lifecycle engine](#13-card-lifecycle-annual-fees-retention--re-eligibility) (the same math behind the Timeline fee events and fee action items — no duplicated rules) and adds household totals.
 
 - **At-a-glance totals** that *follow the person filter*, so picking a member shows only their burden: total **fees per year** across all fee cards, the **next fee due** date + card (reading **"Any day now"** when a fee is already due and just waiting on a statement), how many fees fall **within 45 days**, and how many are currently **in the refund window** — that last tile flips to **"Waiting to post"** when no refund clock is running but fees are due.
-- **Per-card rows, soonest first**, each showing the card, member, `$X/yr` fee, and a color-coded due line for whichever phase the fee is in ([see the three phases](#12-card-lifecycle-annual-fees-retention--re-eligibility)): a **"Fee due in Nd"** countdown with the date (amber inside two weeks); an amber **"Fee due Nd ago — bills on the next statement"** with the expected-by date while the posting is unconfirmed; or a red/amber **"Fee posted — Nd to cancel for refund"** once confirmed, while the issuer's cancel-for-full-refund clock (30–60 days, see [per-issuer refund windows](#12-card-lifecycle-annual-fees-retention--re-eligibility)) is running. Each row notes whether the cycle is anchored on the **open-date anniversary** or the card's confirmed **Annual Fee Post Date**, and tapping a row jumps to that card.
+- **Per-card rows, soonest first**, each showing the card, member, `$X/yr` fee, and a color-coded due line for whichever phase the fee is in ([see the three phases](#13-card-lifecycle-annual-fees-retention--re-eligibility)): a **"Fee due in Nd"** countdown with the date (amber inside two weeks); an amber **"Fee due Nd ago — bills on the next statement"** with the expected-by date while the posting is unconfirmed; or a red/amber **"Fee posted — Nd to cancel for refund"** once confirmed, while the issuer's cancel-for-full-refund clock (30–60 days, see [per-issuer refund windows](#13-card-lifecycle-annual-fees-retention--re-eligibility)) is running. Each row notes whether the cycle is anchored on the **open-date anniversary** or the card's confirmed **Annual Fee Post Date**, and tapping a row jumps to that card.
 - **"Fee posted today" button** on every row waiting on a posting — one tap records the real date and starts the refund countdown, without opening the card.
 - **First-year-waiver aware** — cards flagged *first-year fee waived* skip the waived sign-up fee and show the first fee actually charged, tagged **"1st-year waived."**
 - **Missing a date?** Fee cards with no open date or fee post date can't be scheduled, so they're listed separately with a nudge to add one.
 - Retired (Closed / Downgraded) cards are excluded — this is a forward-looking bill, not history.
 - **Nothing is called "posted" until you say so.** The page footnote spells out the rule: fees cycle on the anniversary but bill on the first statement after it, so until the real date is confirmed the app won't claim the fee posted (and cancelling first costs nothing).
 
-### 14. Credit Age & Keep-Alive Tracker
+### 15. Credit Age & Keep-Alive Tracker
 
 `src/engines/creditAge.js` protects the ~15% of a FICO score driven by length of credit history:
 
@@ -329,7 +395,7 @@ Page: `/fees`. Every annual fee across the household on one screen, sorted by so
 - **"Used Today" ⚡ button** on Keep Alive cards — one tap marks it used, no date entry. Only shown when the card is in Keep Alive status.
 - Inactivity-closure warnings flow into the [Action Queue](#2-action-engine-the-brain).
 
-### 15. Earnings & ROI Analytics
+### 16. Earnings & ROI Analytics
 
 Page: `/earnings`. `src/engines/earnings.js` finally answers *"how much are we actually making?"*:
 
@@ -341,7 +407,7 @@ Page: `/earnings`. `src/engines/earnings.js` finally answers *"how much are we a
 - **By member** — the headline number is **lifetime net (bonuses − fees)** per member, shown negative in red when fees have outrun bonuses. Bars are sized by |net| and colored **semantically** — green for positive, red for negative — so red always means "losing money", never a member's identity color (that stays on the dot by their name). Sub-line breaks down earned / cards / banks / fees / T12M.
 - **The Receipts** — collapsible per-item tables (cards and bank accounts) showing realized bonus, fees, net, and the realization date, newest first.
 
-### 16. Tax Liability Predictor
+### 17. Tax Liability Predictor
 
 Page: `/tax`. `src/engines/taxPredictor.js` summarizes the year's taxable income from churning:
 
@@ -352,20 +418,20 @@ Page: `/tax`. `src/engines/taxPredictor.js` summarizes the year's taxable income
 - Adjustable **federal tax bracket** (stored in settings) produces an **estimated federal tax** on bank bonuses, per member and household-wide.
 - **Selectable tax year** — the picker offers every year with recorded bank-bonus income plus the current year, so a stored year can't hide a year's bonuses. CSV export covers the per-member table and the itemized rows.
 
-### 17. Command Palette & Global Search
+### 18. Command Palette & Global Search
 
 Press **Ctrl/Cmd-K** anywhere (or the search box in the header) to open the command palette:
 
 - **Searches everything**: cards, bank accounts, points balances, applications, members, and every page — grouped results with member/issuer context lines.
 - **Selecting an item jumps to it** and pulses a highlight ring around it (`?highlight=` deep links).
-- **Quick actions**: *Add card*, *Add application*, *Add bank account*, *Add points balance*, *Export calendar (.ics)*, and *Log spend on \<card\>* for every card with an open spend requirement.
+- **Quick actions**: *Add card*, *Add application*, *Add bank account*, *Add points balance*, *Log a transfer* (opens the [Money Map](#9-money-map-transfers-cash-position--check-backs) quick bar), *Export calendar (.ics)*, and *Log spend on \<card\>* for every card with an open spend requirement.
 - Fully keyboard driven: type to filter, ↑/↓ to move, Enter to run, Esc to close.
 
-### 18. Member Management
+### 19. Member Management
 
 Page: `/members`. Full CRUD over the household: add a member, rename, change role (churner / senior), and recolor (the color drives the member badges and the Earnings chart series everywhere). The app refuses to delete the last remaining member. No names are hardcoded anywhere.
 
-### 19. Resources Hub
+### 20. Resources Hub
 
 Page: `/resources`. A curated launchpad so you never have to look anything up elsewhere. Sections:
 
@@ -378,7 +444,7 @@ Page: `/resources`. A curated launchpad so you never have to look anything up el
 
 All links open in a new tab.
 
-### 20. Import / Export & AI Import Helper
+### 21. Import / Export & AI Import Helper
 
 Page: `/import`.
 
@@ -390,7 +456,7 @@ Page: `/import`.
   - The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card.
 - **Import** — paste or file-load JSON, preview what will be added (with per-member assignment breakdown and an unassigned-items warning), then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
 
-### 21. Data Sync (GitHub Gist)
+### 22. Data Sync (GitHub Gist)
 
 `src/hooks/useGist.js` + `src/store/ChurnContext.jsx`:
 
@@ -401,14 +467,14 @@ Page: `/import`.
 - **Offline fallback** — a local cache in `localStorage` keeps the app working without a connection and on API errors.
 - A live **sync indicator** in the header shows syncing / synced-at / error states, with retry/reconnect actions on failure.
 
-### 22. UI / UX & Design System
+### 23. UI / UX & Design System
 
 - **Semantic design tokens** — all colors flow through CSS custom properties (light values on `:root`, dark on `html.dark`) exposed as Tailwind classes: surfaces (`base → surface → raised → overlay`), borders (`edge`, `edge-strong`), text emphasis (`ink` → `ink-faint`), brand accent, and status colors (`success/warning/danger/info`, each with a text-legible `-ink` variant). **Both themes are first-class** — no override hacks; components use tokens and the theme flips underneath.
 - **Light / dark mode** — a toggle in Settings switches instantly; the preference persists in localStorage, and the correct theme is applied before first render to prevent flash. Tailwind's `darkMode: 'class'` strategy.
-- **Shared component atoms** (`src/components/shared/`): Button, Panel, EmptyState, Skeleton, StatCard, PageHeader, Field/inputs, Modal (focus-trapped, ARIA dialog), StatusBadge (theme-aware status colors, including application statuses), FilterBar (with a persistent trailing slot for view toggles like Group by brand and Table), TrackerTable (the horizontally-scrolling milestone grid behind the [tracker tables](#24-milestone-tracker-table), with a pinned identity column), IssuerLogo, DateField, PlayerBadge, ProgressBar.
+- **Shared component atoms** (`src/components/shared/`): Button, Panel, EmptyState, Skeleton, StatCard, PageHeader, Field/inputs, Modal (focus-trapped, ARIA dialog), StatusBadge (theme-aware status colors, including application statuses), FilterBar (with a persistent trailing slot for view toggles like Group by brand and Table), TrackerTable (the horizontally-scrolling milestone grid behind the [tracker tables](#25-milestone-tracker-table), with a pinned identity column), IssuerLogo, DateField, PlayerBadge, ProgressBar.
 - **Accessibility** — global keyboard focus ring, `prefers-reduced-motion` support (all animations collapse), aria-labels on icon-only buttons, semantic headings, keyboard-navigable palette/modals/menus, colorblind-validated default member palette.
 - **Micro-interactions** — route fade transitions, panel scale-in, slide-up forms, highlight pulse on palette/notification jumps; all subtle and motion-safe.
-- **Responsive SPA** — desktop sidebar (collapsible, grouped: main / Insights / Manage) and a mobile bottom nav (Dashboard, Cards, Accounts, Timeline, **More** — a hub page for everything else), switching at the 1024px breakpoint, with safe-area padding.
+- **Responsive SPA** — desktop sidebar (collapsible, grouped: main / Insights / Manage) and a mobile bottom nav (Dashboard, Cards, Accounts, Money, **More** — a hub page for everything else, Timeline included), switching at the 1024px breakpoint, with safe-area padding.
 - **HashRouter** routing so deep links work on GitHub Pages without server config.
 - **Expand-in-place editing** everywhere — no modal dialogs for data entry.
 - **Configurable dashboard** — reorder sections per device.
@@ -418,7 +484,7 @@ Page: `/import`.
 
 ---
 
-### 23. Installable App (PWA) & Offline Support
+### 24. Installable App (PWA) & Offline Support
 
 Churner is an installable Progressive Web App — Chrome/Edge offer **Install app**, and iOS Safari's *Add to Home Screen* produces a real app icon rather than a bookmark.
 
@@ -434,7 +500,7 @@ Churner is an installable Progressive Web App — Chrome/Edge offer **Install ap
 
 ---
 
-### 24. Milestone Tracker Table
+### 25. Milestone Tracker Table
 
 The spreadsheet view of a churn plan: one row per card or account, one column per step in its lifecycle, so a whole household reads at a glance instead of card by card. A **Table** toggle sits beside *Group by brand* / *Group by bank* on both the [Credit Cards](#5-credit-card-tracking) and [Bank Accounts](#8-bank-account-tracking) pages.
 
@@ -442,10 +508,10 @@ The spreadsheet view of a churn plan: one row per card or account, one column pe
 - **Bank account columns:** Bank (with logo, member dot, last 4) · Person · Type · Status · Opened · Bonus · Requirement · DD · Posted · Close after · Closed · Reapply.
   - **Requirement** is rebuilt from the account's structured fields — `$500 DD ×2 · $1,500 bal · 90d` — so the plan's shorthand is derived, never a second free-text field to keep in sync.
   - **DD** shows the completed/required fraction while several deposits are needed (the same count the account's `+ Direct Deposit N/M` button increments), or the linked date when one is enough.
-  - **Close after** is the [181-day clawback shield](#8-bank-account-tracking); **Reapply** is the [bank reapply clock](#10-issuer-rule-engines), reading *Now*, a date, *Lifetime*, or *Close others* when another account at that bank is still open.
+  - **Close after** is the [181-day clawback shield](#8-bank-account-tracking); **Reapply** is the [bank reapply clock](#11-issuer-rule-engines), reading *Now*, a date, *Lifetime*, or *Close others* when another account at that bank is still open.
 - **Credit card columns:** Card (with logo, member dot, last 4) · Person · Status · Opened · Bonus · Min spend · Spent · Spend by · Bonus posted · Fee · Fee due · Close after · Closed.
   - **Spent** carries the percent complete; **Spend by** colors amber inside 30 days and red once the deadline has passed unmet.
-  - **Fee due** carries the fee phase from the [lifecycle engine](#12-card-lifecycle-annual-fees-retention--re-eligibility) — a countdown, *any day* while a due fee waits on the statement, or the refund clock once you confirm it posted.
+  - **Fee due** carries the fee phase from the [lifecycle engine](#13-card-lifecycle-annual-fees-retention--re-eligibility) — a countdown, *any day* while a due fee waits on the statement, or the refund clock once you confirm it posted.
   - **Close after** is the 12-month close shield, checked off in green once the bonus is safe.
 - **Read-only by design.** Every edit and one-tap lifecycle action already lives on the card, with its undo — so tapping a table row flips back to the list and flashes that item rather than duplicating the lifecycle logic in a second place.
 - **Scrolls horizontally with the identity column pinned**, so the card/bank name stays put while you read across on a phone. Dates render compactly (`Mar 3`), a completed step shows a green check, and a step that hasn't happened shows an em-dash.
@@ -528,6 +594,23 @@ bankAccounts[]     { id, memberId, status, bankName, accountType, last4,
                      offerUrl, notes }
 pointsBalances[]   { id, memberId, program, balance,
                      expirationDate, updatedAt, notes }
+cashSources[]      { id, name, type: 'brokerage'|'bank'|'other',
+                     isHub,               ← the one account money comes home to
+                     balance,             ← null = deliberately not tracked
+                     notes }
+transfers[]        { id, amount,
+                     fromKey, toKey,      ← 'source:<id>' or 'account:<id>'
+                     purpose: 'dd'|'fund'|'return'|'other',
+                     sentDate,            ← debits the source
+                     landedDate,          ← credits the destination; null = in flight
+                     expectedDays,        ← optional; defaults to 5
+                     note, createdAt }
+reminders[]        { id, kind: 'check_bonus'|'check_transfer'|'sweep_back'
+                                |'check_dd'|'custom',
+                     title, notes, dueDate,
+                     accountId, transferId, amount,
+                     doneDate,            ← ticked; 30 most recent kept for undo
+                     createdAt }
 applications[]     { id, memberId, product, issuer,
                      status: 'planned'|'applied'|'pending'|'approved'|'denied',
                      appliedDate, decisionDate, deniedReason, notes,
@@ -542,7 +625,7 @@ settings           { taxBracket, pointValueCents, notifyEnabled,
                      programValueCents { programName: centsPerPoint } }
 ```
 
-Engines with no synced state of their own: `events.js` (timeline), `annualFees.js` (fee tracker), `earnings.js`, `burnRate.js`, `bankReeligibility.js` (bank reapply clock — derived entirely from account dates + `bankEligibility.js`'s windows and basis), `chexSystems.js` (inquiry counts — derived entirely from `bankAccounts[].openedDate` plus each bank's `chex` classification), `whatIf.js` (simulator inputs are deliberately not persisted).
+Engines with no synced state of their own: `events.js` (timeline), `annualFees.js` (fee tracker), `earnings.js`, `burnRate.js`, `moneyFlow.js` (the money map's nodes, ribbons, totals, reconciliation and quick-entry parser — all derived from `cashSources`, `transfers` and the accounts' own balances), `reminders.js` (merges the stored `reminders[]` with derived late-transfer and stranded-cash rows, which are deliberately never persisted), `bankReeligibility.js` (bank reapply clock — derived entirely from account dates + `bankEligibility.js`'s windows and basis), `chexSystems.js` (inquiry counts — derived entirely from `bankAccounts[].openedDate` plus each bank's `chex` classification), `whatIf.js` (simulator inputs are deliberately not persisted).
 
 ---
 

@@ -2,13 +2,14 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users, Link2,
   ArrowDownUp, Settings, CalendarDays, ClipboardList, TrendingUp, FlaskConical,
-  MoreHorizontal, Coins, Receipt,
+  MoreHorizontal, Coins, Receipt, Waypoints,
 } from 'lucide-react'
 
 const MAIN_NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/cards', icon: CreditCard, label: 'Cards' },
   { to: '/accounts', icon: Landmark, label: 'Accounts' },
+  { to: '/money', icon: Waypoints, label: 'Money Map' },
   { to: '/points', icon: Coins, label: 'Points' },
   { to: '/applications', icon: ClipboardList, label: 'Applications' },
   { to: '/timeline', icon: CalendarDays, label: 'Timeline' },
@@ -33,12 +34,12 @@ const BOTTOM_NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/cards', icon: CreditCard, label: 'Cards' },
   { to: '/accounts', icon: Landmark, label: 'Accounts' },
-  { to: '/timeline', icon: CalendarDays, label: 'Timeline' },
+  { to: '/money', icon: Waypoints, label: 'Money' },
   { to: '/more', icon: MoreHorizontal, label: 'More' },
 ]
 
 // Routes reachable from the More hub — keeps the More tab lit while inside them.
-const MORE_ROUTES = ['/more', '/points', '/fees', '/applications', '/earnings', '/rules', '/simulator', '/tax', '/members', '/resources', '/import', '/settings']
+const MORE_ROUTES = ['/more', '/timeline', '/points', '/fees', '/applications', '/earnings', '/rules', '/simulator', '/tax', '/members', '/resources', '/import', '/settings']
 
 function navClass(isActive) {
   return `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${

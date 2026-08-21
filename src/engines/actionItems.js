@@ -3,6 +3,7 @@ import { getClawbackStatus } from './clawbackShield'
 import { getClosedAccountReeligibility, latestPerBank } from './bankReeligibility'
 import { getKeepAliveCards } from './creditAge'
 import { getBurnRate } from './burnRate'
+import { collectReminders } from './reminders'
 import { fmt$ } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
 
@@ -305,6 +306,39 @@ export function generateActionItems(state) {
           dueDate: null, action: 'Set last-used date' })
       }
     }
+  }
+
+  // ── MONEY MAP: check-backs, lost transfers, and cash left behind ─────────
+  // The reminder engine already merges what you asked to be reminded of with
+  // what the app worked out on its own; this only decides how loudly each one
+  // lands in the queue. Upcoming check-backs stay off the list until they're
+  // due — a reminder set three weeks out isn't an action item today.
+  for (const r of collectReminders(state)) {
+    if (r.state === 'upcoming') continue
+    const memberId = (state.bankAccounts ?? []).find(a => a.id === r.accountId)?.memberId
+    const type = r.kind === 'check_transfer'
+      ? 'critical'
+      : r.state === 'overdue' || r.state === 'today'
+      ? 'warning'
+      : 'info'
+    items.push({
+      id: `money-${r.id}`,
+      type,
+      category: 'money',
+      accountId: r.accountId ?? null,
+      memberId: memberId ?? null,
+      transferId: r.transferId ?? null,
+      title: r.title,
+      detail: r.detail || (r.dueDate
+        ? `You asked to be reminded about this on ${new Date(r.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. Open the Money Map to log what happened.`
+        : 'Open the Money Map to log what happened.'),
+      dueDate: r.dueDate ?? null,
+      action: r.kind === 'sweep_back'
+        ? 'Push it back to your hub'
+        : r.kind === 'check_transfer'
+        ? 'Confirm it arrived'
+        : 'Check the account',
+    })
   }
 
   // ── SORT: critical → warning → info; within tier: soonest dueDate first ──

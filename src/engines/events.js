@@ -9,6 +9,8 @@ import { getSpendDeadlineInfo, getAnnualFeeInfo, getCardCloseShield } from './li
 import { getCardReeligibility } from './cardReeligibility'
 import { getBankEligibility } from './bankEligibility'
 import { getClawbackStatus } from './clawbackShield'
+import { collectReminders } from './reminders'
+import { getTransferStatus, isLanded, splitNodeKey, buildNodes, nodeLabel } from './moneyFlow'
 import { fmt$ } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
 
@@ -21,6 +23,7 @@ export const EVENT_CATEGORIES = [
   { key: 'fees',        label: 'Fees',        dot: 'bg-warning', text: 'text-warning-ink' },
   { key: 'banks',       label: 'Banks',       dot: 'bg-accent',  text: 'text-accent-ink' },
   { key: 'eligibility', label: 'Eligibility', dot: 'bg-success', text: 'text-success-ink' },
+  { key: 'money',       label: 'Money',       dot: 'bg-ink-muted', text: 'text-ink-secondary' },
 ]
 
 const KIND_CATEGORY = {
@@ -35,6 +38,8 @@ const KIND_CATEGORY = {
   close_shield_clear: 'fees',
   card_reeligible: 'eligibility',
   bank_reeligible: 'eligibility',
+  money_check: 'money',
+  transfer_expected: 'money',
 }
 
 function memberName(members, memberId) {
@@ -70,10 +75,12 @@ function eventId(kind, { cardId, accountId, memberId, key }) {
   return `${kind}-${cardId || accountId || `${memberId}${key ?? ''}`}`
 }
 
-function makeEvent({ kind, date, title, detail, memberId, cardId, accountId, key }) {
+function makeEvent({ kind, date, title, detail, memberId, cardId, accountId, key, id }) {
   if (!inWindow(date)) return null
   return {
-    id: eventId(kind, { cardId, accountId, memberId, key }),
+    // Money-map rows carry their own already-unique id (several reminders can
+    // hang off one account, so the account can't identify the event).
+    id: id ?? eventId(kind, { cardId, accountId, memberId, key }),
     date: new Date(date).toISOString(),
     title,
     detail,
@@ -285,6 +292,46 @@ export function collectEvents(state) {
         key: row.key,
       }))
     }
+  }
+
+  // ── MONEY MAP: check-backs and transfers still in flight ─────────────────
+  // Both go on the calendar so they ride the .ics export too — the honest
+  // answer for reminders while the app is closed.
+  const { all: moneyNodes } = buildNodes(state)
+  const nodeName = (key) => {
+    const parsed = splitNodeKey(key)
+    const node = parsed && moneyNodes.find(n => n.kind === parsed.kind && n.id === parsed.id)
+    return node ? nodeLabel(node) : 'a removed account'
+  }
+
+  for (const r of collectReminders(state)) {
+    if (!r.dueDate) continue
+    const acct = accounts.find(a => a.id === r.accountId)
+    events.push(makeEvent({
+      kind: 'money_check',
+      id: `money-${r.id}`,
+      date: r.dueDate,
+      title: r.title,
+      detail: r.detail || 'Money Map check-back.',
+      memberId: acct?.memberId,
+      accountId: r.accountId ?? undefined,
+    }))
+  }
+
+  for (const t of (state.transfers ?? [])) {
+    if (isLanded(t)) continue
+    const status = getTransferStatus(t)
+    if (!status.expectedDate) continue
+    const acct = accounts.find(a => a.id === splitNodeKey(t.toKey)?.id)
+    events.push(makeEvent({
+      kind: 'transfer_expected',
+      id: `transfer-${t.id}`,
+      date: status.expectedDate,
+      title: `Transfer should have landed: ${fmt$(t.amount)} → ${nodeName(t.toKey)}`,
+      detail: `${fmt$(t.amount)} sent from ${nodeName(t.fromKey)}. Confirm it arrived and mark it landed on the Money Map.`,
+      memberId: acct?.memberId,
+      accountId: acct?.id,
+    }))
   }
 
   return events

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, Info, CreditCard, Calendar, Scissors, Gift, Shield, RefreshCw, Heart, ChevronDown, ChevronUp, X, RotateCcw, Clock, CheckCircle } from 'lucide-react'
+import { AlertTriangle, Info, CreditCard, Calendar, Scissors, Gift, Shield, RefreshCw, Heart, ChevronDown, ChevronUp, X, RotateCcw, Clock, CheckCircle, Waypoints } from 'lucide-react'
 import { useActionItems } from '../../hooks/useActionItems'
 import { fmtDate } from '../../utils/format'
 
@@ -11,6 +11,7 @@ const CATEGORY_ICON = {
   clawback: Shield,
   reeligible: RefreshCw,
   keepalive: Heart,
+  money: Waypoints,
 }
 
 const TYPE_STYLES = {

@@ -11,6 +11,9 @@ const TYPE_META = {
 }
 
 function targetRoute(item) {
+  // Money-map items are acted on where the transfers live, not on the account
+  // page — "mark it landed" and "push it back" are both over there.
+  if (item.category === 'money') return '/money'
   if (item.cardId) return `/cards?highlight=${item.cardId}`
   if (item.accountId) return `/accounts?highlight=${item.accountId}`
   return null
