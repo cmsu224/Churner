@@ -7,6 +7,7 @@ import QuickTransferBar from './QuickTransferBar'
 import TransferList from './TransferList'
 import ReminderBoard from './ReminderBoard'
 import CashSourceEditor from './CashSourceEditor'
+import TransferSheet from './TransferSheet'
 import ReconcileStrip from './ReconcileStrip'
 import PageHeader from '../shared/PageHeader'
 import StatCard from '../shared/StatCard'
@@ -27,6 +28,10 @@ export default function MoneyMapView() {
   const { state } = useChurn()
   const [selectedKey, setSelectedKey] = useState(null)
   const [prefill, setPrefill] = useState(null)
+  // The phone's entry point: tapping a node opens a guided move-money sheet
+  // instead of the typed bar. Held here rather than in the diagram so the sheet
+  // renders above the whole page, not inside a horizontally-scrolling box.
+  const [sheetKey, setSheetKey] = useState(null)
 
   const map = useMemo(() => buildMoneyMap(state), [state])
   const reminders = useMemo(() => collectReminders(state, { horizonDays: 60 }), [state])
@@ -73,6 +78,10 @@ export default function MoneyMapView() {
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  // Resolved from the map each render so the sheet always shows live balances,
+  // and closes itself if the account behind it disappears.
+  const sheetNode = sheetKey ? map.byKey.get(sheetKey) : null
 
   const nothingLogged = map.transfers.length === 0
   const noAccounts = (state.bankAccounts ?? []).length === 0
@@ -143,6 +152,7 @@ export default function MoneyMapView() {
             map={map}
             selectedKey={selectedKey}
             onSelect={(key) => setSelectedKey(k => (k === key ? null : key))}
+            onOpenSheet={(node) => setSheetKey(node.key)}
             onPushTo={pushTo}
             onSweep={sweep}
           />
@@ -173,6 +183,15 @@ export default function MoneyMapView() {
             </div>
           )}
         </div>
+      )}
+
+      {sheetNode && (
+        <TransferSheet
+          node={sheetNode}
+          map={map}
+          onClose={() => setSheetKey(null)}
+          onShowTransfers={(key) => setSelectedKey(key)}
+        />
       )}
     </div>
   )

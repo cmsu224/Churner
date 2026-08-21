@@ -73,5 +73,16 @@ export const startOfToday = () => {
   return new Date(n.getFullYear(), n.getMonth(), n.getDate())
 }
 
+// Shift a stored calendar day by N days and return it as 'YYYY-MM-DD'.
+// Goes through parseDay deliberately: `new Date('2026-08-21')` is UTC midnight,
+// so reading it back with the local getters lands on the 20th anywhere west of
+// UTC — one day early on every reminder anchored to a transfer.
+export const addDaysISO = (value, days) => {
+  const d = parseDay(value) ?? startOfToday()
+  d.setDate(d.getDate() + days)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 // Whole days between two local midnights (Math.round absorbs DST's ±1 hour).
 export const daysBetweenDays = (from, to) => Math.round((to - from) / 86400000)

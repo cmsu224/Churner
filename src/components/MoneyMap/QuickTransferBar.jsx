@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
-import { parseQuickTransfer, matchNodes, nodeLabel, TRANSFER_PURPOSES } from '../../engines/moneyFlow'
-import { fmt$, todayISODate } from '../../utils/format'
+import { parseQuickTransfer, matchNodes, nodeLabel, defaultPurposeFor, TRANSFER_PURPOSES } from '../../engines/moneyFlow'
+import { useLogTransfer } from '../../hooks/useLogTransfer'
+import { fmt$, todayISODate, addDaysISO } from '../../utils/format'
 import DateField from '../shared/DateField'
 import { CornerDownLeft, Plus, ArrowRight, Bell, Check, X, Zap } from 'lucide-react'
 
@@ -29,13 +30,6 @@ const CHECK_PRESETS = [
   { days: 30, label: '30d' },
 ]
 
-function addDays(iso, days) {
-  const d = new Date(iso)
-  d.setDate(d.getDate() + days)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
 function Chip({ active, onClick, children, title, tone = 'default' }) {
   const tones = {
     default: active ? 'bg-accent/15 text-accent-ink border-accent/40' : 'bg-raised text-ink-muted border-edge-strong hover:text-ink',
@@ -55,6 +49,7 @@ function Chip({ active, onClick, children, title, tone = 'default' }) {
 
 export default function QuickTransferBar({ nodes, hub, prefill, onLogged }) {
   const { dispatch } = useChurn()
+  const logTransfer = useLogTransfer()
   const inputRef = useRef(null)
   const [text, setText] = useState('')
   const [fromOverride, setFromOverride] = useState(null)
@@ -92,7 +87,9 @@ export default function QuickTransferBar({ nodes, hub, prefill, onLogged }) {
   const parsed = parseQuickTransfer(text, nodes, { hub })
   const from = fromOverride ?? parsed.from
   const to = toOverride ?? parsed.to
-  const purpose = purposeOverride ?? parsed.purpose
+  // Nothing in the text named an intent? Fall back to the same guess the tap
+  // sheet makes from the pairing, rather than settling for "Move".
+  const purpose = purposeOverride ?? (parsed.purposeExplicit ? parsed.purpose : defaultPurposeFor(from, to))
   const effectiveCheckDays = checkDays ?? parsed.checkDays
   const ready = !!(parsed.amount && from && to && from.key !== to.key)
 
@@ -119,39 +116,15 @@ export default function QuickTransferBar({ nodes, hub, prefill, onLogged }) {
   function submit(e) {
     e?.preventDefault()
     if (!ready) return
-    const id = crypto.randomUUID()
-    const date = sentDate || todayISODate()
-    dispatch({
-      type: 'ADD_TRANSFER',
-      payload: {
-        id,
-        amount: parsed.amount,
-        fromKey: from.key,
-        toKey: to.key,
-        purpose,
-        sentDate: date,
-        landedDate: landedNow ? date : null,
-        note: '',
-      },
+    logTransfer({
+      amount: parsed.amount,
+      from,
+      to,
+      purpose,
+      sentDate: sentDate || todayISODate(),
+      landed: landedNow,
+      checkDays: effectiveCheckDays,
     })
-    if (effectiveCheckDays) {
-      const acct = to.kind === 'account' ? to : from.kind === 'account' ? from : null
-      dispatch({
-        type: 'ADD_REMINDER',
-        payload: {
-          kind: purpose === 'dd' ? 'check_dd' : 'check_bonus',
-          title: purpose === 'dd'
-            ? `Check the ${fmt$(parsed.amount)} deposit coded as a direct deposit at ${to.name}`
-            : `Check on ${fmt$(parsed.amount)} at ${to.name}`,
-          notes: `Pushed ${fmt$(parsed.amount)} from ${nodeLabel(from)} on ${date}.`,
-          dueDate: addDays(date, effectiveCheckDays),
-          accountId: acct?.id ?? null,
-          transferId: id,
-          amount: parsed.amount,
-          doneDate: null,
-        },
-      })
-    }
     setFlash(`${fmt$(parsed.amount)} · ${from.name} → ${to.name}${landedNow ? ' · landed' : ' · in flight'}`)
     setTimeout(() => setFlash(null), 2600)
     onLogged?.({ amount: parsed.amount, from, to })
@@ -271,7 +244,7 @@ export default function QuickTransferBar({ nodes, hub, prefill, onLogged }) {
             ))}
             {effectiveCheckDays && (
               <span className="text-[11px] text-accent-ink">
-                → check back {addDays(sentDate || todayISODate(), effectiveCheckDays)}
+                → check back {addDaysISO(sentDate || todayISODate(), effectiveCheckDays)}
               </span>
             )}
           </div>

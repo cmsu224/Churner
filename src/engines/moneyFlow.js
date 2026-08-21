@@ -335,6 +335,77 @@ export function getStrandedCash(state) {
   return rows.sort((a, b) => (b.daysIdle ?? 0) - (a.daysIdle ?? 0) || b.amount - a.amount)
 }
 
+// ── Picking the other end, and what to send ────────────────────────────────
+// Tap-driven entry doesn't get to read a typed sentence, so it has to be smart
+// about what it offers: the accounts you actually move money between, the
+// amounts this particular pair implies, and the intent that pairing usually has.
+
+// Counterparties this node has moved money with before, most recent first.
+// `transfers` is expected newest-first (buildMoneyMap sorts it), so insertion
+// order into the Set is recency order.
+export function recentCounterparties(transfers, key, direction) {
+  const seen = new Set()
+  for (const t of transfers ?? []) {
+    const other = direction === 'out'
+      ? (t.fromKey === key ? t.toKey : null)
+      : (t.toKey === key ? t.fromKey : null)
+    if (other) seen.add(other)
+  }
+  return [...seen]
+}
+
+// Amounts worth offering as one-tap chips for this specific pair. A churned
+// account tells you most of them itself — the deposit its bonus requires, the
+// minimum it has to hold, or everything it's sitting on when money is leaving.
+export function suggestTransferAmounts(from, to) {
+  const out = []
+  const add = (amount, label) => {
+    const value = round2(amount)
+    if (value > 0 && !out.some(o => o.amount === value)) out.push({ amount: value, label })
+  }
+
+  const dest = to?.account
+  if (dest) {
+    if ((dest.requiredDD ?? 0) > 0) add(dest.requiredDD, 'the required deposit')
+    const shortfall = round2((dest.minimumBalance ?? 0) - (to.balance ?? 0))
+    if (shortfall > 0) add(shortfall, 'up to the minimum')
+    if ((dest.minimumBalance ?? 0) > 0) add(dest.minimumBalance, 'the minimum balance')
+  }
+
+  const src = from?.account
+  if (src && (from.balance ?? 0) > 0) {
+    const spare = round2((from.balance ?? 0) - (src.minimumBalance ?? 0))
+    if ((src.minimumBalance ?? 0) > 0 && spare > 0) add(spare, 'all but the minimum')
+    add(from.balance, 'everything in it')
+  }
+
+  for (const n of [500, 1000, 5000]) add(n, null)
+  return out.slice(0, 4)
+}
+
+// The intent a pairing usually has, used as the pre-selected chip. Always one
+// tap from being overridden, so a good guess costs nothing when it's wrong.
+export function defaultPurposeFor(from, to) {
+  if (to?.isHub) return 'return'
+  if (to?.kind === 'account') {
+    const a = to.account
+    const owes = a && (a.ddsMade ?? 0) < (a.requiredDDCount ?? 1)
+    return owes && ((a.requiredDD ?? 0) > 0 || (a.requiredDDCount ?? 1) > 1) ? 'dd' : 'fund'
+  }
+  if (from?.kind === 'account') return 'return'
+  return 'other'
+}
+
+// A whole field that should be one number: '5,000', '$5000', '5k' → 5000.
+export function parseMoneyInput(text) {
+  const m = String(text ?? '').trim().match(/^\$?\s*([\d,]*\.?\d+)\s*(k|m)?$/i)
+  if (!m) return 0
+  let value = parseFloat(m[1].replace(/,/g, ''))
+  if (m[2]?.toLowerCase() === 'k') value *= 1000
+  if (m[2]?.toLowerCase() === 'm') value *= 1000000
+  return round2(value)
+}
+
 // ── Quick entry ────────────────────────────────────────────────────────────
 // One text field beats four dropdowns when you're logging the eighth push of
 // the day. Understands, in any order:
@@ -420,6 +491,9 @@ export function parseQuickTransfer(text, nodes, { hub } = {}) {
     fromMatches: [],
     toMatches: [],
     purpose: 'other',
+    // false = nothing in the text named an intent, so a caller is free to
+    // substitute defaultPurposeFor() rather than settling for 'other'.
+    purposeExplicit: false,
     checkDays: null,
     complete: false,
     problems: [],
@@ -436,6 +510,7 @@ export function parseQuickTransfer(text, nodes, { hub } = {}) {
     const m = rest.match(re)
     if (m) {
       result.purpose = purpose
+      result.purposeExplicit = true
       rest = (rest.slice(0, m.index) + ' ' + rest.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim()
       break
     }
