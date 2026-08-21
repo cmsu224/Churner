@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components -- context + hook live beside the provider by design */
 import { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
-import { INITIAL_STATE } from '../data/initialState'
+import { INITIAL_STATE, DEFAULT_CASH_SOURCES } from '../data/initialState'
 import { useGist } from '../hooks/useGist'
+import { splitNodeKey, round2 } from '../engines/moneyFlow'
 
 export const ChurnContext = createContext(null)
 
@@ -39,6 +40,11 @@ function withDefaults(raw) {
     version: 3,
     applications: base.applications ?? [],
     pointsBalances: base.pointsBalances ?? [],
+    // A Gist written before the Money Map existed has no sources at all; seed
+    // the default hub so the first push has somewhere to come from.
+    cashSources: base.cashSources ?? DEFAULT_CASH_SOURCES,
+    transfers: base.transfers ?? [],
+    reminders: base.reminders ?? [],
     settings: { ...INITIAL_STATE.settings, ...(base.settings ?? {}) },
     notifications: {
       seen: base.notifications?.seen ?? [],
@@ -46,6 +52,58 @@ function withDefaults(raw) {
       snoozed: base.notifications?.snoozed ?? {},
     },
   }
+}
+
+// How many ticked-off reminders stay around for the board's undo drawer.
+const DONE_REMINDER_HISTORY = 30
+
+// ── Money map: keeping balances honest ─────────────────────────────────────
+// A transfer's balance effects are applied here, in the same dispatch that
+// records the transfer, so the two can never drift apart — the same pattern
+// LOG_SPEND uses to roll an entry into a card's currentSpend.
+//
+// Money leaves the source on the day it's sent and arrives at the destination
+// on the day it lands, so an in-flight push is debited but not yet credited;
+// that gap IS the pipeline figure the Money Map shows.
+
+// The balance changes a transfer has already caused, as [nodeKey, delta] pairs.
+function transferEffects(transfer) {
+  const amount = round2(transfer?.amount)
+  if (!amount || !transfer?.fromKey || !transfer?.toKey) return []
+  const effects = [[transfer.fromKey, -amount]]
+  if (transfer.landedDate) effects.push([transfer.toKey, amount])
+  return effects
+}
+
+// sign = 1 applies the effects, sign = -1 backs them out.
+function applyEffects(state, effects, sign = 1) {
+  let next = state
+  for (const [key, delta] of effects) {
+    const parsed = splitNodeKey(key)
+    if (!parsed) continue
+    const change = round2(delta * sign)
+    if (!change) continue
+    if (parsed.kind === 'account') {
+      next = {
+        ...next,
+        bankAccounts: next.bankAccounts.map(a =>
+          a.id === parsed.id ? { ...a, currentBalance: round2((Number(a.currentBalance) || 0) + change) } : a
+        ),
+      }
+    } else if (parsed.kind === 'source') {
+      next = {
+        ...next,
+        cashSources: (next.cashSources ?? []).map(s => {
+          if (s.id !== parsed.id) return s
+          // A source with no balance set is deliberately untracked — leave it
+          // that way rather than inventing a number from its flow history.
+          if (s.balance == null || s.balance === '') return s
+          return { ...s, balance: round2((Number(s.balance) || 0) + change) }
+        }),
+      }
+    }
+  }
+  return next
 }
 
 function reducer(state, action) {
@@ -95,6 +153,82 @@ function reducer(state, action) {
       return { ...state, bankAccounts: state.bankAccounts.map(a => a.id === action.payload.id ? action.payload : a) }
     case 'DELETE_ACCOUNT':
       return { ...state, bankAccounts: state.bankAccounts.filter(a => a.id !== action.id) }
+
+    // ── Money map: cash sources ───────────────────────────────────────────
+    case 'ADD_CASH_SOURCE':
+      return { ...state, cashSources: [...(state.cashSources ?? []), { ...action.payload, id: crypto.randomUUID() }] }
+    case 'UPDATE_CASH_SOURCE':
+      return { ...state, cashSources: (state.cashSources ?? []).map(s => s.id === action.payload.id ? action.payload : s) }
+    // Exactly one hub — the account the sweep-back reminders point at.
+    case 'SET_HUB_SOURCE':
+      return { ...state, cashSources: (state.cashSources ?? []).map(s => ({ ...s, isHub: s.id === action.id })) }
+    case 'DELETE_CASH_SOURCE':
+      return { ...state, cashSources: (state.cashSources ?? []).filter(s => s.id !== action.id) }
+
+    // ── Money map: transfers ──────────────────────────────────────────────
+    // Each case keeps the ledger and the balances in step: apply the new
+    // effects, back out the old ones, or both on an edit.
+    case 'ADD_TRANSFER': {
+      // Unlike the other add cases this one honors a caller-supplied id, so
+      // quick entry can log a push and its check-back reminder in one go and
+      // still have the reminder point at the transfer.
+      const transfer = { ...action.payload, id: action.payload.id ?? crypto.randomUUID(), createdAt: new Date().toISOString() }
+      const next = { ...state, transfers: [...(state.transfers ?? []), transfer] }
+      return applyEffects(next, transferEffects(transfer), 1)
+    }
+    case 'DELETE_TRANSFER': {
+      const prev = (state.transfers ?? []).find(t => t.id === action.id)
+      if (!prev) return state
+      const next = {
+        ...state,
+        transfers: state.transfers.filter(t => t.id !== action.id),
+        // Reminders that only existed to chase this transfer go with it.
+        reminders: (state.reminders ?? []).filter(r => r.transferId !== action.id),
+      }
+      return applyEffects(next, transferEffects(prev), -1)
+    }
+    // The one-tap "it's here" action: stamps the landing date and credits the
+    // destination, moving the money out of the pipeline and onto the account.
+    case 'LAND_TRANSFER': {
+      const prev = (state.transfers ?? []).find(t => t.id === action.id)
+      if (!prev || prev.landedDate) return state
+      const landed = { ...prev, landedDate: action.date }
+      const next = {
+        ...state,
+        transfers: state.transfers.map(t => t.id === action.id ? landed : t),
+        // A "did it land?" reminder has answered itself.
+        reminders: (state.reminders ?? []).map(r =>
+          r.transferId === action.id && r.kind === 'check_transfer' && !r.doneDate
+            ? { ...r, doneDate: new Date().toISOString() }
+            : r
+        ),
+      }
+      return applyEffects(next, [[prev.toKey, round2(prev.amount)]], 1)
+    }
+    case 'UNLAND_TRANSFER': {
+      const prev = (state.transfers ?? []).find(t => t.id === action.id)
+      if (!prev || !prev.landedDate) return state
+      const next = { ...state, transfers: state.transfers.map(t => t.id === action.id ? { ...prev, landedDate: null } : t) }
+      return applyEffects(next, [[prev.toKey, round2(prev.amount)]], -1)
+    }
+
+    // ── Money map: reminders ──────────────────────────────────────────────
+    case 'ADD_REMINDER':
+      return { ...state, reminders: [...(state.reminders ?? []), { ...action.payload, id: crypto.randomUUID(), createdAt: new Date().toISOString() }] }
+    // Ticking a reminder keeps it, stamped, so a mis-tap is recoverable from the
+    // board's "Done" drawer — but only the most recent DONE_REMINDER_HISTORY of
+    // them, so the list can't grow without bound the way the notification maps
+    // are pruned.
+    case 'COMPLETE_REMINDER': {
+      const stamped = (state.reminders ?? []).map(r => r.id === action.id ? { ...r, doneDate: new Date().toISOString() } : r)
+      const done = stamped.filter(r => r.doneDate).sort((a, b) => (b.doneDate ?? '').localeCompare(a.doneDate ?? ''))
+      const keep = new Set(done.slice(0, DONE_REMINDER_HISTORY).map(r => r.id))
+      return { ...state, reminders: stamped.filter(r => !r.doneDate || keep.has(r.id)) }
+    }
+    case 'REOPEN_REMINDER':
+      return { ...state, reminders: (state.reminders ?? []).map(r => r.id === action.id ? { ...r, doneDate: null } : r) }
+    case 'DELETE_REMINDER':
+      return { ...state, reminders: (state.reminders ?? []).filter(r => r.id !== action.id) }
 
     case 'ADD_APPLICATION':
       return { ...state, applications: [...(state.applications ?? []), { ...action.payload, id: crypto.randomUUID() }] }

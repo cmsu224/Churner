@@ -3,6 +3,7 @@ import PageHeader from '../shared/PageHeader'
 import {
   ClipboardList, TrendingUp, BookOpen, FlaskConical, Calculator,
   Users, Link2, ArrowDownUp, Settings, ChevronRight, Coins, Receipt,
+  CalendarDays, Waypoints,
 } from 'lucide-react'
 
 // Mobile hub for everything that doesn't fit in the 5-slot bottom nav.
@@ -10,6 +11,8 @@ const GROUPS = [
   {
     title: 'Tools',
     items: [
+      { to: '/money', icon: Waypoints, label: 'Money Map', desc: 'Where your cash is, what\u2019s in flight, what to check on' },
+      { to: '/timeline', icon: CalendarDays, label: 'Timeline', desc: 'Every deadline on a calendar, exportable to .ics' },
       { to: '/points', icon: Coins, label: 'Points', desc: 'Loyalty balances across every program, per person' },
       { to: '/fees', icon: Receipt, label: 'Annual Fees', desc: 'Every card fee due date and refund window in one place' },
       { to: '/applications', icon: ClipboardList, label: 'Applications', desc: 'Plan applications and track approvals & denials' },

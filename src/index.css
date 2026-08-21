@@ -101,6 +101,19 @@ select option {
   animation: highlight-pulse 1.5s ease-out 2;
 }
 
+/* Money Map — marching ants along an in-flight transfer, running from the
+   source toward the destination so the direction of travel is obvious at a
+   glance. Reduced-motion users get the dashed line without the movement. */
+@keyframes flow-march {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+.flow-inflight {
+  stroke-dasharray: 7 7;
+  animation: flow-march 1.1s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

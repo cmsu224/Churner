@@ -8,6 +8,12 @@ export const DEFAULT_MEMBERS = [
   { id: 'p4', name: 'Dad', role: 'senior', hex: '#059669' },
 ]
 
+// One hub to start with, so the very first push has somewhere to come from and
+// the sweep-back reminders have a destination. Rename it in the Money Map.
+export const DEFAULT_CASH_SOURCES = [
+  { id: 's1', name: 'Main account', type: 'bank', isHub: true, balance: null, notes: '' },
+]
+
 export const INITIAL_STATE = {
   version: 3,
   members: DEFAULT_MEMBERS,
@@ -21,6 +27,20 @@ export const INITIAL_STATE = {
   pointsBalances: [],
   seniorIncome: {},
   externalPayments: [],
+  // ── Money map ────────────────────────────────────────────────────────────
+  // Where cash comes FROM: brokerages, your everyday bank, anything that isn't
+  // itself a churned account. One source should be flagged isHub — the "main
+  // account" money is expected to come home to. balance is null until you set
+  // one (an unset balance is displayed as unknown, never as $0).
+  cashSources: DEFAULT_CASH_SOURCES,
+  // Every ACH push you make, source → destination. Money leaves the source on
+  // sentDate and arrives at the destination on landedDate; between the two it
+  // is "in flight" and belongs to neither node. See src/engines/moneyFlow.js.
+  transfers: [],
+  // Check-back reminders you set yourself ("did the bonus hit?", "sweep this
+  // back"). Derived reminders (late transfers, stranded cash) are computed in
+  // src/engines/reminders.js and are not stored.
+  reminders: [],
   taxYear: new Date().getFullYear(),
   settings: {
     taxBracket: 22,

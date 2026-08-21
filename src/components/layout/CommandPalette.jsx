@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users, Link2,
   ArrowDownUp, Settings, CalendarDays, ClipboardList, TrendingUp, FlaskConical,
-  Plus, DollarSign, CornerDownLeft, Coins, Receipt,
+  Plus, DollarSign, CornerDownLeft, Coins, Receipt, Waypoints,
 } from 'lucide-react'
 import { useChurn } from '../../store/ChurnContext'
 import { getIssuerMeta } from '../../utils/issuers'
@@ -12,6 +12,7 @@ const PAGES = [
   { label: 'Dashboard', route: '/', icon: LayoutDashboard, keywords: 'home overview' },
   { label: 'Credit Cards', route: '/cards', icon: CreditCard, keywords: 'cards' },
   { label: 'Bank Accounts', route: '/accounts', icon: Landmark, keywords: 'banks checking savings' },
+  { label: 'Money Map', route: '/money', icon: Waypoints, keywords: 'transfers ach push pipeline cash balance flow brokerage sweep reminders' },
   { label: 'Points', route: '/points', icon: Coins, keywords: 'loyalty miles rewards balances programs' },
   { label: 'Annual Fees', route: '/fees', icon: Receipt, keywords: 'annual fee due dates refund window retention cancel' },
   { label: 'Applications', route: '/applications', icon: ClipboardList, keywords: 'apply funnel denials' },
@@ -71,6 +72,7 @@ export default function CommandPalette({ open, onClose }) {
       { label: 'Add card', icon: Plus, route: '/cards?add=1', keywords: 'new credit card create' },
       { label: 'Add application', icon: Plus, route: '/applications?add=1', keywords: 'new apply plan create' },
       { label: 'Add bank account', icon: Plus, route: '/accounts?add=1', keywords: 'new bank create' },
+      { label: 'Log a transfer', icon: Waypoints, route: '/money', keywords: 'push ach move money send transfer new' },
       { label: 'Add points balance', icon: Plus, route: '/points?add=1', keywords: 'new loyalty miles rewards create' },
       { label: 'Export calendar (.ics)', icon: CalendarDays, route: '/timeline', keywords: 'ics download subscribe reminders' },
       ...(state.creditCards ?? [])
