@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
-import { useHighlight } from '../../hooks/useHighlight'
+import { useHighlight, flashItem } from '../../hooks/useHighlight'
 import AccountItem from './AccountItem'
+import AccountTable from './AccountTable'
 import ReapplyTracker from './ReapplyTracker'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
 import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/FilterBar'
 import { getIssuerMeta } from '../../utils/issuers'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
-import { Plus, X, Layers, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, X, Layers, Table, ChevronDown, ChevronUp } from 'lucide-react'
 
 const SORT_OPTIONS = [
   { value: 'newest',  label: 'Newest first' },
@@ -56,6 +57,9 @@ export default function BankAccountsView() {
   const [sortBy, setSortBy] = useState('newest')
   // Opt-in grouping, decoupled from sort (see CreditCardsView for the rationale).
   const [grouped, setGrouped] = useState(false)
+  // 'cards' = the expand-in-place list; 'table' = the dense milestone grid.
+  // Both read the same filtered+sorted set, so the two views can't disagree.
+  const [view, setView] = useState('cards')
   const [moreOpen, setMoreOpen] = useState(false)
 
   useHighlight()
@@ -111,9 +115,17 @@ export default function BankAccountsView() {
   }
 
   const filteredAccounts = applyFiltersAndSort(allAccounts)
-  // Grouping is opt-in; the flat list otherwise honors the sort exactly.
-  const useGroups = grouped
+  // Grouping is opt-in and only applies to the card list; the flat list
+  // otherwise honors the sort exactly.
+  const useGroups = grouped && view === 'cards'
   const groups = useGroups ? groupByBank(filteredAccounts) : null
+
+  // Tapping a table row hands off to the card list, where every edit and
+  // one-tap lifecycle action already lives.
+  function openAccount(account) {
+    setView('cards')
+    flashItem(account.id, 60)
+  }
 
   function startAdd() {
     setNewAcct({
@@ -216,10 +228,18 @@ export default function BankAccountsView() {
         sortOptions={SORT_OPTIONS}
         onClear={clearFilters}
         trailing={
-          <Toggle active={grouped} onClick={() => setGrouped(g => !g)}>
-            <Layers size={12} />
-            Group by bank
-          </Toggle>
+          <>
+            {view === 'cards' && (
+              <Toggle active={grouped} onClick={() => setGrouped(g => !g)}>
+                <Layers size={12} />
+                Group by bank
+              </Toggle>
+            )}
+            <Toggle active={view === 'table'} onClick={() => setView(v => (v === 'table' ? 'cards' : 'table'))}>
+              <Table size={12} />
+              Table
+            </Toggle>
+          </>
         }
       >
         <FilterRow label="Status">
@@ -402,8 +422,12 @@ export default function BankAccountsView() {
         </div>
       )}
 
-      {/* The second bank clock — when each CLOSED account's bank pays again */}
-      <ReapplyTracker accounts={allAccounts} members={members} memberId={filterMember} />
+      {/* The second bank clock — when each CLOSED account's bank pays again.
+          Hidden in table view: its rows jump to a card that isn't mounted
+          there, and the table has its own Reapply column. */}
+      {view === 'cards' && (
+        <ReapplyTracker accounts={allAccounts} members={members} memberId={filterMember} />
+      )}
 
       {filteredAccounts.length === 0 && !adding ? (
         <div className="text-center py-12 text-ink-tertiary">
@@ -420,6 +444,13 @@ export default function BankAccountsView() {
             </>
           )}
         </div>
+      ) : view === 'table' ? (
+        <AccountTable
+          accounts={filteredAccounts}
+          allAccounts={allAccounts}
+          members={members}
+          onRowClick={openAccount}
+        />
       ) : useGroups ? (
         <div className="space-y-6">
           {groups.map(group => (

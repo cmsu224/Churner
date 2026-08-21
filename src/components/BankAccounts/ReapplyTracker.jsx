@@ -1,20 +1,10 @@
 import { useState } from 'react'
 import { getClosedAccountReeligibility } from '../../engines/bankReeligibility'
+import { flashItem } from '../../hooks/useHighlight'
 import ReapplyClock from './ReapplyClock'
 import IssuerLogo from '../shared/IssuerLogo'
 import PlayerBadge from '../shared/PlayerBadge'
 import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
-
-// Jump to the account's row in the list below and flash it, matching the
-// command palette's ?highlight= behavior. The row may be filtered out of the
-// list, in which case there's nothing to scroll to.
-function jumpTo(accountId) {
-  const el = document.getElementById(`item-${accountId}`)
-  if (!el) return
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  el.classList.add('highlight-flash')
-  setTimeout(() => el.classList.remove('highlight-flash'), 3200)
-}
 
 // The second bank clock, collected in one place: for every account you've
 // CLOSED, when that bank will pay a new-account bonus again. Open accounts are
@@ -52,7 +42,7 @@ export default function ReapplyTracker({ accounts, members, memberId }) {
           {rows.map(row => (
             <div
               key={row.accountId}
-              onClick={() => jumpTo(row.accountId)}
+              onClick={() => flashItem(row.accountId)}
               className="p-4 cursor-pointer hover:bg-raised/50 transition-colors"
             >
               <div className="flex items-center gap-2.5 mb-2">

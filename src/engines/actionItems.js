@@ -263,7 +263,7 @@ export function generateActionItems(state) {
   for (const row of latestPerBank(getClosedAccountReeligibility(state.bankAccounts ?? []))) {
     if (row.lifetime || row.state === 'unknown' || row.bankStillOpen) continue
     const pn = mName(members, row.memberId)
-    const anchorNote = row.anchorFromBonus ? 'last bonus' : 'account opening'
+    const anchorNote = row.anchorLabel ?? 'account opening'
     if (row.eligible) {
       items.push({ id: `bank-reapply-${row.accountId}`, type: 'info', category: 'reeligible', accountId: row.accountId, memberId: row.memberId,
         title: `Reapply for a bonus: ${row.bankName}`,

@@ -24,6 +24,15 @@ const ISSUERS = [
   { key: 'navyfederal',  name: 'Navy Federal',     domain: 'navyfederal.org',    color: '#003359', match: ['navy federal', 'navyfed'] },
   { key: 'usaa',         name: 'USAA',             domain: 'usaa.com',           color: '#00263A', match: ['usaa'] },
   { key: 'bilt',         name: 'Bilt',             domain: 'biltrewards.com',    color: '#000000', match: ['bilt'] },
+  { key: 'huntington',   name: 'Huntington',       domain: 'huntington.com',     color: '#2D6E3E', match: ['huntington'] },
+  { key: 'fifththird',   name: 'Fifth Third',      domain: '53.com',             color: '#0033A0', match: ['fifth third', 'fifththird', '53 bank'] },
+  { key: 'mandt',        name: 'M&T Bank',         domain: 'mtb.com',            color: '#005596', match: ['m&t', 'm and t', 'mtb'] },
+  { key: 'keybank',      name: 'KeyBank',          domain: 'key.com',            color: '#C8102E', match: ['keybank', 'key bank'] },
+  { key: 'santander',    name: 'Santander',        domain: 'santanderbank.com',  color: '#B00000', match: ['santander'] },
+  { key: 'bmo',          name: 'BMO',              domain: 'bmo.com',            color: '#0079C1', match: ['bmo', 'bank of montreal', 'harris bank'] },
+  { key: 'regions',      name: 'Regions',          domain: 'regions.com',        color: '#4A8B3A', match: ['regions'] },
+  { key: 'firsthorizon', name: 'First Horizon',    domain: 'firsthorizon.com',   color: '#00558C', match: ['first horizon'] },
+  { key: 'republic',     name: 'Republic Bank',    domain: 'republicbank.com',   color: '#0B5D3B', match: ['republic bank'] },
 ]
 
 const OTHER = { key: 'other', name: 'Other', domain: null, color: '#52525b' }
@@ -35,6 +44,12 @@ export function getIssuerMeta(name) {
     if (iss.match.some(m => n.includes(m))) return iss
   }
   return OTHER
+}
+
+// Display name for a canonical issuer key — the inverse of getIssuerMeta,
+// used where the key is what's on hand (rule tables keyed by issuer).
+export function getIssuerName(key) {
+  return ISSUERS.find(i => i.key === key)?.name ?? OTHER.name
 }
 
 // Stable monogram (1-2 chars) for the logo fallback.

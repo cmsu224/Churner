@@ -1,5 +1,5 @@
 import { useChurn } from '../../store/ChurnContext'
-import { getBankEligibility } from '../../engines/bankEligibility'
+import { getBankEligibility, BASIS_LABEL, ANCHOR_SHORT } from '../../engines/bankEligibility'
 import IssuerLogo from '../shared/IssuerLogo'
 import { fmtDate } from '../../utils/format'
 import { CheckCircle, Clock, Ban } from 'lucide-react'
@@ -14,6 +14,11 @@ function Row({ row }) {
     icon = <CheckCircle size={13} className="text-success-ink flex-shrink-0" />
     color = 'text-success-ink'
     right = 'Eligible now'
+  } else if (row.daysUntil <= 0 && row.stillOpen) {
+    // Cooldown served, but a new-customer offer won't pay a current customer.
+    icon = <Clock size={13} className="text-warning-ink flex-shrink-0" />
+    color = 'text-warning-ink'
+    right = 'Close first'
   } else {
     icon = <Clock size={13} className="text-warning-ink flex-shrink-0" />
     color = 'text-warning-ink'
@@ -23,10 +28,15 @@ function Row({ row }) {
     <div className="flex items-center gap-2 py-1.5">
       <IssuerLogo name={row.key === 'other' ? '' : row.bankName} size={20} />
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-ink truncate">{row.bankName}</div>
-        <div className="text-xs text-ink-tertiary">
-          {row.lifetime ? 'lifetime rule' : `~${row.months}mo rule`}
-          {row.anchor && ` · last ${row.anchorFromBonus ? 'bonus' : 'opened'} ${fmtDate(row.anchor)}`}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-xs font-medium text-ink truncate">{row.bankName}</span>
+          {row.chex === 'sensitive' && (
+            <span className="text-[10px] font-medium text-warning-ink bg-warning/15 rounded px-1 py-px flex-shrink-0">Chex</span>
+          )}
+        </div>
+        <div className="text-xs text-ink-tertiary truncate">
+          {row.lifetime ? 'lifetime rule' : `~${row.months}mo from ${BASIS_LABEL[row.basis] ?? 'last bonus'}`}
+          {row.anchor && ` · ${ANCHOR_SHORT[row.anchorFrom] ?? ''} ${fmtDate(row.anchor)}`}
         </div>
       </div>
       <span className={`text-xs font-medium flex-shrink-0 ${color}`}>{right}</span>
@@ -47,8 +57,10 @@ export default function BankEligibilityWidget() {
     <div className="bg-surface border border-edge-strong rounded-xl p-5">
       <h3 className="text-base font-semibold text-ink mb-1">Bank Bonus Eligibility</h3>
       <p className="text-xs text-ink-muted mb-4">
-        When you can earn each bank&apos;s new-account bonus again. Windows are estimates — verify current
-        terms on Doctor of Credit before applying.
+        When you can earn each bank&apos;s new-account bonus again. Each bank&apos;s cooldown counts from whatever
+        its own terms measure — the last bonus, the day you closed the account, or the day you opened it — so the
+        anchor date under each row is the one that rule actually uses. Windows are estimates: verify current terms
+        on Doctor of Credit before applying.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {withAccounts.map(player => {

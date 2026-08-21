@@ -35,6 +35,7 @@ No backend, no subscription, no database server. The whole app is a static singl
   - [21. Data Sync (GitHub Gist)](#21-data-sync-github-gist)
   - [22. UI / UX & Design System](#22-ui--ux--design-system)
   - [23. Installable App (PWA) & Offline Support](#23-installable-app-pwa--offline-support)
+  - [24. Milestone Tracker Table](#24-milestone-tracker-table)
 - [Privacy & Security](#privacy--security)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
@@ -166,6 +167,7 @@ Page: `/cards`. Cards render as **expand-in-place** rows — tap to edit inline,
   - **"Hide keep-alive" is on by default** — long-term keep cards need no action, so the list opens focused on cards that do. Whenever it's suppressing cards, a "*N* keep-alive cards hidden — show them" link appears under the list (and in the empty state) to bring them back in one click. Selecting the **Keep Alive** status pill overrides the hide, so filtering *for* keep-alive cards always works. Turning the chip off counts toward the active-filter badge, since the default state is on.
   - **Bank accounts** — filter by status, bank (auto-populated), account type (Checking/Savings/Money Market/CD), and toggle chips for "Has bonus offer", "Bonus pending". Sort by Newest, Oldest, Highest bonus, or Bank A–Z.
   - Active filter count badge on the "Clear filters" button. The list is a **flat, global** order that always honors the chosen sort — so "Newest first" is genuinely newest-first for the whole page, regardless of issuer. Grouping by issuer/bank (with brand logos) is an explicit, always-visible **Group by brand / Group by bank** toggle that's **off by default**.
+- **Table view** — a **Table** toggle beside *Group by brand* swaps the card list for the dense milestone grid described in [Milestone Tracker Table](#24-milestone-tracker-table). It reads the same filtered, sorted set the cards do, and includes the closed/downgraded cards inline (it has its own Status and Closed columns, so they need no separate section).
 - **Contextual edit form** — the inline edit form adapts to the card's status so you only see relevant fields. The **Earning Bonus** section (spend req, days, spent, spend log) only appears for Earning Bonus cards or when spend data exists. The **Bonus & Rewards** section (bonus value, type, annual fee, received date, fee-waived flag) is hidden for Closed cards unless data is present. The **Last Used** field only appears on Keep Alive cards or when a date is already set. The **Closed Date** field appears for Closed/Downgraded cards. Current balance, credit limit, and notes live under a collapsed **More details (optional)** section since they're rarely updated.
 - **Progressive add form** — a new card starts short: person, status, card name, issuer, and open date. The **Earning Bonus** section shows only for *Earning Bonus* / *Applied* status; **Bonus & Rewards** (including a **First-year annual fee waived at sign-up** checkbox when a fee is entered) hides once a card is Closed/Downgraded; and balance, credit limit, and notes stay tucked under **More details (optional)**. Inline delete with confirmation.
 
@@ -215,14 +217,16 @@ The direct deposit fields drive the multi-tier direct-deposit reminders, the mul
 **Reapply clock — closed accounts only.** While an account is still open the first clock is what matters, and virtually every bank's offer terms disqualify current customers outright, so there is nothing to count down until the account is gone.
 
 - **Per-account readout** on every closed account's card: the account's own history (**opened → closed**), a progress bar toward the reapply date, and the verdict — **Eligible now**, **Nd · \<date\>**, **Once per lifetime**, or a nudge to add an opened date when the clock can't be anchored. Under it, the rule being applied and where it counts from (e.g. *"~24mo rule · from bonus Jun 6, 2024"*).
-- **Anchor** = the **bonus received date**, falling back to the **opened date** when no bonus ever posted — the same anchor the bank-level [Bank Bonus Eligibility](#10-issuer-rule-engines) widget uses, so the two never disagree.
-- **Cooldown windows are not redefined here** — the engine imports `BANK_RULES` from `bankEligibility.js`, so there is exactly one source of truth per bank (Chase ~24mo, Wells Fargo ~12mo, Capital One/TD ~12mo, once-per-lifetime for Discover and SoFi, conservative 24-month default for unknown banks).
+- **Anchor follows the bank's own rule basis** — a bank whose terms read *"no bonus in the past N months"* counts from the **bonus received date**; one that reads *"no open **or closed** account in the past N months"* counts from the **closed date**; one that says *"new customers only"* counts from the **opened date**. Each basis has a fallback chain (`getBonusAnchor`) so a part-filled account still gets a clock, and the readout names the date it actually used — *"~24mo from account closing · closed Nov 1, 2024"* — so a fallback never reads as the real thing. Same anchor the bank-level [Bank Bonus Eligibility](#10-issuer-rule-engines) widget uses, so the two never disagree.
+- **Cooldown windows and their basis are not redefined here** — the engine imports the rule from `bankEligibility.js` via `getBankRule`, so there is exactly one source of truth per bank (Chase ~24mo from the bonus, Citi/U.S. Bank/PNC ~24mo from closing, Wells Fargo ~12mo, Capital One/TD/Huntington/Fifth Third ~12mo from closing, once-per-lifetime for Discover and SoFi, conservative 24-month default for unknown banks).
 - **"Another \<bank\> account is still open"** — if the member still holds a non-closed account at the same bank, the row says so and the reminder is suppressed, because a new-customer offer won't pay a current customer no matter what the date math says.
 - **Reapply Eligibility panel** at the top of `/accounts` — every closed account's clock in one collapsible list, action-ordered (**eligible now** first, then cooldowns by how soon they open, with lifetime bans and undated accounts last). The header summarizes at a glance (*"4 closed accounts · 1 eligible to reapply now"*, or the next window to open); each row jumps to that account in the list below. It honors the person filter and hides itself entirely when nothing is closed.
 - Feeds the **reapply action items** in the [Action Engine](#2-action-engine-the-brain). Calendar reminders come from the existing bank-level **bank bonus re-eligibility** event on the [Timeline](#4-timeline--calendar--ics-export) — the per-account clock deliberately adds no second event, since for a bank you've fully exited the two dates are the same.
 - Cooldowns are **estimates** — the panel footnote says so and points at Doctor of Credit to verify current offer terms.
 
 **Closed date** is captured by the one-tap **✓ Mark Closed** action, and appears as an editable field on the add and edit forms whenever the status is *Closed* (so a historical account can be logged with its real dates). It is the flag that starts the reapply clock; the cooldown length itself still counts from the anchor above.
+
+**Table view** — a **Table** toggle beside *Group by bank* swaps the account list for the dense milestone grid described in [Milestone Tracker Table](#24-milestone-tracker-table), carrying the opened → requirement → direct deposit → posted → close-after → closed → reapply chain across one row per account.
 
 **Contextual edit form** — both the add and edit forms adapt to the account's status. The **Sign-Up Bonus** section (bonus amount, deadline, minimum balance, ETF window, taxable checkbox, bonus received date) only appears when the account is in a bonus-earning status or bonus data exists. The **Direct Deposit Requirements** section only appears when the status is Opened/DD Linked or when direct deposit data is present. The **Closed Date** field appears when the status is Closed or a date is already set. On the add form, current balance, minimum balance, bonus received date, offer link, and notes stay tucked under **More details (optional)**. "Direct Deposit" is always spelled out in full — never abbreviated.
 
@@ -258,9 +262,24 @@ A compact **Application Eligibility** section also appears on the Dashboard show
 - **Plus**: Bank of America, US Bank, Wells Fargo, Barclays, and Bilt products.
 The widget only shows cards where the bonus has been received (`bonusReceived: true`). Rows are sorted with in-cooldown cards first (soonest-to-unlock), then eligible cards. Uses the bonus received date as the anchor, with openDate as fallback. Shown per person on the Eligibility page as **Card Sign-up Bonus Re-eligibility**.
 
-**Bank bonus eligibility** (`bankEligibility.js`) — the bank equivalent of card re-eligibility. For each bank a person has used, it shows when they can earn that bank's new-account bonus again, based on a per-bank cooldown measured from the last bonus received (or last account opened if none yet). Known windows include Chase ~24mo, Wells Fargo ~12mo, Capital One/TD ~12mo, and once-per-lifetime banks like Discover and SoFi; unknown banks default to a conservative 24 months. Windows are estimates flagged to verify on Doctor of Credit. Shown per person on the Eligibility page as **Bank Bonus Eligibility** (eligible now / cooldown countdown + date / lifetime).
+**Bank bonus eligibility** (`bankEligibility.js`) — the bank equivalent of card re-eligibility, and the single source of truth for all three things that gate a bank bonus:
 
-**Bank reapply clock** (`bankReeligibility.js`) — the same rules applied at the **account** level instead of the bank level, for **closed accounts only**: the per-account second clock on the [Bank Accounts page](#8-bank-account-tracking). It imports `BANK_RULES` from `bankEligibility.js` rather than restating any window, so a change to a bank's cooldown moves both views at once.
+- **`months`** — the cooldown before that bank pays a new-account bonus again. `0` means once per lifetime.
+- **`basis`** — *what the cooldown counts from*, which is the part offer terms actually disagree on and the part that moves the date by months: `bonus` (*"no bonus from us in the past N months"*), `close` (*"no open **or closed** account in the past N months"* — the ones enforced through ChexSystems, since closed accounts stay on that file for five years), or `open` (*"new customers only"*). `getBonusAnchor` resolves the right date per account with a fallback chain, and reports which date it actually used so the UI never mislabels a fallback.
+- **`chex`** — how the bank treats your ChexSystems file: `sensitive` (denies over too many recent inquiries), `standard` (pulls it, but relaxed), or `none` (normally no inquiry at all — brokerage-style accounts like Fidelity and Schwab).
+
+Rules on file cover 25 banks: Chase ~24mo from the bonus; Citi, U.S. Bank, PNC, Citizens, Truist and M&T ~24mo from closing; Wells Fargo, Ally and Bilt ~12mo; Capital One, TD, Huntington, Fifth Third, KeyBank, Santander, BMO and Regions ~12mo from closing; once-per-lifetime for Discover and SoFi. A bank with **no** entry deliberately gets no invented window — it falls through to a conservative 24 months from the last bonus, assuming a ChexSystems pull, and is flagged as a fallback. Every window is a community estimate flagged to verify on Doctor of Credit. Shown per person on the Eligibility page as **Bank Bonus Eligibility** (eligible now / *Close first* when the cooldown is served but an account is still open there / cooldown countdown + date / lifetime), with a **Chex** tag on the sensitive banks.
+
+**ChexSystems inquiry tracker** (`chexSystems.js`) — the bank-account counterpart to Chase 5/24, and the reason a clean-looking application still gets denied. Every bank-account application leaves a ChexSystems inquiry that stays on file for **5 years**, and Chex-sensitive banks auto-deny when too many land too fast.
+
+- Counts openings at banks that actually pull ChexSystems in rolling **6 / 12 / 24-month** windows (limits **6 / 12 / 20**), with the **6-month** window as the headline — that's the one banks weight. Openings at `chex: 'none'` banks don't spend a slot.
+- A tighter **4-in-6-months** line is tracked separately for the Chex-sensitive banks, because that's the threshold that decides whether one of them says yes today.
+- Per-inquiry drop-off dates (when each one leaves the 6-month window), the total still inside the 5-year retention period, and — once the primary window is full — **the date the next slot opens** as the oldest inquiry ages out.
+- It counts accounts you **opened**, so the number is a **floor**: a denial you never logged is an inquiry the real report has and this can't see. The widget says so, and points at chexsystems.com for the free annual report. Thresholds are the community's working numbers, not published bank policy.
+
+**Bank Bonus Rules reference table** — a collapsible panel on the Eligibility page listing every bank on file with its cooldown, what that cooldown counts from, and its ChexSystems behavior, so the rule is readable without opening an account first. The footnote names the fallback applied to banks that aren't listed.
+
+**Bank reapply clock** (`bankReeligibility.js`) — the same rules applied at the **account** level instead of the bank level, for **closed accounts only**: the per-account second clock on the [Bank Accounts page](#8-bank-account-tracking). It calls `getBankRule` and `getBonusAnchor` from `bankEligibility.js` rather than restating any window or anchor rule, so a change to a bank's cooldown — or to what that cooldown counts from — moves both views at once.
 
 ### 11. What-If Eligibility Simulator
 
@@ -386,7 +405,7 @@ Page: `/import`.
 
 - **Semantic design tokens** — all colors flow through CSS custom properties (light values on `:root`, dark on `html.dark`) exposed as Tailwind classes: surfaces (`base → surface → raised → overlay`), borders (`edge`, `edge-strong`), text emphasis (`ink` → `ink-faint`), brand accent, and status colors (`success/warning/danger/info`, each with a text-legible `-ink` variant). **Both themes are first-class** — no override hacks; components use tokens and the theme flips underneath.
 - **Light / dark mode** — a toggle in Settings switches instantly; the preference persists in localStorage, and the correct theme is applied before first render to prevent flash. Tailwind's `darkMode: 'class'` strategy.
-- **Shared component atoms** (`src/components/shared/`): Button, Panel, EmptyState, Skeleton, StatCard, PageHeader, Field/inputs, Modal (focus-trapped, ARIA dialog), StatusBadge (theme-aware status colors, including application statuses), FilterBar (with a persistent trailing slot for view toggles like Group by brand), IssuerLogo, DateField, PlayerBadge, ProgressBar.
+- **Shared component atoms** (`src/components/shared/`): Button, Panel, EmptyState, Skeleton, StatCard, PageHeader, Field/inputs, Modal (focus-trapped, ARIA dialog), StatusBadge (theme-aware status colors, including application statuses), FilterBar (with a persistent trailing slot for view toggles like Group by brand and Table), TrackerTable (the horizontally-scrolling milestone grid behind the [tracker tables](#24-milestone-tracker-table), with a pinned identity column), IssuerLogo, DateField, PlayerBadge, ProgressBar.
 - **Accessibility** — global keyboard focus ring, `prefers-reduced-motion` support (all animations collapse), aria-labels on icon-only buttons, semantic headings, keyboard-navigable palette/modals/menus, colorblind-validated default member palette.
 - **Micro-interactions** — route fade transitions, panel scale-in, slide-up forms, highlight pulse on palette/notification jumps; all subtle and motion-safe.
 - **Responsive SPA** — desktop sidebar (collapsible, grouped: main / Insights / Manage) and a mobile bottom nav (Dashboard, Cards, Accounts, Timeline, **More** — a hub page for everything else), switching at the 1024px breakpoint, with safe-area padding.
@@ -412,6 +431,24 @@ Churner is an installable Progressive Web App — Chrome/Edge offer **Install ap
   - Caches are versioned (`churner-<VERSION>`); older caches are deleted on activate. **Bump `VERSION` in `public/sw.js` whenever that file changes.**
   - Registration is **production-only**, so `npm run dev` is never served from cache.
 - **Theme-aware app chrome** — the `theme-color` meta tag is set before first render and updated by the Settings light/dark toggle, so the installed app's title/status bar tracks the theme.
+
+---
+
+### 24. Milestone Tracker Table
+
+The spreadsheet view of a churn plan: one row per card or account, one column per step in its lifecycle, so a whole household reads at a glance instead of card by card. A **Table** toggle sits beside *Group by brand* / *Group by bank* on both the [Credit Cards](#5-credit-card-tracking) and [Bank Accounts](#8-bank-account-tracking) pages.
+
+- **Same data as the list.** The table renders whatever the page's person filter, filter chips, and sort already produced — the two views can't disagree about what's in scope or what order it's in. Grouping is hidden while the table is up, since a grouped grid defeats the point.
+- **Bank account columns:** Bank (with logo, member dot, last 4) · Person · Type · Status · Opened · Bonus · Requirement · DD · Posted · Close after · Closed · Reapply.
+  - **Requirement** is rebuilt from the account's structured fields — `$500 DD ×2 · $1,500 bal · 90d` — so the plan's shorthand is derived, never a second free-text field to keep in sync.
+  - **DD** shows the completed/required fraction while several deposits are needed (the same count the account's `+ Direct Deposit N/M` button increments), or the linked date when one is enough.
+  - **Close after** is the [181-day clawback shield](#8-bank-account-tracking); **Reapply** is the [bank reapply clock](#10-issuer-rule-engines), reading *Now*, a date, *Lifetime*, or *Close others* when another account at that bank is still open.
+- **Credit card columns:** Card (with logo, member dot, last 4) · Person · Status · Opened · Bonus · Min spend · Spent · Spend by · Bonus posted · Fee · Fee due · Close after · Closed.
+  - **Spent** carries the percent complete; **Spend by** colors amber inside 30 days and red once the deadline has passed unmet.
+  - **Fee due** carries the fee phase from the [lifecycle engine](#12-card-lifecycle-annual-fees-retention--re-eligibility) — a countdown, *any day* while a due fee waits on the statement, or the refund clock once you confirm it posted.
+  - **Close after** is the 12-month close shield, checked off in green once the bonus is safe.
+- **Read-only by design.** Every edit and one-tap lifecycle action already lives on the card, with its undo — so tapping a table row flips back to the list and flashes that item rather than duplicating the lifecycle logic in a second place.
+- **Scrolls horizontally with the identity column pinned**, so the card/bank name stays put while you read across on a phone. Dates render compactly (`Mar 3`), a completed step shows a green check, and a step that hasn't happened shows an em-dash.
 
 ---
 
@@ -505,7 +542,7 @@ settings           { taxBracket, pointValueCents, notifyEnabled,
                      programValueCents { programName: centsPerPoint } }
 ```
 
-Engines with no synced state of their own: `events.js` (timeline), `annualFees.js` (fee tracker), `earnings.js`, `burnRate.js`, `bankReeligibility.js` (bank reapply clock — derived entirely from account dates + `bankEligibility.js`'s windows), `whatIf.js` (simulator inputs are deliberately not persisted).
+Engines with no synced state of their own: `events.js` (timeline), `annualFees.js` (fee tracker), `earnings.js`, `burnRate.js`, `bankReeligibility.js` (bank reapply clock — derived entirely from account dates + `bankEligibility.js`'s windows and basis), `chexSystems.js` (inquiry counts — derived entirely from `bankAccounts[].openedDate` plus each bank's `chex` classification), `whatIf.js` (simulator inputs are deliberately not persisted).
 
 ---
 

@@ -272,7 +272,10 @@ export function collectEvents(state) {
   for (const member of members) {
     const rows = getBankEligibility(member.id, accounts)
     for (const row of rows) {
-      if (row.lifetime || !row.eligibleDate || row.eligible) continue
+      // Skip windows that have already opened — an eligible bank needs no
+      // calendar reminder, and a bank held open past its cooldown would
+      // otherwise push a past-dated event.
+      if (row.lifetime || !row.eligibleDate || row.daysUntil <= 0) continue
       events.push(makeEvent({
         kind: 'bank_reeligible',
         date: row.eligibleDate,
