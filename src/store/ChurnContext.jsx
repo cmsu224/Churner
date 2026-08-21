@@ -45,6 +45,7 @@ function withDefaults(raw) {
     cashSources: base.cashSources ?? DEFAULT_CASH_SOURCES,
     transfers: base.transfers ?? [],
     reminders: base.reminders ?? [],
+    moneyMapLayout: base.moneyMapLayout ?? {},
     settings: { ...INITIAL_STATE.settings, ...(base.settings ?? {}) },
     notifications: {
       seen: base.notifications?.seen ?? [],
@@ -159,9 +160,18 @@ function reducer(state, action) {
       return { ...state, cashSources: [...(state.cashSources ?? []), { ...action.payload, id: crypto.randomUUID() }] }
     case 'UPDATE_CASH_SOURCE':
       return { ...state, cashSources: (state.cashSources ?? []).map(s => s.id === action.payload.id ? action.payload : s) }
-    // Exactly one hub — the account the sweep-back reminders point at.
-    case 'SET_HUB_SOURCE':
-      return { ...state, cashSources: (state.cashSources ?? []).map(s => ({ ...s, isHub: s.id === action.id })) }
+    // Exactly one hub across both kinds — the account sweep-back reminders
+    // point at. Usually a cash source, but a checking account you actually
+    // live out of works just as well, so this clears the flag everywhere and
+    // sets it on the one node you picked.
+    case 'SET_HUB': {
+      const target = splitNodeKey(action.key)
+      return {
+        ...state,
+        cashSources: (state.cashSources ?? []).map(s => ({ ...s, isHub: target?.kind === 'source' && s.id === target.id })),
+        bankAccounts: state.bankAccounts.map(a => ({ ...a, isHub: target?.kind === 'account' && a.id === target.id })),
+      }
+    }
     case 'DELETE_CASH_SOURCE':
       return { ...state, cashSources: (state.cashSources ?? []).filter(s => s.id !== action.id) }
 
@@ -211,6 +221,12 @@ function reducer(state, action) {
       const next = { ...state, transfers: state.transfers.map(t => t.id === action.id ? { ...prev, landedDate: null } : t) }
       return applyEffects(next, [[prev.toKey, round2(prev.amount)]], -1)
     }
+
+    // ── Money map: card arrangement ───────────────────────────────────────
+    // Stored whole rather than per-node: a move rewrites both columns at once
+    // (see moveNode), and that's exactly what keeps the arrangement stable.
+    case 'SET_MAP_LAYOUT':
+      return { ...state, moneyMapLayout: action.layout ?? {} }
 
     // ── Money map: reminders ──────────────────────────────────────────────
     case 'ADD_REMINDER':

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { nodeLabel } from '../../engines/moneyFlow'
+import { nodeLabel, layoutColumns, canMove } from '../../engines/moneyFlow'
 import { fmt$0 } from '../../utils/format'
-import { Landmark, Wallet, Home, AlertTriangle, EyeOff } from 'lucide-react'
+import {
+  Landmark, Wallet, Home, AlertTriangle, EyeOff, Move, Check,
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
+} from 'lucide-react'
 
 // The picture: where every dollar currently sits, and every push connecting
 // the two sides. Cash sources on the left, churned bank accounts on the right,
@@ -18,6 +21,13 @@ import { Landmark, Wallet, Home, AlertTriangle, EyeOff } from 'lucide-react'
 const SIZES = {
   wide:    { NODE_W: 196, NODE_H: 74, ROW_GAP: 12, COL_GAP: 168 },
   compact: { NODE_W: 132, NODE_H: 74, ROW_GAP: 10, COL_GAP: 74 },
+}
+// Arranging trades ribbon room for control room: taller cards, and on a phone
+// wider ones over a tighter gutter, so every arrow clears a comfortable tap
+// target. 164 + 28 + 164 = 356px still fits a 390px screen without scrolling.
+const ARRANGE_SIZES = {
+  wide:    { NODE_W: 196, NODE_H: 104, ROW_GAP: 12, COL_GAP: 168 },
+  compact: { NODE_W: 164, NODE_H: 104, ROW_GAP: 10, COL_GAP: 28 },
 }
 const PAD_Y = 8
 
@@ -60,14 +70,72 @@ function ribbonPath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`
 }
 
-function NodeCard({ node, size, compact, inflightIn, selected, dimmed, onActivate, onPushTo, onSweep }) {
+function MoveButton({ icon: Icon, label, disabled, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="flex-1 flex items-center justify-center h-9 rounded-md bg-raised border border-edge-strong text-ink-muted hover:text-ink hover:bg-overlay disabled:opacity-25 disabled:pointer-events-none transition-colors"
+    >
+      <Icon size={16} />
+    </button>
+  )
+}
+
+function NodeCard({ node, size, compact, arranging, moves, inflightIn, selected, dimmed, onActivate, onPushTo, onSweep, onMove, onSetHub }) {
   const Icon = node.kind === 'source' ? (node.isHub ? Home : Wallet) : Landmark
   const ring = selected ? 'border-accent shadow-pop' : (TONE_RING[node.tone] ?? 'border-edge')
   const hasBalance = node.balance != null
+  const height = size.NODE_H
+
+  // While arranging, the card stops being a way into the ledger and becomes the
+  // thing being moved — so the whole body is controls, not a button.
+  if (arranging) {
+    return (
+      <div
+        className={`absolute rounded-xl border bg-surface shadow-card ${node.isHub ? 'border-accent' : 'border-edge-strong'}`}
+        style={{ left: node.x, top: node.y, width: size.NODE_W, height }}
+      >
+        <div className="px-2 pt-1.5 flex items-center gap-1.5 min-w-0">
+          <Icon size={12} className="text-ink-tertiary flex-shrink-0" aria-hidden="true" />
+          <span className="text-[11px] font-semibold text-ink truncate">{node.name}</span>
+          {node.isHub && (
+            <span className="text-[9px] font-bold uppercase tracking-wide text-accent-ink bg-accent/10 rounded px-1 py-px flex-shrink-0">
+              Hub
+            </span>
+          )}
+        </div>
+        <div className="px-2 pt-1.5 flex items-center gap-1">
+          <MoveButton icon={ChevronLeft}  label={`Move ${node.name} to the left column`}  disabled={!moves.left}  onClick={() => onMove(node.key, 'left')} />
+          <MoveButton icon={ChevronUp}    label={`Move ${node.name} up`}                  disabled={!moves.up}    onClick={() => onMove(node.key, 'up')} />
+          <MoveButton icon={ChevronDown}  label={`Move ${node.name} down`}                disabled={!moves.down}  onClick={() => onMove(node.key, 'down')} />
+          <MoveButton icon={ChevronRight} label={`Move ${node.name} to the right column`} disabled={!moves.right} onClick={() => onMove(node.key, 'right')} />
+        </div>
+        <div className="px-2 pt-1.5">
+          <button
+            type="button"
+            onClick={() => onSetHub(node.key)}
+            disabled={node.isHub}
+            className={`w-full flex items-center justify-center gap-1 h-7 rounded-md text-[11px] font-semibold border transition-colors ${
+              node.isHub
+                ? 'bg-accent/10 text-accent-ink border-accent/30'
+                : 'bg-raised text-ink-muted border-edge-strong hover:text-ink hover:bg-overlay'
+            }`}
+          >
+            {node.isHub ? <><Check size={11} />Main hub</> : <><Home size={11} />Set as hub</>}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className={`absolute rounded-xl border bg-surface shadow-card transition-all ${ring} ${dimmed ? 'opacity-35' : 'opacity-100'}`}
-      style={{ left: node.x, top: node.y, width: size.NODE_W, height: size.NODE_H }}
+      style={{ left: node.x, top: node.y, width: size.NODE_W, height }}
     >
       {/* Read aloud, the card's own text is a run of numbers and fragments, so
           the button carries a written-out label instead. */}
@@ -78,6 +146,7 @@ function NodeCard({ node, size, compact, inflightIn, selected, dimmed, onActivat
         aria-label={[
           nodeLabel(node),
           hasBalance ? fmt$0(node.balance) : 'balance not tracked',
+          node.isHub ? 'main hub' : null,
           node.label,
           inflightIn > 0 ? `${fmt$0(inflightIn)} in flight toward it` : null,
           compact ? 'move money or see its transfers' : 'filter the ledger',
@@ -134,7 +203,7 @@ function NodeCard({ node, size, compact, inflightIn, selected, dimmed, onActivat
   )
 }
 
-export default function FlowDiagram({ map, selectedKey, onSelect, onOpenSheet, onPushTo, onSweep }) {
+export default function FlowDiagram({ map, cardLayout, selectedKey, onSelect, onOpenSheet, onPushTo, onSweep, onMove, onResetLayout, onSetHub }) {
   const { sources, accounts, edges, perNode, totals } = map
   // Same breakpoint idea as AppShell's sidebar switch: read the viewport, not
   // the element, so the map picks its column widths before it first paints.
@@ -144,8 +213,9 @@ export default function FlowDiagram({ map, selectedKey, onSelect, onOpenSheet, o
     window.addEventListener('resize', handler)
     return () => window.removeEventListener('resize', handler)
   }, [])
-  const size = compact ? SIZES.compact : SIZES.wide
   const [showQuiet, setShowQuiet] = useState(false)
+  const [arranging, setArranging] = useState(false)
+  const size = (arranging ? ARRANGE_SIZES : SIZES)[compact ? 'compact' : 'wide']
 
   // A closed account with no balance and no transfer history has nothing to
   // draw and nothing to do — after a year of churning those would otherwise be
@@ -158,15 +228,12 @@ export default function FlowDiagram({ map, selectedKey, onSelect, onOpenSheet, o
   }, [accounts, perNode, showQuiet])
 
   const layout = useMemo(() => {
-    // Hub first on the left; on the right, the accounts that need attention
-    // (and the ones holding the most money) rise to the top.
-    const left = [...sources].sort((a, b) => (b.isHub ? 1 : 0) - (a.isHub ? 1 : 0) || a.name.localeCompare(b.name))
-    const toneRank = { danger: 0, warning: 1, accent: 2, success: 3, closed: 4 }
-    const right = [...shownAccounts].sort(
-      (a, b) => (toneRank[a.tone] ?? 5) - (toneRank[b.tone] ?? 5) || (b.balance ?? 0) - (a.balance ?? 0)
-    )
+    // Column placement and order come from the engine, so your arrangement and
+    // the automatic fallback are decided in exactly one place.
+    const { left, right } = layoutColumns([...sources, ...shownAccounts], cardLayout)
 
-    const rowH = size.NODE_H + size.ROW_GAP
+    const nodeH = size.NODE_H
+    const rowH = nodeH + size.ROW_GAP
     const leftH = left.length * rowH
     const rightH = right.length * rowH
     const height = Math.max(leftH, rightH, rowH) + PAD_Y * 2
@@ -181,13 +248,23 @@ export default function FlowDiagram({ map, selectedKey, onSelect, onOpenSheet, o
 
     const placed = [...place(left, 0, leftH), ...place(right, rightX, rightH)]
     const positions = new Map(placed.map(n => [n.key, n]))
-    return { nodes: placed, positions, width: rightX + size.NODE_W, height }
-  }, [sources, shownAccounts, size])
+    return { nodes: placed, positions, width: rightX + size.NODE_W, height, nodeH }
+  }, [sources, shownAccounts, size, cardLayout])
 
   // On a phone the node IS the entry point: tapping opens the move-money sheet,
   // which offers filtering as its third option. With a pointer, tapping filters
   // straight away and the hover shortcuts handle the moves.
   const activate = (n) => (compact ? onOpenSheet(n) : onSelect(n.key))
+
+  // Which arrows a card can offer, computed against the same node set the map
+  // is actually drawing — so a hidden closed account can't be moved "past".
+  const arrangeable = [...sources, ...shownAccounts]
+  const moveOptions = (key) => ({
+    up: canMove(arrangeable, cardLayout, key, 'up'),
+    down: canMove(arrangeable, cardLayout, key, 'down'),
+    left: canMove(arrangeable, cardLayout, key, 'left'),
+    right: canMove(arrangeable, cardLayout, key, 'right'),
+  })
 
   const maxEdge = Math.max(1, ...edges.map(e => e.total))
   const strokeFor = (amount) => 1.5 + 7 * Math.sqrt(Math.max(0, amount) / maxEdge)
@@ -201,8 +278,8 @@ export default function FlowDiagram({ map, selectedKey, onSelect, onOpenSheet, o
     const forward = from.x < to.x
     const x1 = forward ? from.x + size.NODE_W : from.x
     const x2 = forward ? to.x : to.x + size.NODE_W
-    const y1 = from.y + size.NODE_H / 2
-    const y2 = to.y + size.NODE_H / 2
+    const y1 = from.y + layout.nodeH / 2
+    const y2 = to.y + layout.nodeH / 2
     const active = !selectedKey || selectedKey === e.from || selectedKey === e.to
     return {
       ...e,
@@ -218,9 +295,25 @@ export default function FlowDiagram({ map, selectedKey, onSelect, onOpenSheet, o
   return (
     <div className="bg-surface border border-edge rounded-xl shadow-card overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-edge flex-wrap">
-        <h2 className="text-sm font-semibold text-ink">
-          Where the money is
-          {quiet.length > 0 && (
+        <h2 className="text-sm font-semibold text-ink flex items-center flex-wrap gap-x-2">
+          <span>Where the money is</span>
+          <button
+            onClick={() => setArranging(a => !a)}
+            className={`inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md border transition-colors ${
+              arranging
+                ? 'bg-accent/15 text-accent-ink border-accent/40'
+                : 'bg-raised text-ink-tertiary border-edge-strong hover:text-ink'
+            }`}
+          >
+            {arranging ? <Check size={11} aria-hidden="true" /> : <Move size={11} aria-hidden="true" />}
+            {arranging ? 'Done' : 'Arrange'}
+          </button>
+          {arranging && Object.keys(cardLayout ?? {}).length > 0 && (
+            <button onClick={onResetLayout} className="text-[11px] font-normal text-ink-tertiary hover:text-ink-secondary transition-colors">
+              Reset to automatic
+            </button>
+          )}
+          {!arranging && quiet.length > 0 && (
             <button
               onClick={() => setShowQuiet(v => !v)}
               className="ml-2 inline-flex items-center gap-1 text-[11px] font-normal text-ink-tertiary hover:text-ink-secondary transition-colors align-middle"
@@ -271,8 +364,10 @@ export default function FlowDiagram({ map, selectedKey, onSelect, onOpenSheet, o
           </svg>
 
           {/* Amount labels sit above the ribbons: in-flight always (it's the
-              number you're waiting on), landed only when you pick a node. */}
-          {drawn.map(e => {
+              number you're waiting on), landed only when you pick a node.
+              Arranging narrows the gutter they'd sit in, and they're not what
+              you're looking at then, so they step aside. */}
+          {!arranging && drawn.map(e => {
             const showInflight = e.inflight > 0
             const showLanded = e.landed > 0 && selectedKey && e.active
             if (!showInflight && !showLanded) return null
@@ -302,18 +397,33 @@ export default function FlowDiagram({ map, selectedKey, onSelect, onOpenSheet, o
               node={node}
               size={size}
               compact={compact}
+              arranging={arranging}
+              moves={moveOptions(node.key)}
               inflightIn={perNode.get(node.key)?.inflightIn ?? 0}
-              selected={selectedKey === node.key}
-              dimmed={!!selectedKey && selectedKey !== node.key && !drawn.some(e => e.active && (e.from === node.key || e.to === node.key))}
+              selected={!arranging && selectedKey === node.key}
+              dimmed={!arranging && !!selectedKey && selectedKey !== node.key && !drawn.some(e => e.active && (e.from === node.key || e.to === node.key))}
               onActivate={activate}
               onPushTo={onPushTo}
               onSweep={onSweep}
+              onMove={onMove}
+              onSetHub={onSetHub}
             />
           ))}
         </div>
       </div>
 
-      {totals.inFlightCount > 0 && (
+      {arranging && (
+        <div className="flex items-start gap-2 px-4 py-2 border-t border-edge bg-raised/40 text-[11px] text-ink-muted">
+          <Move size={12} className="text-accent-ink flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <span>
+            Arrows move a card up and down its column or across to the other one — money flows left to right, so put whatever you push
+            <em> from</em> on the left. <strong className="text-ink font-semibold">Set as hub</strong> marks the account money should come
+            home to; the sweep-back reminders aim at it.
+          </span>
+        </div>
+      )}
+
+      {!arranging && totals.inFlightCount > 0 && (
         <div className="flex items-center gap-2 px-4 py-2 border-t border-edge bg-raised/40 text-[11px] text-ink-muted">
           <AlertTriangle size={12} className="text-accent-ink flex-shrink-0" aria-hidden="true" />
           <span>

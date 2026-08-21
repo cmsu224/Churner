@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
-import { CASH_SOURCE_TYPES } from '../../engines/moneyFlow'
+import { CASH_SOURCE_TYPES, nodeKey } from '../../engines/moneyFlow'
 import { fmt$0 } from '../../utils/format'
 import { inp } from '../shared/Field'
 import { Home, Plus, Trash2, Check, X, ChevronDown, ChevronUp, Wallet } from 'lucide-react'
@@ -109,7 +109,7 @@ export default function CashSourceEditor({ sources, perNode }) {
                       </button>
                       {!s.isHub && (
                         <button
-                          onClick={() => dispatch({ type: 'SET_HUB_SOURCE', id: s.id })}
+                          onClick={() => dispatch({ type: 'SET_HUB', key: nodeKey('source', s.id) })}
                           title="Make this the main account money comes home to"
                           className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-raised border border-edge-strong text-ink-muted hover:text-ink transition-colors flex-shrink-0"
                         >

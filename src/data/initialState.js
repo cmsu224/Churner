@@ -41,6 +41,10 @@ export const INITIAL_STATE = {
   // back"). Derived reminders (late transfers, stranded cash) are computed in
   // src/engines/reminders.js and are not stored.
   reminders: [],
+  // How the Money Map's cards are arranged, keyed by node ('source:<id>' /
+  // 'account:<id>'): { side: 'left'|'right', order }. Sparse — a node with no
+  // entry keeps the automatic placement. See src/engines/moneyFlow.js.
+  moneyMapLayout: {},
   taxYear: new Date().getFullYear(),
   settings: {
     taxBracket: 22,
