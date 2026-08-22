@@ -162,6 +162,10 @@ export default function BankAccountsView() {
         requiredDD: numOpt(newAcct.requiredDD),
         bonusAmount: numOpt(newAcct.bonusAmount),
         currentBalance: parseFloat(newAcct.currentBalance) || 0,
+        // An account added with money already in it started with that money —
+        // the Money Map's ledger measures from here, so this is what stops a
+        // correct balance being reported as over by its own opening figure.
+        openingBalance: parseFloat(newAcct.currentBalance) || 0,
         minimumBalance: numOpt(newAcct.minimumBalance),
         ddDeadlineDays: intOpt(newAcct.ddDeadlineDays),
         requiredDDCount: intOpt(newAcct.requiredDDCount),

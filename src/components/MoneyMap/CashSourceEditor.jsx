@@ -3,6 +3,7 @@ import { useChurn } from '../../store/ChurnContext'
 import { CASH_SOURCE_TYPES, nodeKey } from '../../engines/moneyFlow'
 import { fmt$0 } from '../../utils/format'
 import { inp } from '../shared/Field'
+import NodeGlyph from './NodeGlyph'
 import { Home, Plus, Trash2, Check, X, ChevronDown, ChevronUp, Wallet } from 'lucide-react'
 
 // Where money comes FROM: the brokerages and everyday banks that aren't
@@ -94,6 +95,7 @@ export default function CashSourceEditor({ sources, perNode }) {
                     <div className="flex items-center gap-2">
                       <button onClick={() => setEditing({ ...s.source })} className="flex-1 min-w-0 text-left">
                         <span className="flex items-center gap-1.5 min-w-0">
+                          <NodeGlyph node={s} size={18} className="text-ink-tertiary" />
                           <span className="text-sm font-medium text-ink truncate">{s.name}</span>
                           {s.isHub && (
                             <span className="text-[9px] font-bold uppercase tracking-wide text-accent-ink bg-accent/10 rounded px-1 py-px flex-shrink-0">Hub</span>

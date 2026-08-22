@@ -156,6 +156,8 @@ export default function AccountItem({ account, members }) {
         requiredDD: numOpt(draft.requiredDD),
         bonusAmount: numOpt(draft.bonusAmount),
         currentBalance: draft.currentBalance !== '' && draft.currentBalance != null ? parseFloat(draft.currentBalance) || 0 : 0,
+        // The Money Map's ledger baseline: what it held before the first push.
+        openingBalance: numOpt(draft.openingBalance) ?? 0,
         minimumBalance: numOpt(draft.minimumBalance),
         ddDeadlineDays: intOpt(draft.ddDeadlineDays),
         requiredDDCount: intOpt(draft.requiredDDCount),
@@ -395,6 +397,16 @@ export default function AccountItem({ account, members }) {
               <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
               <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-ink-tertiary block mb-1">Started With ($)</label>
+            <input type="number" min="0" className={inp} value={draft.openingBalance ?? ''} onChange={e => set('openingBalance', e.target.value)} placeholder="0" />
+            <p className="text-xs text-ink-faint mt-1">
+              What the account already held before your first logged transfer — leave at 0 for one you opened empty. The Money Map
+              measures its transfer ledger from here, so an everyday account you added later isn&rsquo;t reported as being over by
+              whatever was already in it.
+            </p>
           </div>
 
           {/* Closed accounts are the only ones the reapply tracker follows */}

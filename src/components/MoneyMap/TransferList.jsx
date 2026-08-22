@@ -3,6 +3,7 @@ import { useChurn } from '../../store/ChurnContext'
 import { getTransferStatus, purposeMeta, nodeLabel, isLanded, EXPECTED_LANDING_DAYS } from '../../engines/moneyFlow'
 import { fmt$, fmtDateCompact, todayISODate } from '../../utils/format'
 import EmptyState from '../shared/EmptyState'
+import NodeGlyph from './NodeGlyph'
 import { ArrowRight, Check, Undo2, Trash2, Clock, AlertTriangle, ArrowLeftRight } from 'lucide-react'
 
 // The ledger under the map: every push, newest first, split into what's still
@@ -29,8 +30,10 @@ function Row({ transfer, from, to, onLand, onUnland, onReturn, onDelete }) {
 
         <span className="flex-1 min-w-0">
           <span className="flex items-center gap-1.5 text-xs text-ink-secondary min-w-0">
+            {from && <NodeGlyph node={from} size={16} className="hidden sm:inline-flex text-ink-tertiary" />}
             <span className="truncate">{from ? nodeLabel(from) : 'Removed account'}</span>
             <ArrowRight size={11} className="text-ink-faint flex-shrink-0" aria-hidden="true" />
+            {to && <NodeGlyph node={to} size={16} className="hidden sm:inline-flex text-ink-tertiary" />}
             <span className="truncate">{to ? nodeLabel(to) : 'Removed account'}</span>
           </span>
           <span className="flex items-center gap-1.5 mt-1 flex-wrap">

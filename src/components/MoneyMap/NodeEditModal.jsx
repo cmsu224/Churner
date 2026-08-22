@@ -4,6 +4,8 @@ import Field, { inp, inpRequired } from '../shared/Field'
 import { useChurn } from '../../store/ChurnContext'
 import { CASH_SOURCE_TYPES, nodeKey } from '../../engines/moneyFlow'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
+import { getIssuerMeta } from '../../utils/issuers'
+import IssuerLogo from '../shared/IssuerLogo'
 import { Landmark, Wallet, Home, Trash2, Check, Palette } from 'lucide-react'
 
 const ACCT_TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
@@ -59,6 +61,14 @@ export default function NodeEditModal({ node, onClose }) {
     rawAccount?.bonusAmount != null ? String(rawAccount.bonusAmount) : ''
   )
   const [last4, setLast4] = useState(rawAccount?.last4 != null ? String(rawAccount.last4) : '')
+  // What the account held before its first logged push. $0 for a churn you
+  // opened empty; whatever was already in there for an everyday account you
+  // added to the map later. It is the baseline the reconcile check measures
+  // against, and leaving it at 0 for an account that wasn't empty is what made
+  // that check accuse a correct balance of being wrong.
+  const [openingBalance, setOpeningBalance] = useState(
+    rawAccount?.openingBalance != null ? String(rawAccount.openingBalance) : ''
+  )
   const [notes, setNotes] = useState(isAccount ? (rawAccount?.notes || '') : (rawSource?.notes || ''))
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -83,6 +93,7 @@ export default function NodeEditModal({ node, onClose }) {
         ...rawAccount,
         bankName: name.trim(),
         currentBalance: parsedBalance,
+        openingBalance: numOrNull(openingBalance) ?? 0,
         color: trimmedColor,
         accountType: type,
         memberId,
@@ -133,12 +144,16 @@ export default function NodeEditModal({ node, onClose }) {
       <form onSubmit={handleSave} className="space-y-4">
         {/* Header summary badge */}
         <div className="flex items-center gap-2.5 p-3 rounded-xl bg-raised/60 border border-edge">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white"
-            style={{ backgroundColor: color || (isSource ? '#475569' : '#059669') }}
-          >
-            <Icon size={16} />
-          </div>
+          {getIssuerMeta(name).domain ? (
+            <IssuerLogo name={name} size={32} rounded="rounded-lg" />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white"
+              style={{ backgroundColor: color || (isSource ? '#475569' : '#059669') }}
+            >
+              <Icon size={16} />
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="text-sm font-bold text-ink truncate">{name || 'Untitled'}</div>
             <div className="text-xs text-ink-tertiary">
@@ -295,6 +310,23 @@ export default function NodeEditModal({ node, onClose }) {
                 onChange={e => setBonusAmount(e.target.value)}
                 placeholder="e.g. 300"
               />
+            </Field>
+
+            <Field
+              label="Started With ($)"
+              hint="What it already held before your first logged push — $0 for an account you opened empty. The transfers are measured from here."
+            >
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-ink-tertiary pointer-events-none">$</span>
+                <input
+                  type="number"
+                  step="any"
+                  className={`${inp} pl-7`}
+                  value={openingBalance}
+                  onChange={e => setOpeningBalance(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
             </Field>
           </div>
         ) : (
