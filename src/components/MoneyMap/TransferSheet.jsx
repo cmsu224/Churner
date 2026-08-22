@@ -8,8 +8,9 @@ import {
 } from '../../engines/moneyFlow'
 import { fmt$, fmt$0, todayISODate, addDaysISO } from '../../utils/format'
 import DateField from '../shared/DateField'
+import NodeGlyph from './NodeGlyph'
 import {
-  ArrowUpRight, ArrowDownLeft, List, ChevronLeft, Check, Landmark, Wallet, Home,
+  ArrowUpRight, ArrowDownLeft, List, ChevronLeft, Check,
   Search, Bell, CornerDownLeft, Pencil,
 } from 'lucide-react'
 
@@ -29,11 +30,6 @@ const CHECK_PRESETS = [
   { days: 21, label: '3w' },
   { days: 30, label: '30d' },
 ]
-
-function NodeIcon({ node, className }) {
-  const Icon = node.kind === 'source' ? (node.isHub ? Home : Wallet) : Landmark
-  return <Icon size={16} className={className} aria-hidden="true" />
-}
 
 function Chip({ active, onClick, children, title }) {
   return (
@@ -184,10 +180,9 @@ export default function TransferSheet({ node, map, onClose, onShowTransfers, onE
       {step === 'direction' && (
         <div className="-mx-5">
           <div className="px-5 pb-3 flex items-center gap-2.5">
-            {node.color ? (
-              <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: node.color }} />
-            ) : (
-              <NodeIcon node={node} className="text-ink-muted" />
+            <NodeGlyph node={node} size={26} rounded="rounded-md" className="text-ink-muted" />
+            {node.color && (
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 -ml-1" style={{ backgroundColor: node.color }} />
             )}
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-ink truncate">{node.name}</span>
@@ -261,7 +256,7 @@ export default function TransferSheet({ node, map, onClose, onShowTransfers, onE
                 {recent.map(n => (
                   <TapRow
                     key={n.key}
-                    icon={<NodeIcon node={n} className="text-ink-muted" />}
+                    icon={<NodeGlyph node={n} size={22} rounded="rounded" className="text-ink-muted" />}
                     title={n.name}
                     subtitle={n.sublabel}
                     trailing={n.balance == null ? 'not tracked' : fmt$0(n.balance)}
@@ -282,7 +277,7 @@ export default function TransferSheet({ node, map, onClose, onShowTransfers, onE
                   {group.list.map(n => (
                     <TapRow
                       key={n.key}
-                      icon={<NodeIcon node={n} className="text-ink-muted" />}
+                      icon={<NodeGlyph node={n} size={22} rounded="rounded" className="text-ink-muted" />}
                       title={n.name + (n.isHub ? ' · hub' : '')}
                       subtitle={n.label ?? n.sublabel}
                       trailing={n.balance == null ? 'not tracked' : fmt$0(n.balance)}

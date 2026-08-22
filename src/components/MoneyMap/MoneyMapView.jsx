@@ -47,28 +47,9 @@ export default function MoneyMapView() {
   const mismatches = useMemo(() => getLedgerMismatches(map), [map])
   const { totals, hub } = map
 
-  // Both map actions write a half-finished line into the quick bar rather than
-  // opening a form — the amount is the only thing left to type.
-  function pushTo(node) {
-    const source = hub && hub.key !== node.key ? hub : map.sources.find(s => s.key !== node.key)
-    setPrefill({
-      text: source ? `${source.name} > ${node.name} ` : `${node.name} `,
-      from: source ?? null,
-      to: node,
-      purpose: node.kind === 'account' ? 'dd' : 'other',
-    })
-  }
-
-  function sweep(node) {
-    setPrefill({
-      text: hub ? `${node.name} > ${hub.name} ` : `${node.name} back `,
-      from: node,
-      to: hub ?? null,
-      purpose: 'return',
-    })
-  }
-
-  // "Send back" on a landed transfer: same money, other direction.
+  // "Send back" on a landed transfer: same money, other direction. The map's own
+  // Transfer / Send home shortcuts open the log-transfer dialog instead, so this
+  // is the one thing that still pre-fills the typed bar.
   function returnTransfer(transfer) {
     const from = map.byKey.get(transfer.toKey)
     const to = map.byKey.get(transfer.fromKey)
@@ -88,14 +69,16 @@ export default function MoneyMapView() {
   const editingNode = editingNodeKey ? map.byKey.get(editingNodeKey) : null
 
   // Arranging rewrites both columns at once, so the move is computed in the
-  // engine and stored whole.
+  // engine and stored whole. The diagram passes the nodes it actually drew —
+  // hidden "closed & empty" cards aren't on screen, so counting them here would
+  // land a drop at the wrong slot.
   const cardLayout = state.moneyMapLayout ?? {}
-  function moveCard(key, direction) {
-    dispatch({ type: 'SET_MAP_LAYOUT', layout: moveNode(map.nodes, cardLayout, key, direction) })
+  function moveCard(key, direction, nodes) {
+    dispatch({ type: 'SET_MAP_LAYOUT', layout: moveNode(nodes ?? map.nodes, cardLayout, key, direction) })
   }
 
-  function reorderCard(key, targetSide, targetIndex) {
-    dispatch({ type: 'SET_MAP_LAYOUT', layout: reorderNode(map.nodes, cardLayout, key, targetSide, targetIndex) })
+  function reorderCard(key, targetSide, targetIndex, nodes) {
+    dispatch({ type: 'SET_MAP_LAYOUT', layout: reorderNode(nodes ?? map.nodes, cardLayout, key, targetSide, targetIndex) })
   }
 
   const nothingLogged = map.transfers.length === 0
@@ -168,8 +151,6 @@ export default function MoneyMapView() {
             selectedKey={selectedKey}
             onSelect={(key) => setSelectedKey(k => (key === null || k === key ? null : key))}
             onOpenSheet={(node) => setSheetKey(node.key)}
-            onPushTo={pushTo}
-            onSweep={sweep}
             cardLayout={cardLayout}
             onMove={moveCard}
             onReorder={reorderCard}

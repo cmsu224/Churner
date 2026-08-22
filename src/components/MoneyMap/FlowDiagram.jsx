@@ -5,8 +5,9 @@ import { useLogTransfer } from '../../hooks/useLogTransfer'
 import Modal from '../shared/Modal'
 import Field, { inpRequired } from '../shared/Field'
 import DateField from '../shared/DateField'
+import NodeGlyph from './NodeGlyph'
 import {
-  Landmark, Wallet, Home, AlertTriangle, EyeOff, Move, Check,
+  Home, AlertTriangle, EyeOff, Move, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Pencil, GripVertical,
   ArrowRightLeft, ArrowRight, X,
 } from 'lucide-react'
@@ -20,13 +21,17 @@ import {
 // they do everywhere else. Landed money is a solid ribbon, money still in
 // flight is a marching dashed one — that split IS the pipeline view.
 
+// Cards are sized around the bank NAME, which is the one thing on them you
+// can't work out from anything else. Two lines of it fit with a pointer and
+// three on a phone, the badges sit underneath rather than beside it, and the
+// row gap clears the hover actions that hang off the bottom edge.
 const SIZES = {
-  wide:    { NODE_W: 204, NODE_H: 76, ROW_GAP: 14, COL_GAP: 160 },
-  compact: { NODE_W: 136, NODE_H: 76, ROW_GAP: 12, COL_GAP: 68 },
+  wide:    { NODE_W: 216, NODE_H: 98, ROW_GAP: 26, COL_GAP: 150 },
+  compact: { NODE_W: 152, NODE_H: 116, ROW_GAP: 14, COL_GAP: 22 },
 }
 const ARRANGE_SIZES = {
-  wide:    { NODE_W: 204, NODE_H: 108, ROW_GAP: 12, COL_GAP: 160 },
-  compact: { NODE_W: 168, NODE_H: 108, ROW_GAP: 10, COL_GAP: 28 },
+  wide:    { NODE_W: 216, NODE_H: 124, ROW_GAP: 12, COL_GAP: 150 },
+  compact: { NODE_W: 168, NODE_H: 138, ROW_GAP: 10, COL_GAP: 20 },
 }
 const PAD_Y = 12
 
@@ -289,6 +294,34 @@ function TransferFlowModal({ fromNode, toNode, onClose, onLogged }) {
   )
 }
 
+// The member the account belongs to. Truncates like everything else on the
+// card — it used to be unshrinkable, which is how it came to squeeze the bank
+// name down to nothing.
+function MemberChip({ node }) {
+  if (!node.memberName) return null
+  return (
+    <span
+      className="inline-flex items-center gap-1 min-w-0 max-w-full text-[9px] font-semibold rounded px-1 py-px border"
+      style={{
+        backgroundColor: node.memberHex ? `${node.memberHex}18` : 'var(--color-raised)',
+        borderColor: node.memberHex ? `${node.memberHex}40` : 'var(--color-edge)',
+        color: node.memberHex || 'var(--color-ink-secondary)',
+      }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: node.memberHex || '#64748b' }} />
+      <span className="truncate">{node.memberName}</span>
+    </span>
+  )
+}
+
+function HubBadge() {
+  return (
+    <span className="text-[9px] font-bold uppercase tracking-wide text-accent-ink bg-accent/10 rounded px-1 py-px flex-shrink-0">
+      Hub
+    </span>
+  )
+}
+
 function NodeCard({
   node,
   size,
@@ -315,7 +348,6 @@ function NodeCard({
   onMouseEnter,
   onMouseLeave,
 }) {
-  const Icon = node.kind === 'source' ? (node.isHub ? Home : Wallet) : Landmark
   const hasCustomColor = !!node.color
   const hasBalance = node.balance != null
   const height = size.NODE_H
@@ -339,6 +371,30 @@ function NodeCard({
       : {}),
   }
 
+  // The name gets the full width of the card and wraps rather than truncating,
+  // because a bank name clipped to "Bank o…" — or, on a phone, squeezed out
+  // altogether by the badges that used to share this line — makes the card
+  // useless. Nothing sits beside it now that refuses to shrink.
+  const nameBlock = (
+    <span className="flex items-start gap-1.5 min-w-0">
+      <NodeGlyph node={node} size={18} className="mt-px text-ink-tertiary" />
+      <span className={`flex-1 min-w-0 text-[11px] font-semibold text-ink leading-tight break-words ${
+        compact ? 'line-clamp-3' : 'line-clamp-2'
+      }`}>
+        {node.name}
+      </span>
+    </span>
+  )
+
+  // Badges live together on the balance line. Beside the name they shrank it —
+  // the Hub chip alone cost the hub card a word of its own name.
+  const badges = (
+    <span className="flex items-center justify-end gap-1 min-w-0">
+      {node.isHub && <HubBadge />}
+      <MemberChip node={node} />
+    </span>
+  )
+
   // While arranging, the card shows move buttons, hub toggle, and direct edit
   if (arranging) {
     return (
@@ -349,48 +405,29 @@ function NodeCard({
         onDragEnd={onDragEnd}
         onDragOver={onDragOverNode}
         onDrop={onDropOnNode}
-        className={`group absolute rounded-xl border bg-surface shadow-card cursor-grab active:cursor-grabbing transition-all select-none ${
+        className={`group absolute rounded-xl border bg-surface shadow-card cursor-grab active:cursor-grabbing transition-all select-none overflow-hidden ${
           node.isHub ? 'border-accent' : 'border-edge-strong'
         } ${isDragging ? 'opacity-30 scale-95 ring-2 ring-accent' : ''}`}
         style={customCardStyle}
       >
-        <div className="px-2 pt-1.5 flex items-center justify-between gap-1 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <GripVertical size={11} className="text-ink-faint group-hover:text-ink-muted flex-shrink-0" aria-hidden="true" />
-            {hasCustomColor && (
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: node.color }} />
-            )}
-            <Icon size={12} className="text-ink-tertiary flex-shrink-0" aria-hidden="true" />
-            <span className="text-[11px] font-semibold text-ink truncate">{node.name}</span>
-            {node.memberName && (
-              <span
-                className="inline-flex items-center gap-1 text-[9px] font-semibold rounded px-1 py-px border flex-shrink-0"
-                style={{
-                  backgroundColor: node.memberHex ? `${node.memberHex}18` : 'var(--color-raised)',
-                  borderColor: node.memberHex ? `${node.memberHex}40` : 'var(--color-edge)',
-                  color: node.memberHex || 'var(--color-ink-secondary)',
-                }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: node.memberHex || '#64748b' }} />
-                {node.memberName}
-              </span>
-            )}
-            {node.isHub && (
-              <span className="text-[9px] font-bold uppercase tracking-wide text-accent-ink bg-accent/10 rounded px-1 py-px flex-shrink-0">
-                Hub
-              </span>
-            )}
+        <div className="px-2 pt-1.5 flex items-start justify-between gap-1 min-w-0">
+          <div className="flex items-start gap-1 min-w-0 flex-1">
+            <GripVertical size={11} className="mt-0.5 text-ink-faint group-hover:text-ink-muted flex-shrink-0" aria-hidden="true" />
+            {nameBlock}
           </div>
           <button
             type="button"
             onMouseDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onEdit(node) }}
             title={`Edit ${node.name}`}
+            aria-label={`Edit ${node.name}`}
             className="p-1 rounded text-ink-faint hover:text-accent-ink hover:bg-raised transition-colors flex-shrink-0"
           >
             <Pencil size={11} />
           </button>
         </div>
+
+        <div className="px-2 pt-0.5 min-w-0 flex justify-start">{badges}</div>
 
         <div className="px-2 pt-1 flex items-center gap-1">
           <MoveButton icon={ChevronLeft}  label={`Move ${node.name} to left column`}  disabled={!moves.left}  onClick={() => onMove(node.key, 'left')} />
@@ -434,7 +471,8 @@ function NodeCard({
       } ${isDragging ? 'opacity-30 scale-95 ring-2 ring-accent' : ''}`}
       style={customCardStyle}
     >
-      {/* Edit button shortcut in top-right */}
+      {/* Edit shortcut. Absolutely placed, so the name row reserves its width
+          with `pr-5` rather than letting the pencil land on top of a badge. */}
       <button
         type="button"
         onMouseDown={e => e.stopPropagation()}
@@ -450,7 +488,7 @@ function NodeCard({
       <button
         onClick={() => onActivate(node)}
         onDoubleClick={(e) => { e.stopPropagation(); onEdit(node) }}
-        className="w-full h-full text-left px-2.5 py-2 flex flex-col justify-between focus:outline-none focus-visible:rounded-xl"
+        className="w-full h-full text-left px-2.5 py-2 flex flex-col gap-1 justify-between focus:outline-none focus-visible:rounded-xl overflow-hidden"
         aria-pressed={compact ? undefined : selected}
         aria-label={[
           nodeLabel(node),
@@ -467,41 +505,20 @@ function NodeCard({
             : `${nodeLabel(node)} — Double-click to edit, drag to reorder`
         }
       >
-        <span className="flex items-center gap-1.5 min-w-0 pr-5">
-          <GripVertical size={11} className="text-ink-faint opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 -ml-1" aria-hidden="true" />
-          {hasCustomColor && (
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: node.color }} />
-          )}
-          <Icon size={13} className={`flex-shrink-0 ${TONE_TEXT[node.tone] ?? 'text-ink-tertiary'}`} aria-hidden="true" />
-          <span className="text-xs font-semibold text-ink truncate">{node.name}</span>
-          {node.memberName && (
-            <span
-              className="inline-flex items-center gap-1 text-[9px] font-semibold rounded px-1.5 py-px border flex-shrink-0"
-              style={{
-                backgroundColor: node.memberHex ? `${node.memberHex}18` : 'var(--color-raised)',
-                borderColor: node.memberHex ? `${node.memberHex}40` : 'var(--color-edge)',
-                color: node.memberHex || 'var(--color-ink-secondary)',
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: node.memberHex || '#64748b' }} />
-              {node.memberName}
-            </span>
-          )}
-          {node.isHub && (
-            <span className="text-[9px] font-bold uppercase tracking-wide text-accent-ink bg-accent/10 rounded px-1 py-px flex-shrink-0">
-              Hub
-            </span>
-          )}
+        <span className="block min-w-0 pr-5">{nameBlock}</span>
+
+        <span className="flex items-end justify-between gap-1.5 min-w-0">
+          <span className={`text-sm font-bold tabular-nums flex-shrink-0 ${hasBalance ? 'text-ink' : 'text-ink-faint'}`}>
+            {hasBalance ? fmt$0(node.balance) : 'not tracked'}
+          </span>
+          {badges}
         </span>
 
-        <span className="flex items-end justify-between gap-1">
-          <span className="min-w-0">
-            <span className={`block text-sm font-bold tabular-nums ${hasBalance ? 'text-ink' : 'text-ink-faint'}`}>
-              {hasBalance ? fmt$0(node.balance) : 'not tracked'}
-            </span>
-            <span className={`block text-[10px] truncate ${TONE_TEXT[node.tone] ?? 'text-ink-tertiary'}`}>
-              {node.label ?? node.sublabel ?? ''}
-            </span>
+        <span className="flex items-center justify-between gap-1 min-w-0">
+          <span className={`min-w-0 text-[10px] leading-tight ${compact ? 'line-clamp-2' : 'truncate'} ${
+            TONE_TEXT[node.tone] ?? 'text-ink-tertiary'
+          }`}>
+            {(compact ? node.shortLabel ?? node.label : node.label) ?? node.sublabel ?? ''}
           </span>
           {inflightIn > 0 && (
             <span className="text-[10px] font-semibold text-accent-ink bg-accent/10 rounded-full px-1.5 py-px whitespace-nowrap flex-shrink-0">
@@ -511,15 +528,17 @@ function NodeCard({
         </span>
       </button>
 
-      {/* Pointer-sized shortcuts on desktop */}
+      {/* Pointer-sized shortcuts on desktop. They hang below the card, so they
+          only appear on hover/focus — always-on they overlapped the top edge of
+          the card underneath and stole its clicks. */}
       {!compact && (
-        <div className="absolute -bottom-2.5 left-2 flex items-center gap-1 z-10">
-          {node.kind === 'account' && (node.balance ?? 0) > 0 && (
+        <div className="absolute -bottom-3 left-2 flex items-center gap-1 z-20 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
+          {node.kind === 'account' && (node.balance ?? 0) > 0 && !node.isHub && (
             <button
               type="button"
               onMouseDown={e => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onStartSendHome(node) }}
-              className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-success/15 text-success-ink border border-success/30 hover:bg-success/25 transition-colors shadow-xs flex items-center gap-0.5"
+              className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-success/15 text-success-ink border border-success/30 hover:bg-success/25 transition-colors shadow-sm flex items-center gap-0.5"
             >
               Send home
             </button>
@@ -528,10 +547,10 @@ function NodeCard({
             type="button"
             onMouseDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onStartTransfer(node) }}
-            className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border transition-colors shadow-xs flex items-center gap-0.5 ${
+            className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border transition-colors shadow-sm flex items-center gap-0.5 ${
               isTransferSource
-                ? 'bg-accent text-white border-accent shadow-sm'
-                : 'bg-raised text-ink-muted border-edge-strong hover:text-accent-ink hover:border-accent/40'
+                ? 'bg-accent text-white border-accent'
+                : 'bg-surface text-ink-muted border-edge-strong hover:text-accent-ink hover:border-accent/40'
             }`}
           >
             <ArrowRightLeft size={9} /> {isTransferSource ? 'Pick Target' : 'Transfer'}
@@ -540,7 +559,7 @@ function NodeCard({
             type="button"
             onMouseDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onEdit(node) }}
-            className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-raised text-ink-muted border border-edge-strong hover:text-accent-ink hover:border-accent/40 transition-colors shadow-xs flex items-center gap-0.5"
+            className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-surface text-ink-muted border border-edge-strong hover:text-accent-ink hover:border-accent/40 transition-colors shadow-sm flex items-center gap-0.5"
           >
             <Pencil size={9} /> Edit
           </button>
@@ -706,6 +725,12 @@ export default function FlowDiagram({
     right: canMove(arrangeable, cardLayout, key, 'right'),
   })
 
+  // Every layout write goes through the same list the columns were laid out
+  // from. Hand it the full node list instead and a hidden "closed & empty" card
+  // takes a slot in the maths, so a drop at the third visible position lands
+  // somewhere else entirely.
+  const moveCard = (key, direction) => onMove(key, direction, arrangeable)
+
   // Drag and Drop Event Handlers
   function handleDragStart(key, e) {
     setDraggedKey(key)
@@ -748,7 +773,7 @@ export default function FlowDiagram({
     e.stopPropagation()
     const key = e.dataTransfer.getData('text/plain') || draggedKey
     if (key && dropTarget && onReorder) {
-      onReorder(key, dropTarget.side, dropTarget.targetIndex)
+      onReorder(key, dropTarget.side, dropTarget.targetIndex, arrangeable)
     }
     setDraggedKey(null)
     setDropTarget(null)
@@ -779,7 +804,7 @@ export default function FlowDiagram({
     e.preventDefault()
     const key = e.dataTransfer.getData('text/plain') || draggedKey
     if (key && dropTarget && onReorder) {
-      onReorder(key, dropTarget.side, dropTarget.targetIndex)
+      onReorder(key, dropTarget.side, dropTarget.targetIndex, arrangeable)
     }
     setDraggedKey(null)
     setDropTarget(null)
@@ -831,6 +856,7 @@ export default function FlowDiagram({
   const transferSourceNode = transferSourceKey ? map.byKey.get(transferSourceKey) : null
 
   return (
+    <>
     <div
       onClick={handleCanvasClick}
       className="bg-surface border border-edge rounded-xl shadow-card overflow-hidden select-none"
@@ -881,7 +907,7 @@ export default function FlowDiagram({
 
       {/* Interactive Transfer Banner */}
       {transferSourceNode && (
-        <div className="flex items-center justify-between gap-3 px-4 py-2 bg-accent/15 border-b border-accent/30 text-xs text-accent-ink animate-fadeIn">
+        <div className="flex items-center justify-between gap-3 px-4 py-2 bg-accent/15 border-b border-accent/30 text-xs text-accent-ink animate-fade-in">
           <div className="flex items-center gap-2 min-w-0">
             <ArrowRightLeft size={14} className="animate-spin flex-shrink-0" style={{ animationDuration: '4s' }} />
             <span className="truncate">
@@ -943,8 +969,10 @@ export default function FlowDiagram({
             )}
           </svg>
 
-          {/* Amount labels */}
-          {!arranging && !transferSourceKey && drawn.map(e => {
+          {/* Amount labels. Skipped on the phone: the gutter is narrower than
+              the label, so it would sit on top of the cards it belongs to —
+              and each card already carries its own +$X in-flight badge. */}
+          {!arranging && !compact && !transferSourceKey && drawn.map(e => {
             const showInflight = e.inflight > 0
             const showLanded = e.landed > 0 && selectedKey && e.active
             if (!showInflight && !showLanded) return null
@@ -961,7 +989,7 @@ export default function FlowDiagram({
                       : 'bg-surface border-edge text-ink-tertiary'
                   }`}
                 >
-                  {showInflight ? (compact ? fmt$0(e.inflight) : `${fmt$0(e.inflight)} in flight`) : fmt$0(e.landed)}
+                  {showInflight ? `${fmt$0(e.inflight)} in flight` : fmt$0(e.landed)}
                 </span>
               </div>
             )
@@ -1013,7 +1041,7 @@ export default function FlowDiagram({
               onActivate={activate}
               onStartTransfer={handleStartTransfer}
               onStartSendHome={handleStartSendHome}
-              onMove={onMove}
+              onMove={moveCard}
               onSetHub={onSetHub}
               onEdit={onEdit}
               onDragStart={(e) => handleDragStart(node.key, e)}
@@ -1037,9 +1065,19 @@ export default function FlowDiagram({
 
       <div className="flex items-start gap-2 px-4 py-2 border-t border-edge bg-raised/40 text-[11px] text-ink-muted flex-wrap">
         <Move size={12} className="text-accent-ink flex-shrink-0 mt-0.5" aria-hidden="true" />
-        <span>
-          <strong className="text-ink font-medium">Double-click</strong> any bank to edit. Click <strong className="text-ink font-medium">Transfer</strong> on an account to connect it to another. <strong className="text-ink font-medium">Drag and drop</strong> cards anywhere to rearrange columns. Click empty space to deselect.
-        </span>
+        {compact ? (
+          <span>
+            <strong className="text-ink font-medium">Tap</strong> any bank to move money, see its transfers, or edit it — or the{' '}
+            <strong className="text-ink font-medium">pencil</strong> to jump straight to editing.{' '}
+            <strong className="text-ink font-medium">Arrange Mode</strong> gives every card arrows to rearrange the columns.
+          </span>
+        ) : (
+          <span>
+            <strong className="text-ink font-medium">Double-click</strong> any bank to edit. Hover a card and click{' '}
+            <strong className="text-ink font-medium">Transfer</strong> to connect it to another.{' '}
+            <strong className="text-ink font-medium">Drag and drop</strong> cards anywhere to rearrange columns. Click empty space to deselect.
+          </span>
+        )}
       </div>
 
       {!arranging && totals.inFlightCount > 0 && (
@@ -1053,18 +1091,22 @@ export default function FlowDiagram({
         </div>
       )}
 
-      {/* Pop-up Transfer Modal */}
-      {pendingTransfer && (
-        <TransferFlowModal
-          fromNode={pendingTransfer.from}
-          toNode={pendingTransfer.to}
-          onClose={() => setPendingTransfer(null)}
-          onLogged={() => {
-            setPendingTransfer(null)
-            onSelect(null)
-          }}
-        />
-      )}
     </div>
+
+    {/* Outside the canvas div on purpose: React events bubble along the element
+        tree, so a modal rendered inside it hands every click in the dialog to
+        the canvas's "click empty space to deselect" handler. */}
+    {pendingTransfer && (
+      <TransferFlowModal
+        fromNode={pendingTransfer.from}
+        toNode={pendingTransfer.to}
+        onClose={() => setPendingTransfer(null)}
+        onLogged={() => {
+          setPendingTransfer(null)
+          onSelect(null)
+        }}
+      />
+    )}
+    </>
   )
 }

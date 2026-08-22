@@ -102,21 +102,33 @@ export function getTransferStatus(transfer) {
 // hold a balance or have transfer history (money you forgot in a closed
 // account is precisely the thing this page exists to catch).
 
+// `shortLabel` is the same fact in the width a phone-sized card actually has.
+// The full sentence gets clipped mid-word down there, which is how "1 more
+// direct deposit" turns into "1 more dir…" — worse than saying less.
 function accountNodeState(account) {
-  if (account.status === 'Closed') return { tone: 'closed', label: 'Closed' }
+  if (account.status === 'Closed') return { tone: 'closed', label: 'Closed', shortLabel: 'Closed' }
+  // The hub is where money lives, not something being churned — "working the
+  // bonus" is nonsense on your everyday account.
+  if (account.isHub) {
+    return { tone: 'success', label: 'Home base · money comes back here', shortLabel: 'Home base' }
+  }
   if (account.bonusReceivedDate) {
     const shield = getClawbackStatus(account)
     return shield.safe
-      ? { tone: 'success', label: 'Bonus in · safe to close' }
-      : { tone: 'warning', label: `Bonus in · hold ${shield.daysRemaining}d` }
+      ? { tone: 'success', label: 'Bonus in · safe to close', shortLabel: 'Safe to close' }
+      : { tone: 'warning', label: `Bonus in · hold ${shield.daysRemaining}d`, shortLabel: `Hold ${shield.daysRemaining}d` }
   }
   const ddComplete = (account.ddsMade ?? 0) >= (account.requiredDDCount ?? 1)
-  if (ddComplete) return { tone: 'accent', label: 'Requirements met · bonus pending' }
+  if (ddComplete) return { tone: 'accent', label: 'Requirements met · bonus pending', shortLabel: 'Bonus pending' }
   const needed = (account.requiredDDCount ?? 1) - (account.ddsMade ?? 0)
   if ((account.requiredDD ?? 0) > 0 || (account.requiredDDCount ?? 1) > 1) {
-    return { tone: 'danger', label: `${needed} more direct deposit${needed === 1 ? '' : 's'}` }
+    return {
+      tone: 'danger',
+      label: `${needed} more direct deposit${needed === 1 ? '' : 's'}`,
+      shortLabel: `${needed} more DD${needed === 1 ? '' : 's'}`,
+    }
   }
-  return { tone: 'accent', label: 'Working the bonus' }
+  return { tone: 'accent', label: 'Working the bonus', shortLabel: 'Working it' }
 }
 
 export function buildNodes(state) {
@@ -279,23 +291,45 @@ export function buildMoneyMap(state) {
 // by hand on the Accounts page, history back-filled after the fact, or interest
 // the bank paid — say so and offer the ledger's number, rather than quietly
 // letting the map and the account page tell different stories.
+//
+// "Starts empty" is an assumption, not a fact, and getting it wrong is how this
+// check used to accuse a perfectly correct balance of being wrong: an account
+// that already held money before you logged your first push is over by exactly
+// that much, forever, and taking the ledger's figure would have deleted it. So
+// the baseline is explicit — `openingBalance`, what the account held the day it
+// joined the ledger, $0 for a freshly opened churn — and two nodes are exempt
+// outright: the hub, where pay, rent and groceries move money for reasons no
+// transfer log will ever know about, and any account still settling a push.
 
 export const RECONCILE_TOLERANCE = 1
+
+// What the transfers say an account should be holding: what it started with,
+// plus everything that has landed in it, minus everything that has left.
+export function ledgerBalance(node, flow) {
+  return round2(openingBalance(node) + (flow?.netFlow ?? 0))
+}
+
+export function openingBalance(node) {
+  const raw = node?.account?.openingBalance
+  return raw == null || raw === '' ? 0 : round2(raw)
+}
 
 export function getLedgerMismatches(map) {
   const rows = []
   for (const node of map.accounts) {
     if (node.ghost) continue
+    // Money at the hub comes and goes for reasons the ledger never sees.
+    if (node.isHub) continue
     const flow = map.perNode.get(node.key)
     if (!flow || flow.transfers === 0) continue
     // While money is still moving to or from this account the balance is
     // expected to be uncertain — flagging it is noise, not signal.
     if (flow.inflightIn > 0 || flow.inflightOut > 0) continue
-    const ledger = flow.netFlow ?? 0
+    const ledger = ledgerBalance(node, flow)
     const balance = node.balance ?? 0
     const delta = round2(balance - ledger)
     if (Math.abs(delta) < RECONCILE_TOLERANCE) continue
-    rows.push({ node, balance, ledger, delta })
+    rows.push({ node, balance, ledger, delta, opening: openingBalance(node) })
   }
   return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
 }
