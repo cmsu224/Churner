@@ -47,6 +47,7 @@ const TONE_RING = {
   warning: 'border-warning/50',
   success: 'border-success/50',
   accent: 'border-accent/40',
+  neutral: 'border-edge',
   closed: 'border-edge',
 }
 
@@ -55,6 +56,7 @@ const TONE_TEXT = {
   warning: 'text-warning-ink',
   success: 'text-success-ink',
   accent: 'text-accent-ink',
+  neutral: 'text-ink-tertiary',
   closed: 'text-ink-tertiary',
 }
 

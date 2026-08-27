@@ -106,29 +106,59 @@ export function getTransferStatus(transfer) {
 // The full sentence gets clipped mid-word down there, which is how "1 more
 // direct deposit" turns into "1 more dir…" — worse than saying less.
 function accountNodeState(account) {
-  if (account.status === 'Closed') return { tone: 'closed', label: 'Closed', shortLabel: 'Closed' }
+  // The account's own status — the one set on the Accounts page and advanced
+  // by the lifecycle engine — is the fact. The DD counters and the clawback
+  // clock are here to sharpen that line with numbers, never to overrule it:
+  // a map card that says "working the bonus" about an account the user has
+  // already marked Bonus Pending (or has only just opened) is simply wrong.
+  const status = account.status || 'Opened'
+  if (status === 'Closed') return { tone: 'closed', label: 'Closed', shortLabel: 'Closed' }
   // The hub is where money lives, not something being churned — "working the
   // bonus" is nonsense on your everyday account.
   if (account.isHub) {
     return { tone: 'success', label: 'Home base · money comes back here', shortLabel: 'Home base' }
   }
-  if (account.bonusReceivedDate) {
-    const shield = getClawbackStatus(account)
-    return shield.safe
-      ? { tone: 'success', label: 'Bonus in · safe to close', shortLabel: 'Safe to close' }
-      : { tone: 'warning', label: `Bonus in · hold ${shield.daysRemaining}d`, shortLabel: `Hold ${shield.daysRemaining}d` }
+
+  if (status === 'Safe to Close') {
+    return { tone: 'success', label: 'Safe to close', shortLabel: 'Safe to close' }
   }
-  const ddComplete = (account.ddsMade ?? 0) >= (account.requiredDDCount ?? 1)
-  if (ddComplete) return { tone: 'accent', label: 'Requirements met · bonus pending', shortLabel: 'Bonus pending' }
-  const needed = (account.requiredDDCount ?? 1) - (account.ddsMade ?? 0)
-  if ((account.requiredDD ?? 0) > 0 || (account.requiredDDCount ?? 1) > 1) {
+
+  // Bonus is in — the only question left is the 181-day clawback window.
+  if (status === 'Bonus Received' || status === 'Cooling Period' || account.bonusReceivedDate) {
+    const shield = getClawbackStatus(account)
+    if (shield.safe) return { tone: 'success', label: 'Bonus in · safe to close', shortLabel: 'Safe to close' }
+    // No open date means no clock to count down; say what's known instead of
+    // rendering "hold nulld".
+    if (shield.daysRemaining == null) return { tone: 'warning', label: 'Bonus in · no open date set', shortLabel: 'Bonus in' }
+    return { tone: 'warning', label: `Bonus in · hold ${shield.daysRemaining}d`, shortLabel: `Hold ${shield.daysRemaining}d` }
+  }
+
+  if (status === 'Bonus Pending') {
+    return { tone: 'accent', label: 'Requirements met · bonus pending', shortLabel: 'Bonus pending' }
+  }
+
+  // Opened / DD Linked: count direct deposits when there is something to count.
+  const made = account.ddsMade ?? 0
+  const requiredCount = account.requiredDDCount ?? 1
+  const tracksDDs = (account.requiredDD ?? 0) > 0 || (account.requiredDDCount ?? 1) > 1
+  if ((tracksDDs || made > 0) && made >= requiredCount) {
+    return { tone: 'accent', label: 'Requirements met · bonus pending', shortLabel: 'Bonus pending' }
+  }
+  if (tracksDDs) {
+    const needed = requiredCount - made
     return {
       tone: 'danger',
       label: `${needed} more direct deposit${needed === 1 ? '' : 's'}`,
       shortLabel: `${needed} more DD${needed === 1 ? '' : 's'}`,
     }
   }
-  return { tone: 'accent', label: 'Working the bonus', shortLabel: 'Working it' }
+
+  // Nothing logged and no requirement recorded. There is no evidence the bonus
+  // is being worked, so the card reports the stage the account is actually in.
+  if (status === 'DD Linked') {
+    return { tone: 'accent', label: 'Direct deposit linked', shortLabel: 'DD linked' }
+  }
+  return { tone: 'neutral', label: 'Opened · no requirements set', shortLabel: 'Opened' }
 }
 
 export function buildNodes(state) {
