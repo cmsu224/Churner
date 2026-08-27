@@ -235,6 +235,8 @@ function reducer(state, action) {
     // board's "Done" drawer — but only the most recent DONE_REMINDER_HISTORY of
     // them, so the list can't grow without bound the way the notification maps
     // are pruned.
+    case 'UPDATE_REMINDER':
+      return { ...state, reminders: (state.reminders ?? []).map(r => r.id === action.payload.id ? { ...r, ...action.payload } : r) }
     case 'COMPLETE_REMINDER': {
       const stamped = (state.reminders ?? []).map(r => r.id === action.id ? { ...r, doneDate: new Date().toISOString() } : r)
       const done = stamped.filter(r => r.doneDate).sort((a, b) => (b.doneDate ?? '').localeCompare(a.doneDate ?? ''))

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
-import { buildMoneyMap, getLedgerMismatches, moveNode, reorderNode } from '../../engines/moneyFlow'
+import { buildMoneyMap, getLedgerMismatches, moveNode, reorderNode, setNodeHidden } from '../../engines/moneyFlow'
 import { collectReminders, reminderCounts } from '../../engines/reminders'
 import FlowDiagram from './FlowDiagram'
 import QuickTransferBar from './QuickTransferBar'
@@ -157,6 +157,7 @@ export default function MoneyMapView() {
             onEdit={(node) => setEditingNodeKey(node.key)}
             onResetLayout={() => dispatch({ type: 'SET_MAP_LAYOUT', layout: {} })}
             onSetHub={(key) => dispatch({ type: 'SET_HUB', key })}
+            onSetHidden={(key, hidden) => dispatch({ type: 'SET_MAP_LAYOUT', layout: setNodeHidden(cardLayout, key, hidden) })}
           />
 
           <ReconcileStrip rows={mismatches} />

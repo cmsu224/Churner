@@ -4,7 +4,7 @@ import { useChurn } from '../../store/ChurnContext'
 import { fmtDate, todayISODate } from '../../utils/format'
 import DateField from '../shared/DateField'
 import { inp } from '../shared/Field'
-import { Bell, Check, Plus, Trash2, X, AlertTriangle, PiggyBank, Clock, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
+import { Bell, Check, Plus, Trash2, X, AlertTriangle, PiggyBank, Clock, RotateCcw, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
 
 // The "come back to this" board. Reminders you set when you logged a push sit
 // here next to the ones the app works out for itself — a transfer that never
@@ -48,6 +48,17 @@ export default function ReminderBoard({ reminders, done = [] }) {
   const [adding, setAdding] = useState(false)
   const [showDone, setShowDone] = useState(false)
   const [draft, setDraft] = useState({ title: '', dueDate: addDays(21) })
+  // The reminder currently open for editing, as a working copy.
+  const [editing, setEditing] = useState(null)
+
+  function saveEdit() {
+    if (!editing?.title?.trim()) return
+    dispatch({
+      type: 'UPDATE_REMINDER',
+      payload: { id: editing.id, title: editing.title.trim(), dueDate: editing.dueDate || null, notes: editing.notes ?? '' },
+    })
+    setEditing(null)
+  }
 
   function saveDraft() {
     if (!draft.title.trim()) return
@@ -126,6 +137,57 @@ export default function ReminderBoard({ reminders, done = [] }) {
           {reminders.map(r => {
             const meta = STATE_META[r.state] ?? STATE_META.undated
             const Icon = meta.icon
+            // Derived rows have nothing to edit — they're recomputed from the
+            // transfer or the balance behind them, so there's no stored text.
+            if (!r.derived && editing?.id === r.reminderId) {
+              return (
+                <div key={r.id} className="px-4 py-3 bg-raised/40 space-y-2">
+                  <input
+                    className={inp}
+                    value={editing.title}
+                    onChange={e => setEditing(d => ({ ...d, title: e.target.value }))}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); saveEdit() }
+                      if (e.key === 'Escape') { e.preventDefault(); setEditing(null) }
+                    }}
+                    aria-label="Reminder title"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {QUICK_DATES.map(q => (
+                      <button
+                        key={q.days}
+                        type="button"
+                        onClick={() => setEditing(d => ({ ...d, dueDate: addDays(q.days) }))}
+                        className={`text-[11px] font-medium px-2 py-1 rounded-md border transition-colors ${
+                          editing.dueDate === addDays(q.days)
+                            ? 'bg-accent/15 text-accent-ink border-accent/40'
+                            : 'bg-raised text-ink-muted border-edge-strong hover:text-ink'
+                        }`}
+                      >
+                        {q.label}
+                      </button>
+                    ))}
+                    <span className="w-32"><DateField value={editing.dueDate} onChange={v => setEditing(d => ({ ...d, dueDate: v }))} /></span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={saveEdit}
+                      disabled={!editing.title.trim()}
+                      className="bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditing(null)}
+                      className="bg-raised hover:bg-overlay text-ink-secondary text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )
+            }
             return (
               <div key={r.id} className={`flex items-start gap-2.5 px-4 py-2.5 border-l-2 ${meta.cls}`}>
                 <Icon size={13} className={`${meta.text} flex-shrink-0 mt-0.5`} aria-hidden="true" />
@@ -147,6 +209,14 @@ export default function ReminderBoard({ reminders, done = [] }) {
                     when the transfer lands or the money comes home. */}
                 {!r.derived && (
                   <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <button
+                      onClick={() => setEditing({ id: r.reminderId, title: r.title, dueDate: r.dueDate ?? '', notes: r.detail ?? '' })}
+                      aria-label={`Edit: ${r.title}`}
+                      title="Edit"
+                      className="p-1 rounded text-ink-faint hover:text-accent-ink transition-colors"
+                    >
+                      <Pencil size={12} />
+                    </button>
                     <button
                       onClick={() => dispatch({ type: 'COMPLETE_REMINDER', id: r.reminderId })}
                       aria-label={`Mark done: ${r.title}`}
