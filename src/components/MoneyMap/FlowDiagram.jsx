@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { nodeLabel, layoutColumns, canMove, nodeSide } from '../../engines/moneyFlow'
+import { nodeLabel, layoutColumns, canMove, nodeSide, isNodeHidden, hideBlockedReason, hiddenHoldings } from '../../engines/moneyFlow'
 import { fmt$0, todayISODate } from '../../utils/format'
 import { useLogTransfer } from '../../hooks/useLogTransfer'
 import Modal from '../shared/Modal'
@@ -7,7 +7,7 @@ import Field, { inpRequired } from '../shared/Field'
 import DateField from '../shared/DateField'
 import NodeGlyph from './NodeGlyph'
 import {
-  Home, AlertTriangle, EyeOff, Move, Check,
+  Home, AlertTriangle, EyeOff, Eye, Move, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Pencil, GripVertical,
   ArrowRightLeft, ArrowRight, X,
 } from 'lucide-react'
@@ -27,7 +27,11 @@ import {
 // row gap clears the hover actions that hang off the bottom edge.
 const SIZES = {
   wide:    { NODE_W: 216, NODE_H: 98, ROW_GAP: 26, COL_GAP: 150 },
-  compact: { NODE_W: 152, NODE_H: 116, ROW_GAP: 14, COL_GAP: 22 },
+  // The gutter has to be wide enough for an amount pill (~64px at $17,988) or
+  // the labels have nowhere to go. 152 + 72 + 152 = 376 runs a little past a
+  // 390px screen, so the canvas scrolls a touch sideways — a fair trade for
+  // being able to read what's moving between the columns.
+  compact: { NODE_W: 152, NODE_H: 116, ROW_GAP: 14, COL_GAP: 72 },
 }
 const ARRANGE_SIZES = {
   wide:    { NODE_W: 216, NODE_H: 124, ROW_GAP: 12, COL_GAP: 150 },
@@ -342,6 +346,9 @@ function NodeCard({
   onStartSendHome,
   onMove,
   onSetHub,
+  onHidden,
+  hideBlocked,
+  isHidden,
   onEdit,
   onDragStart,
   onDragEnd,
@@ -408,7 +415,7 @@ function NodeCard({
         onDragOver={onDragOverNode}
         onDrop={onDropOnNode}
         className={`group absolute rounded-xl border bg-surface shadow-card cursor-grab active:cursor-grabbing transition-all select-none overflow-hidden ${
-          node.isHub ? 'border-accent' : 'border-edge-strong'
+          isHidden ? 'border-dashed border-warning/50 opacity-70' : node.isHub ? 'border-accent' : 'border-edge-strong'
         } ${isDragging ? 'opacity-30 scale-95 ring-2 ring-accent' : ''}`}
         style={customCardStyle}
       >
@@ -438,19 +445,36 @@ function NodeCard({
           <MoveButton icon={ChevronRight} label={`Move ${node.name} to right column`} disabled={!moves.right} onClick={() => onMove(node.key, 'right')} />
         </div>
 
-        <div className="px-2 pt-1">
+        <div className="px-2 pt-1 flex items-center gap-1">
           <button
             type="button"
             onMouseDown={e => e.stopPropagation()}
             onClick={() => onSetHub(node.key)}
             disabled={node.isHub}
-            className={`w-full flex items-center justify-center gap-1 h-6 rounded-md text-[10px] font-semibold border transition-colors ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1 h-6 rounded-md text-[10px] font-semibold border transition-colors ${
               node.isHub
                 ? 'bg-accent/10 text-accent-ink border-accent/30'
                 : 'bg-raised text-ink-muted border-edge-strong hover:text-ink hover:bg-overlay'
             }`}
           >
             {node.isHub ? <><Check size={10} />Main hub</> : <><Home size={10} />Set as hub</>}
+          </button>
+          {/* Hiding is refused while the card still holds or is owed money —
+              a forgotten account is the exact thing this page is here to stop. */}
+          <button
+            type="button"
+            onMouseDown={e => e.stopPropagation()}
+            onClick={() => onHidden(node.key, !isHidden)}
+            disabled={!isHidden && !!hideBlocked}
+            title={isHidden ? `Show ${node.name} on the map again` : (hideBlocked ? `Can't hide ${node.name} — ${hideBlocked.toLowerCase()}` : `Hide ${node.name} from the map`)}
+            aria-label={isHidden ? `Show ${node.name}` : `Hide ${node.name} from the map`}
+            className={`flex items-center justify-center gap-1 h-6 px-1.5 rounded-md text-[10px] font-semibold border transition-colors flex-shrink-0 ${
+              isHidden
+                ? 'bg-warning/10 text-warning-ink border-warning/30 hover:bg-warning/20'
+                : 'bg-raised text-ink-muted border-edge-strong hover:text-ink hover:bg-overlay disabled:opacity-30 disabled:pointer-events-none'
+            }`}
+          >
+            {isHidden ? <><Eye size={10} />Show</> : <EyeOff size={10} />}
           </button>
         </div>
       </div>
@@ -582,6 +606,7 @@ export default function FlowDiagram({
   onEdit,
   onResetLayout,
   onSetHub,
+  onSetHidden,
 }) {
   const { sources, accounts, edges, perNode, totals, hub } = map
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640)
@@ -603,13 +628,31 @@ export default function FlowDiagram({
 
   const size = (arranging ? ARRANGE_SIZES : SIZES)[compact ? 'compact' : 'wide']
 
-  const { quiet, shownAccounts } = useMemo(() => {
-    const quiet = accounts.filter(n => n.status === 'Closed' && !(n.balance ?? 0) && !(perNode.get(n.key)?.transfers ?? 0))
+  // Two different kinds of "not on the map": ones you hid by hand, and closed
+  // empty ones the map skips on its own. Both reveal through the same toggle so
+  // there's only ever one place to look for a missing card.
+  const { quiet, hiddenNodes, shownAccounts, shownSources } = useMemo(() => {
+    const hiddenNodes = [...sources, ...accounts].filter(n => isNodeHidden(n, cardLayout))
+    const hiddenKeys = new Set(hiddenNodes.map(n => n.key))
+    const quiet = accounts.filter(n =>
+      !hiddenKeys.has(n.key) && n.status === 'Closed' && !(n.balance ?? 0) && !(perNode.get(n.key)?.transfers ?? 0)
+    )
     const quietKeys = new Set(quiet.map(n => n.key))
-    return { quiet, shownAccounts: showQuiet ? accounts : accounts.filter(n => !quietKeys.has(n.key)) }
-  }, [accounts, perNode, showQuiet])
+    const keep = (n) => showQuiet || (!hiddenKeys.has(n.key) && !quietKeys.has(n.key))
+    return { quiet, hiddenNodes, shownAccounts: accounts.filter(keep), shownSources: sources.filter(keep) }
+  }, [sources, accounts, perNode, showQuiet, cardLayout])
 
-  const arrangeable = useMemo(() => [...sources, ...shownAccounts], [sources, shownAccounts])
+  const arrangeable = useMemo(() => [...shownSources, ...shownAccounts], [shownSources, shownAccounts])
+
+  // "3 hidden" reads better than "1 hidden · 2 closed & empty" in a header, but
+  // the two causes are still worth naming when only one is in play.
+  const offMapCount = hiddenNodes.length + quiet.length
+  const offMapLabel = hiddenNodes.length && quiet.length
+    ? `${offMapCount} cards`
+    : hiddenNodes.length
+    ? `${hiddenNodes.length} card${hiddenNodes.length === 1 ? '' : 's'}`
+    : `${quiet.length} closed & empty`
+  const offMapHolding = hiddenHoldings(hiddenNodes, perNode)
 
   const layout = useMemo(() => {
     const { left, right } = layoutColumns(arrangeable, cardLayout)
@@ -683,6 +726,15 @@ export default function FlowDiagram({
     } else {
       onSelect(node.key)
     }
+  }
+
+  // Taking a card off the map is a display choice, so it rides in the same
+  // synced layout object as the column arrangement.
+  function handleSetHidden(key, hidden) {
+    onSetHidden(key, hidden)
+    // The card leaves the map straight away — that's what hiding means. The
+    // trace it leaves is the "N cards hidden" toggle in the header, which is
+    // there in Arrange mode too, so putting one back is always one tap away.
   }
 
   // Start transfer mode
@@ -882,14 +934,24 @@ export default function FlowDiagram({
               Reset to automatic
             </button>
           )}
-          {!arranging && quiet.length > 0 && (
+          {/* One drawer for both kinds of off-map card: the ones you hid and the
+              closed-and-empty ones the map skips on its own. Revealing shows
+              them in place so Arrange mode can put them back. */}
+          {offMapCount > 0 && (
             <button
               onClick={() => setShowQuiet(v => !v)}
               className="ml-2 inline-flex items-center gap-1 text-[11px] font-normal text-ink-tertiary hover:text-ink-secondary transition-colors align-middle"
             >
-              <EyeOff size={11} aria-hidden="true" />
-              {showQuiet ? `hide ${quiet.length} closed & empty` : `${quiet.length} closed & empty hidden`}
+              {showQuiet ? <Eye size={11} aria-hidden="true" /> : <EyeOff size={11} aria-hidden="true" />}
+              {showQuiet ? `hide ${offMapLabel} again` : `${offMapLabel} hidden`}
             </button>
+          )}
+          {/* Hidden is a display choice, never an accounting one — say so the
+              moment a card that's off the map is still holding something. */}
+          {offMapHolding.amount > 0 && (
+            <span className="ml-1 text-[11px] font-normal text-warning-ink align-middle">
+              (still holding {fmt$0(offMapHolding.amount)} — counted in the totals)
+            </span>
           )}
         </h2>
         <div className="flex items-center gap-3 text-[11px] text-ink-tertiary flex-wrap">
@@ -971,10 +1033,10 @@ export default function FlowDiagram({
             )}
           </svg>
 
-          {/* Amount labels. Skipped on the phone: the gutter is narrower than
-              the label, so it would sit on top of the cards it belongs to —
-              and each card already carries its own +$X in-flight badge. */}
-          {!arranging && !compact && !transferSourceKey && drawn.map(e => {
+          {/* Amount labels, sitting in the gutter between the columns. The
+              phone gets the bare number — the gutter fits "$17,988" but not
+              "$17,988 in flight", and the dashed ribbon already says in-flight. */}
+          {!arranging && !transferSourceKey && drawn.map(e => {
             const showInflight = e.inflight > 0
             const showLanded = e.landed > 0 && selectedKey && e.active
             if (!showInflight && !showLanded) return null
@@ -991,7 +1053,7 @@ export default function FlowDiagram({
                       : 'bg-surface border-edge text-ink-tertiary'
                   }`}
                 >
-                  {showInflight ? `${fmt$0(e.inflight)} in flight` : fmt$0(e.landed)}
+                  {showInflight && !compact ? `${fmt$0(e.inflight)} in flight` : fmt$0(showInflight ? e.inflight : e.landed)}
                 </span>
               </div>
             )
@@ -1045,6 +1107,9 @@ export default function FlowDiagram({
               onStartSendHome={handleStartSendHome}
               onMove={moveCard}
               onSetHub={onSetHub}
+              onHidden={handleSetHidden}
+              isHidden={isNodeHidden(node, cardLayout)}
+              hideBlocked={hideBlockedReason(node)}
               onEdit={onEdit}
               onDragStart={(e) => handleDragStart(node.key, e)}
               onDragEnd={handleDragEnd}

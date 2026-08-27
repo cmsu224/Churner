@@ -465,6 +465,48 @@ export function layoutColumns(nodes, layout = {}) {
   return { left: sort(left), right: sort(right) }
 }
 
+// Cards you've taken off the map. Hiding is a display choice only — a hidden
+// account still holds its balance, still counts in the totals, and still raises
+// reminders; it just isn't drawn. Anything with money in it or still moving
+// refuses to hide, because "out of sight" is the failure mode this whole page
+// exists to prevent.
+export function isNodeHidden(node, layout) {
+  return !!layout?.[node?.key]?.hidden
+}
+
+// Why a card can't be hidden right now, or null when it can. Only the hub is
+// off limits — everything aims money back at it, so a map without it doesn't
+// make sense. Hiding anything else is safe because hiding is *display only*:
+// the balance still counts in every total, and a hidden account still raises
+// its sweep-back reminder, so money can't go quiet just by leaving the picture.
+export function hideBlockedReason(node) {
+  return node?.isHub ? 'The hub is where money comes home to' : null
+}
+
+// Hidden cards that still hold money or have some in flight. Not an error —
+// just worth saying out loud next to the reveal toggle, so "hidden" never
+// starts to feel like "gone".
+export function hiddenHoldings(hiddenNodes, perNode) {
+  let amount = 0
+  let count = 0
+  for (const n of hiddenNodes ?? []) {
+    const flow = perNode?.get(n.key)
+    const held = round2((n.balance ?? 0) + (flow?.inflightIn ?? 0))
+    if (held > 0) { amount = round2(amount + held); count += 1 }
+  }
+  return { amount, count }
+}
+
+export function setNodeHidden(layout, key, hidden) {
+  const next = { ...layout }
+  const entry = { ...next[key] }
+  if (hidden) entry.hidden = true
+  else delete entry.hidden
+  if (Object.keys(entry).length === 0) delete next[key]
+  else next[key] = entry
+  return next
+}
+
 export const MOVE_DIRECTIONS = ['up', 'down', 'left', 'right']
 
 // Can this card move that way? Drives the disabled state on the arrows, so a
@@ -501,9 +543,13 @@ export function moveNode(nodes, layout, key, direction) {
     ;[list[i], list[j]] = [list[j], list[i]]
   }
 
-  const next = {}
-  cols.left.forEach((n, i) => { next[n.key] = { side: 'left', order: i } })
-  cols.right.forEach((n, i) => { next[n.key] = { side: 'right', order: i } })
+  // Start from the existing layout rather than an empty object: a hidden card
+  // isn't in `nodes` at all, so rebuilding from scratch would silently drop its
+  // entry — and un-hide it. Placed cards then overwrite their own side/order
+  // while keeping whatever else was stored against them.
+  const next = { ...layout }
+  cols.left.forEach((n, i) => { next[n.key] = { ...layout?.[n.key], side: 'left', order: i } })
+  cols.right.forEach((n, i) => { next[n.key] = { ...layout?.[n.key], side: 'right', order: i } })
   return next
 }
 
@@ -533,9 +579,13 @@ export function reorderNode(nodes, layout, key, targetSide, targetIndex) {
   const clampedIndex = Math.max(0, Math.min(insertIdx, cols[targetSide].length))
   cols[targetSide].splice(clampedIndex, 0, moved)
 
-  const next = {}
-  cols.left.forEach((n, i) => { next[n.key] = { side: 'left', order: i } })
-  cols.right.forEach((n, i) => { next[n.key] = { side: 'right', order: i } })
+  // Start from the existing layout rather than an empty object: a hidden card
+  // isn't in `nodes` at all, so rebuilding from scratch would silently drop its
+  // entry — and un-hide it. Placed cards then overwrite their own side/order
+  // while keeping whatever else was stored against them.
+  const next = { ...layout }
+  cols.left.forEach((n, i) => { next[n.key] = { ...layout?.[n.key], side: 'left', order: i } })
+  cols.right.forEach((n, i) => { next[n.key] = { ...layout?.[n.key], side: 'right', order: i } })
   return next
 }
 
