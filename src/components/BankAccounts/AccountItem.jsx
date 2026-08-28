@@ -403,9 +403,9 @@ export default function AccountItem({ account, members }) {
             <label className="text-xs text-ink-tertiary block mb-1">Started With ($)</label>
             <input type="number" min="0" className={inp} value={draft.openingBalance ?? ''} onChange={e => set('openingBalance', e.target.value)} placeholder="0" />
             <p className="text-xs text-ink-faint mt-1">
-              What the account already held before your first logged transfer — leave at 0 for one you opened empty. The Money Map
-              measures its transfer ledger from here, so an everyday account you added later isn&rsquo;t reported as being over by
-              whatever was already in it.
+              What the account already held before your first logged transfer — leave at 0 for one you opened empty. It records where
+              the balance started, so an everyday account you added to the Money Map later can still be told apart from a churn you
+              opened empty.
             </p>
           </div>
 

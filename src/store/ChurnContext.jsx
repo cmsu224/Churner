@@ -3,6 +3,7 @@ import { createContext, useContext, useReducer, useEffect, useCallback, useRef }
 import { INITIAL_STATE, DEFAULT_CASH_SOURCES } from '../data/initialState'
 import { useGist } from '../hooks/useGist'
 import { splitNodeKey, round2 } from '../engines/moneyFlow'
+import { answeredByLanding } from '../engines/reminders'
 
 export const ChurnContext = createContext(null)
 
@@ -57,6 +58,20 @@ function withDefaults(raw) {
 
 // How many ticked-off reminders stay around for the board's undo drawer.
 const DONE_REMINDER_HISTORY = 30
+
+// Ticking reminders off keeps them, stamped, so a mis-tap is recoverable from
+// the board's "Done" drawer — but only the most recent DONE_REMINDER_HISTORY of
+// them, so the list can't grow without bound the way the notification maps are
+// pruned. `extra` marks the ones the app ticked off on your behalf, which is
+// what lets un-landing a transfer put its check-back back.
+function completeReminders(reminders, match, extra) {
+  const stamped = (reminders ?? []).map(r =>
+    !r.doneDate && match(r) ? { ...r, doneDate: new Date().toISOString(), ...extra } : r
+  )
+  const done = stamped.filter(r => r.doneDate).sort((a, b) => (b.doneDate ?? '').localeCompare(a.doneDate ?? ''))
+  const keep = new Set(done.slice(0, DONE_REMINDER_HISTORY).map(r => r.id))
+  return stamped.filter(r => !r.doneDate || keep.has(r.id))
+}
 
 // ── Money map: keeping balances honest ─────────────────────────────────────
 // A transfer's balance effects are applied here, in the same dispatch that
@@ -206,11 +221,14 @@ function reducer(state, action) {
       const next = {
         ...state,
         transfers: state.transfers.map(t => t.id === action.id ? landed : t),
-        // A "did it land?" reminder has answered itself.
-        reminders: (state.reminders ?? []).map(r =>
-          r.transferId === action.id && r.kind === 'check_transfer' && !r.doneDate
-            ? { ...r, doneDate: new Date().toISOString() }
-            : r
+        // Every check-back that was only ever asking "did that money get
+        // there?" has just answered itself, so it comes off the board instead
+        // of going overdue for a check you've already done. A direct-deposit
+        // coding check and anything you wrote yourself are left alone.
+        reminders: completeReminders(
+          state.reminders,
+          r => r.transferId === action.id && answeredByLanding(r),
+          { autoDone: true },
         ),
       }
       return applyEffects(next, [[prev.toKey, round2(prev.amount)]], 1)
@@ -218,7 +236,16 @@ function reducer(state, action) {
     case 'UNLAND_TRANSFER': {
       const prev = (state.transfers ?? []).find(t => t.id === action.id)
       if (!prev || !prev.landedDate) return state
-      const next = { ...state, transfers: state.transfers.map(t => t.id === action.id ? { ...prev, landedDate: null } : t) }
+      const next = {
+        ...state,
+        transfers: state.transfers.map(t => t.id === action.id ? { ...prev, landedDate: null } : t),
+        // Undo has to undo the whole thing: a check-back the landing ticked off
+        // is an open question again. Only the ones the app closed itself come
+        // back — one you ticked by hand stays done.
+        reminders: (state.reminders ?? []).map(r =>
+          r.transferId === action.id && r.autoDone ? { ...r, doneDate: null, autoDone: false } : r
+        ),
+      }
       return applyEffects(next, [[prev.toKey, round2(prev.amount)]], -1)
     }
 
@@ -231,18 +258,10 @@ function reducer(state, action) {
     // ── Money map: reminders ──────────────────────────────────────────────
     case 'ADD_REMINDER':
       return { ...state, reminders: [...(state.reminders ?? []), { ...action.payload, id: crypto.randomUUID(), createdAt: new Date().toISOString() }] }
-    // Ticking a reminder keeps it, stamped, so a mis-tap is recoverable from the
-    // board's "Done" drawer — but only the most recent DONE_REMINDER_HISTORY of
-    // them, so the list can't grow without bound the way the notification maps
-    // are pruned.
     case 'UPDATE_REMINDER':
       return { ...state, reminders: (state.reminders ?? []).map(r => r.id === action.payload.id ? { ...r, ...action.payload } : r) }
-    case 'COMPLETE_REMINDER': {
-      const stamped = (state.reminders ?? []).map(r => r.id === action.id ? { ...r, doneDate: new Date().toISOString() } : r)
-      const done = stamped.filter(r => r.doneDate).sort((a, b) => (b.doneDate ?? '').localeCompare(a.doneDate ?? ''))
-      const keep = new Set(done.slice(0, DONE_REMINDER_HISTORY).map(r => r.id))
-      return { ...state, reminders: stamped.filter(r => !r.doneDate || keep.has(r.id)) }
-    }
+    case 'COMPLETE_REMINDER':
+      return { ...state, reminders: completeReminders(state.reminders, r => r.id === action.id) }
     case 'REOPEN_REMINDER':
       return { ...state, reminders: (state.reminders ?? []).map(r => r.id === action.id ? { ...r, doneDate: null } : r) }
     case 'DELETE_REMINDER':

@@ -28,6 +28,13 @@ import { parseDay, startOfToday, daysBetweenDays } from '../utils/format'
 // nagging — ACH pushes do silently fail, and a lost $10k is worth a phone call.
 export const EXPECTED_LANDING_DAYS = 5
 
+// How long a finished sweep home stays drawn on the map. A sweep is the end of
+// a cycle — the money is back where it belongs — so its ribbon has nothing left
+// to tell you the day after it lands, and a map that keeps every one of them
+// ends up a green cobweb between the hub and every account you've ever churned.
+// Display only: the transfer stays in the ledger, the totals and the list.
+export const SWEEP_TRAIL_DAYS = 1
+
 export const TRANSFER_PURPOSES = [
   { value: 'dd',     label: 'Direct deposit push', short: 'DD',     hint: 'Meant to code as a direct deposit for the bonus' },
   { value: 'fund',   label: 'Funding / min balance', short: 'Fund', hint: 'Getting the account to its required balance' },
@@ -205,6 +212,15 @@ export function nodeLabel(node) {
   return node.sublabel ? `${node.name} ${node.sublabel}` : node.name
 }
 
+// A sweep home that landed more than SWEEP_TRAIL_DAYS ago is finished business:
+// still in the ledger and the totals, but no longer worth a ribbon. Only landed
+// sweeps fade — money still moving has to stay visible however long it takes.
+export function isFadedSweep(transfer) {
+  if (transfer?.purpose !== 'return' || !isLanded(transfer)) return false
+  const { daysAgo } = getTransferStatus(transfer)
+  return daysAgo != null && daysAgo >= SWEEP_TRAIL_DAYS
+}
+
 // ── The map ────────────────────────────────────────────────────────────────
 // Aggregates transfers into one edge per source→destination pair, because with
 // a dozen accounts and dozens of pushes a per-transfer edge list is unreadable.
@@ -250,15 +266,20 @@ export function buildMoneyMap(state) {
     const landed = isLanded(t)
     if (!landed) inFlight += amount
 
-    const id = `${from}→${to}`
-    if (!edges.has(id)) {
-      edges.set(id, { id, from, to, landed: 0, inflight: 0, count: 0, lastSent: null, purposes: new Set() })
+    // Everything below the ledger line still counts the transfer — only the
+    // drawn edge skips a sweep home whose day on the map is over. An edge whose
+    // every transfer has faded is never created, so it leaves the map entirely.
+    if (!isFadedSweep(t)) {
+      const id = `${from}→${to}`
+      if (!edges.has(id)) {
+        edges.set(id, { id, from, to, landed: 0, inflight: 0, count: 0, lastSent: null, purposes: new Set() })
+      }
+      const e = edges.get(id)
+      e.count += 1
+      e[landed ? 'landed' : 'inflight'] += amount
+      e.purposes.add(t.purpose || 'other')
+      if (!e.lastSent || (t.sentDate ?? '') > e.lastSent) e.lastSent = t.sentDate ?? null
     }
-    const e = edges.get(id)
-    e.count += 1
-    e[landed ? 'landed' : 'inflight'] += amount
-    e.purposes.add(t.purpose || 'other')
-    if (!e.lastSent || (t.sentDate ?? '') > e.lastSent) e.lastSent = t.sentDate ?? null
 
     const f = perNode.get(from)
     if (f) { f.transfers += 1; f[landed ? 'landedOut' : 'inflightOut'] += amount }
@@ -313,55 +334,6 @@ export function buildMoneyMap(state) {
       places: accounts.filter(n => (n.balance ?? 0) > 0).length + trackedSources.filter(n => n.balance > 0).length,
     },
   }
-}
-
-// ── Reconciliation ─────────────────────────────────────────────────────────
-// A churned account starts empty, so once you've logged its pushes the ledger
-// knows what it should hold. When the stored balance disagrees — a figure typed
-// by hand on the Accounts page, history back-filled after the fact, or interest
-// the bank paid — say so and offer the ledger's number, rather than quietly
-// letting the map and the account page tell different stories.
-//
-// "Starts empty" is an assumption, not a fact, and getting it wrong is how this
-// check used to accuse a perfectly correct balance of being wrong: an account
-// that already held money before you logged your first push is over by exactly
-// that much, forever, and taking the ledger's figure would have deleted it. So
-// the baseline is explicit — `openingBalance`, what the account held the day it
-// joined the ledger, $0 for a freshly opened churn — and two nodes are exempt
-// outright: the hub, where pay, rent and groceries move money for reasons no
-// transfer log will ever know about, and any account still settling a push.
-
-export const RECONCILE_TOLERANCE = 1
-
-// What the transfers say an account should be holding: what it started with,
-// plus everything that has landed in it, minus everything that has left.
-export function ledgerBalance(node, flow) {
-  return round2(openingBalance(node) + (flow?.netFlow ?? 0))
-}
-
-export function openingBalance(node) {
-  const raw = node?.account?.openingBalance
-  return raw == null || raw === '' ? 0 : round2(raw)
-}
-
-export function getLedgerMismatches(map) {
-  const rows = []
-  for (const node of map.accounts) {
-    if (node.ghost) continue
-    // Money at the hub comes and goes for reasons the ledger never sees.
-    if (node.isHub) continue
-    const flow = map.perNode.get(node.key)
-    if (!flow || flow.transfers === 0) continue
-    // While money is still moving to or from this account the balance is
-    // expected to be uncertain — flagging it is noise, not signal.
-    if (flow.inflightIn > 0 || flow.inflightOut > 0) continue
-    const ledger = ledgerBalance(node, flow)
-    const balance = node.balance ?? 0
-    const delta = round2(balance - ledger)
-    if (Math.abs(delta) < RECONCILE_TOLERANCE) continue
-    rows.push({ node, balance, ledger, delta, opening: openingBalance(node) })
-  }
-  return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
 }
 
 // ── Money that should be coming home ───────────────────────────────────────
