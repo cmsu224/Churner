@@ -105,7 +105,7 @@ The engine generates these item types:
 - **At risk** (critical, 180+ days unused), **use soon** (120+ days), and **track usage** (no last-used date set on one of your 3 oldest cards). The three oldest cards get the highest priority because they anchor your credit history.
 
 **Money items (from the [Money Map](#9-money-map-transfers-cash-position--check-backs))**
-- **A transfer that should have landed** (critical) — an ACH push still unconfirmed more than 5 days after it was sent. **A check-back you set** (warning) once it's due or overdue. **Cash with no reason to stay where it is** (info) — an account past its clawback window, or closed, still holding money 14+ days on. All three carry the **Money** category and link to `/money`, where marking it landed or pushing it home actually happens. Upcoming check-backs stay out of the queue until they're due — a reminder set three weeks out isn't an action item today.
+- **A transfer that should have landed** (critical) — an ACH push still unconfirmed more than 5 days after it was sent. **A check-back you set** (warning) once it's due or overdue. **Cash with no reason to stay where it is** (info) — an account past its clawback window, or closed, still holding money 14+ days on. All three carry the **Money** category and link to `/money`, where marking it landed or pushing it home actually happens. Upcoming check-backs stay out of the queue until they're due — a reminder set three weeks out isn't an action item today — and a check-back that was only waiting on the money to arrive [leaves the queue the moment you mark the transfer landed](#9-money-map-transfers-cash-position--check-backs), rather than going overdue for a check you've already done.
 
 **Dismiss & snooze, synced.** Every item can be dismissed (X) or snoozed for 1, 3, or 7 days (clock). This state lives in the synced Gist data — dismissing an item on your phone dismisses it on your laptop. Dismissals recorded under the old per-device model are migrated into the synced store automatically on first load.
 
@@ -230,7 +230,7 @@ The direct deposit fields drive the multi-tier direct-deposit reminders, the mul
 
 **Closed date** is captured by the one-tap **✓ Mark Closed** action, and appears as an editable field on the add and edit forms whenever the status is *Closed* (so a historical account can be logged with its real dates). It is the flag that starts the reapply clock; the cooldown length itself still counts from the anchor above.
 
-**Where the money for the direct deposits comes from** is tracked separately, on the [Money Map](#9-money-map-transfers-cash-position--check-backs): every ACH push into an account, what's still in flight, what the account is holding, and when to sweep it home. An account's `currentBalance` is the field both pages share — landing a transfer credits it here, and it stays hand-editable on this page. A second field, **Started with** (`openingBalance`), records what the account held *before* its first logged push — $0 for a churn you opened empty, and whatever was already in there for an everyday account you added to the map later. It defaults to whatever balance a new account is created with, and it is the baseline the Money Map's [reconciliation](#9-money-map-transfers-cash-position--check-backs) measures the transfer ledger against.
+**Where the money for the direct deposits comes from** is tracked separately, on the [Money Map](#9-money-map-transfers-cash-position--check-backs): every ACH push into an account, what's still in flight, what the account is holding, and when to sweep it home. An account's `currentBalance` is the field both pages share — landing a transfer credits it here, and it stays hand-editable on this page. A second field, **Started with** (`openingBalance`), records what the account held *before* its first logged push — $0 for a churn you opened empty, and whatever was already in there for an everyday account you added to the map later. It defaults to whatever balance a new account is created with, and it is kept as the record of where the balance started.
 
 **Table view** — a **Table** toggle beside *Group by bank* swaps the account list for the dense milestone grid described in [Milestone Tracker Table](#25-milestone-tracker-table), carrying the opened → requirement → direct deposit → posted → close-after → closed → reapply chain across one row per account.
 
@@ -251,6 +251,7 @@ Page: `/money`. Bank-bonus churning without a payroll direct deposit means pushi
 **The graphic (`src/components/MoneyMap/FlowDiagram.jsx`).** Cash sources on the left, churned accounts on the right, one ribbon per source→destination pair:
 
 - **Solid ribbon = landed, marching dashed ribbon = in flight.** Ribbon thickness scales with the amount (√-scaled against the largest edge), and the color is the push's intent: **blue = direct deposit, amber = funding / minimum balance, green = sweep home**, grey for anything else. A sweep home runs right-to-left, so money coming back is visible as a direction, not just a color.
+- **A finished sweep home leaves the map after a day** (`SWEEP_TRAIL_DAYS`). A sweep is the end of a cycle — the money is home — so its green ribbon is kept for the day it lands and is gone the next, rather than accumulating into a cobweb between the hub and every account you've ever churned. Display only: the transfer stays in the ledger, in the totals, and on the **Hit the account** tab, and an edge whose every transfer has faded leaves the map entirely. A sweep still **in flight** is always drawn, however long it takes.
 - **In-flight amounts are always labelled** (that's the number you're waiting on); landed amounts appear when you select a node.
 - **Node cards** are laid out **name-first**: the bank's **brand logo** (the same Google-favicon logo the rest of the app uses, falling back to a bank/wallet/house icon for a source the issuer table doesn't know) and the bank name get a full-width line of their own and wrap to two — three on a phone — so a long name reads in full instead of being clipped to `Bank o…`. Underneath sit the balance and, on their own line, the badges: the member/player attribution (`[● Me]`, `[● Partner]`) and `HUB`. The last line is the at-a-glance state, **derived from the account's own status** ([section 8](#8-bank-account-tracking)) so the map can never contradict the Accounts page — `Opened · no requirements set`, `Direct deposit linked`, `2 more direct deposits`, `Requirements met · bonus pending`, `Bonus in · hold 43d`, `Bonus in · safe to close`, `Safe to close`, plus `Home base · money comes back here` for the hub and `Closed` — with a **`+$X` badge** for money in flight toward it, and on a phone a short form (`Opened`, `DD linked`, `3 more DDs`, `Hold 43d`, `Home base`) that fits the narrow card rather than truncating mid-word. The lifecycle stage decides *which* line shows; the direct-deposit counters and the 181-day clawback clock only fill in its numbers. An account that is merely open, with no direct-deposit requirement recorded and none logged, says so plainly rather than claiming the bonus is being worked. A custom bank accent color, when set, paints the card's left edge. Accounts sort by urgency first, then by how much they're holding; the hub sits at the top of the left column.
 - **Edit bank / source details directly from the map (`NodeEditModal.jsx`).** **Double-click** on any node card (or click its pencil edit icon, or tap **Edit details** in the mobile transfer sheet) to modify its name, balance, **Started with** ([`openingBalance`](#8-bank-account-tracking)), custom brand/accent color (from a palette of curated bank presets or custom hex code), account type, member attribution, status, and hub flag. The dialog is headed by the bank's brand logo, and the `···last4` digits sit inline beside the bank name.
@@ -289,24 +290,19 @@ Both entry points go through one `useLogTransfer` hook, so the typed line and th
 
 **The ledger.** Two tabs — **In the pipeline** and **Hit the account** — newest first, filtered by whichever node you selected:
 
-- Both ends of every row are named with their **brand logo** beside them, the same as the map's cards, the account picker in the tap sheet, the cash-source list and the reconciliation strip.
-- In-flight rows carry the only action that matters day to day: **✓ It landed** (one tap, stamps today, credits the destination, and closes any "did it land?" reminder). Landed rows carry **Send back** (pre-fills the reverse push) and an **undo** that puts it back in flight.
+- Both ends of every row are named with their **brand logo** beside them, the same as the map's cards, the account picker in the tap sheet and the cash-source list.
+- In-flight rows carry the only action that matters day to day: **✓ It landed** (one tap, stamps today, credits the destination, and closes every check-back that was only waiting on the money to arrive — see below). Landed rows carry **Send back** (pre-fills the reverse push) and an **undo** that puts it back in flight, check-back included.
 - Each row shows its purpose tag, send date, and either `In flight · day N`, `Nd in transit` once landed, or a red **should have landed by now**.
 
 **Reminders and check-backs (`src/engines/reminders.js`).** The *Check back on* board merges what you asked to be reminded of with what the app works out on its own:
 
 - **Yours (stored, synced):** created by the `+3w` shorthand when you log a push, or added freehand with 3d/1w/2w/3w presets. **Editable in place** — the pencil opens the row for a new title and a new date (the same 3d/1w/2w/3w presets plus a date picker), since a check-back you set three weeks ago is exactly the thing you want to push out another week rather than delete and retype. Ticking one keeps it, stamped, in a collapsed **Done** drawer with a restore button (the same pattern as the notification center's *Snoozed & dismissed*), so a mis-tap isn't lost; the 30 most recent are kept, so the list can't grow without bound.
   - Derived rows have no pencil: they're recomputed from the transfer or balance behind them, so there's no stored text to edit — change the fact and the row changes with it.
+  - **Landing a transfer answers its check-back** (`ANSWERED_BY_LANDING`). *Check on $X at \<bank\>* and *confirm the transfer landed* are both asking one question — did that money get there? — and marking it landed answers it, so the reminder ticks itself off into the **Done** drawer instead of going overdue for a check you've already done. Un-landing the transfer brings it straight back; ticking it off by hand keeps it done. Two check-backs deliberately survive a landing, because the arrival doesn't answer them: a **direct-deposit coding check** (*did the bank code it as a DD?*) and any check-back you set on a push you logged as **already landed** (`awaitLanding: false`) — that one is asking about the bonus, not the arrival. A reminder you wrote yourself is never touched. This is enforced in the reminder engine as well as the store, so a push marked landed before the rule existed stops nagging too, with no migration.
 - **Derived (never stored, and self-resolving):**
   - **A transfer that should have landed** — an ACH push is treated as late after **5 calendar days** (`EXPECTED_LANDING_DAYS`), because pushes do silently fail and a lost $10k is worth a phone call. Marking it landed clears it.
   - **Cash with no reason to stay where it is** — an account whose bonus has posted *and* cleared the [181-day clawback window](#8-bank-account-tracking), or that is closed but still shows a balance, and has been sitting for **14+ days** (`STRANDED_CASH_DAYS`). Any required minimum balance is subtracted first, so money still doing a job never gets flagged, and the hub is skipped entirely — money there is already home. This is the one that stops $6,000 being forgotten in a bank you close a year later.
 - Rows are ordered overdue → due today → soonest → idle cash (biggest balance first), and each links to its account.
-
-**Reconciliation.** A churned account starts empty, so once its pushes are logged the ledger knows what it should hold: **`openingBalance` + everything landed in − everything sent out**. When the stored balance disagrees by $1 or more, a strip lists both numbers side by side — catching hand-typed figures, back-filled history, a transfer missing from the ledger, or one that landed without being marked. Interest and fees explain a small gap; a gap the size of a whole push doesn't.
-
-- **"Starts empty" is an assumption, so it's an explicit field, not a guess.** An account that already held money before you logged your first push is over by exactly that much *forever*, and it is not wrong — so the baseline is [`openingBalance`](#8-bank-account-tracking), set on the Accounts page or in the map's own edit dialog, and defaulted to whatever balance a new account is created with.
-- **Both fixes are offered, non-destructive one first.** **It started with $X** records the opening balance and leaves the money alone; **Use $X** overwrites the stored balance with the ledger's figure. Either number can be right, so the strip never assumes it's the balance that's wrong — taking the ledger's word for it is the answer that deletes money.
-- **Two nodes are exempt outright.** The **hub** — pay, rent and groceries move money through your everyday account for reasons no transfer log will ever see — and any account with a transfer still **in flight**, where the balance is expected to be uncertain until it settles.
 
 **Where it shows up elsewhere:**
 
@@ -315,7 +311,7 @@ Both entry points go through one `useLogTransfer` hook, so the typed line and th
 - **Dashboard** — a Money Map card (reorderable like every other section) showing in-accounts / in-flight / at-the-hub, the accounts holding the most, and the next thing to check on.
 - **Nav** — `/money` sits in the sidebar under Accounts and takes a slot in the mobile bottom bar; Timeline moved into the **More** hub. The command palette has a **Money Map** page entry and a **Log a transfer** action.
 
-**Automatic balances are deliberately not here yet.** Every balance stays hand-editable on the Accounts page and in the Money Map, and the ledger's figure is offered rather than forced — so a future bank-balance feed can be dropped in as another writer of the same fields without any of this having to change.
+**Automatic balances are deliberately not here yet.** Every balance stays hand-editable on the Accounts page and in the Money Map, and the transfers write to those same fields as they're sent and landed — so a future bank-balance feed can be dropped in as another writer of them without any of this having to change.
 
 ### 10. Points & Loyalty Balances
 
@@ -609,8 +605,7 @@ bankAccounts[]     { id, memberId, status, bankName, accountType, last4,
                      closedDate,           ← starts the reapply clock
                      currentBalance, bonusAmount, color,
                      openingBalance,       ← what it held before the first logged
-                                             transfer; the money map's ledger
-                                             baseline (0 for a churn opened empty)
+                                             transfer (0 for a churn opened empty)
                      bonusReceived,        ← derived from the date/status on save
                      bonusReceivedDate, requiredDD, requiredDDCount, ddsMade,
                      ddDeadlineDays, ddLinkedDate, ddSourceDescription,
@@ -637,7 +632,11 @@ reminders[]        { id, kind: 'check_bonus'|'check_transfer'|'sweep_back'
                                 |'check_dd'|'custom',
                      title, notes, dueDate,
                      accountId, transferId, amount,
+                     awaitLanding,        ← false = set on an already-landed push,
+                                            so landing it never closes this one
                      doneDate,            ← ticked; 30 most recent kept for undo
+                     autoDone,            ← closed by the transfer landing, not by
+                                            you; un-landing reopens it
                      createdAt }
 applications[]     { id, memberId, product, issuer,
                      status: 'planned'|'applied'|'pending'|'approved'|'denied',
@@ -653,7 +652,7 @@ settings           { taxBracket, pointValueCents, notifyEnabled,
                      programValueCents { programName: centsPerPoint } }
 ```
 
-Engines with no synced state of their own: `events.js` (timeline), `annualFees.js` (fee tracker), `earnings.js`, `burnRate.js`, `moneyFlow.js` (the money map's nodes, ribbons, totals, reconciliation and quick-entry parser — all derived from `cashSources`, `transfers` and the accounts' own balances), `reminders.js` (merges the stored `reminders[]` with derived late-transfer and stranded-cash rows, which are deliberately never persisted), `bankReeligibility.js` (bank reapply clock — derived entirely from account dates + `bankEligibility.js`'s windows and basis), `chexSystems.js` (inquiry counts — derived entirely from `bankAccounts[].openedDate` plus each bank's `chex` classification), `whatIf.js` (simulator inputs are deliberately not persisted).
+Engines with no synced state of their own: `events.js` (timeline), `annualFees.js` (fee tracker), `earnings.js`, `burnRate.js`, `moneyFlow.js` (the money map's nodes, ribbons, totals and quick-entry parser — all derived from `cashSources`, `transfers` and the accounts' own balances), `reminders.js` (merges the stored `reminders[]` with derived late-transfer and stranded-cash rows, which are deliberately never persisted), `bankReeligibility.js` (bank reapply clock — derived entirely from account dates + `bankEligibility.js`'s windows and basis), `chexSystems.js` (inquiry counts — derived entirely from `bankAccounts[].openedDate` plus each bank's `chex` classification), `whatIf.js` (simulator inputs are deliberately not persisted).
 
 ---
 

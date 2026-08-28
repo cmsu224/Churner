@@ -45,6 +45,11 @@ export function useLogTransfer() {
           accountId: acct?.id ?? null,
           transferId: id,
           amount,
+          // What the check-back is actually waiting on. A push logged as
+          // already landed is asking about something the arrival doesn't
+          // answer — did the bonus post, did it code right — so it survives the
+          // landing that closes an in-flight push's "did it get there?".
+          awaitLanding: !landed,
           doneDate: null,
         },
       })

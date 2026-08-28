@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
-import { buildMoneyMap, getLedgerMismatches, moveNode, reorderNode, setNodeHidden } from '../../engines/moneyFlow'
+import { buildMoneyMap, moveNode, reorderNode, setNodeHidden } from '../../engines/moneyFlow'
 import { collectReminders, reminderCounts } from '../../engines/reminders'
 import FlowDiagram from './FlowDiagram'
 import QuickTransferBar from './QuickTransferBar'
@@ -9,7 +9,6 @@ import ReminderBoard from './ReminderBoard'
 import CashSourceEditor from './CashSourceEditor'
 import TransferSheet from './TransferSheet'
 import NodeEditModal from './NodeEditModal'
-import ReconcileStrip from './ReconcileStrip'
 import PageHeader from '../shared/PageHeader'
 import StatCard from '../shared/StatCard'
 import EmptyState from '../shared/EmptyState'
@@ -44,7 +43,6 @@ export default function MoneyMapView() {
     [state.reminders]
   )
   const counts = reminderCounts(reminders)
-  const mismatches = useMemo(() => getLedgerMismatches(map), [map])
   const { totals, hub } = map
 
   // "Send back" on a landed transfer: same money, other direction. The map's own
@@ -159,8 +157,6 @@ export default function MoneyMapView() {
             onSetHub={(key) => dispatch({ type: 'SET_HUB', key })}
             onSetHidden={(key, hidden) => dispatch({ type: 'SET_MAP_LAYOUT', layout: setNodeHidden(cardLayout, key, hidden) })}
           />
-
-          <ReconcileStrip rows={mismatches} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
             <ReminderBoard reminders={reminders} done={doneReminders} />

@@ -314,7 +314,7 @@ export default function NodeEditModal({ node, onClose }) {
 
             <Field
               label="Started With ($)"
-              hint="What it already held before your first logged push — $0 for an account you opened empty. The transfers are measured from here."
+              hint="What it already held before your first logged push — $0 for an account you opened empty. A record of where its balance started, kept alongside the ledger."
             >
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-ink-tertiary pointer-events-none">$</span>

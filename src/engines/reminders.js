@@ -24,6 +24,23 @@ import { fmt$, parseDay, startOfToday, daysBetweenDays } from '../utils/format'
 // posts while you're still deciding what to do.
 export const STRANDED_CASH_DAYS = 14
 
+// The check-backs marking a transfer landed answers by itself. Both are the
+// same question — "did that money actually get there?" — and the answer is yes
+// the moment you tap "It landed", so leaving them on the board is how a check
+// you've already done ends up three days overdue in the notification centre.
+// `check_dd` is deliberately not here: whether the bank *coded* the deposit as
+// a direct deposit is a different question, and the money arriving doesn't
+// answer it. Neither does landing touch a reminder you wrote yourself.
+export const ANSWERED_BY_LANDING = ['check_transfer', 'check_bonus']
+
+// True for a check-back that is only waiting on the money to arrive. A push
+// logged as already landed can still carry one — "check on it in 3 weeks" — and
+// that one is asking about the bonus, not the arrival, so it must outlive it.
+// Reminders written before the flag existed were all set on in-flight pushes.
+export function answeredByLanding(reminder) {
+  return ANSWERED_BY_LANDING.includes(reminder?.kind) && reminder?.awaitLanding !== false
+}
+
 export const REMINDER_KINDS = [
   { value: 'check_bonus',    label: 'Check if the bonus posted' },
   { value: 'check_transfer', label: 'Confirm the transfer landed' },
@@ -64,10 +81,16 @@ export function collectReminders(state, { horizonDays = null, includeDone = fals
   const rows = []
   const { all: nodes } = buildNodes(state)
   const transfers = state.transfers ?? []
+  const landedTransfers = new Set(transfers.filter(isLanded).map(t => t.id))
 
   // ── 1. Stored reminders ──────────────────────────────────────────────────
   for (const r of (state.reminders ?? [])) {
     if (isDone(r) && !includeDone) continue
+    // Answered by the transfer landing. The store ticks these off as it lands
+    // them, so this mostly catches history — pushes marked landed before the
+    // store learned to, and any that got there by an edit rather than the
+    // button. Un-landing the transfer brings the reminder straight back.
+    if (!isDone(r) && r.transferId && landedTransfers.has(r.transferId) && answeredByLanding(r)) continue
     rows.push({
       id: r.id,
       reminderId: r.id,
