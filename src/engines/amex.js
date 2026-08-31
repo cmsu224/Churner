@@ -4,7 +4,10 @@
 // - Lifetime language: once per lifetime on many cards (tracked manually via bonusReceived history)
 export function getAmexStatus(memberId, allCreditCards) {
   const now = new Date()
-  const amexCards = (allCreditCards ?? []).filter(c => c.memberId === memberId && c.issuer?.toLowerCase().includes('amex'))
+  const amexCards = (allCreditCards ?? []).filter(c => {
+    const iss = c.issuer?.toLowerCase() ?? ''
+    return c.memberId === memberId && (iss.includes('amex') || iss.includes('american express'))
+  })
 
   const cutoff5d = new Date(now); cutoff5d.setDate(cutoff5d.getDate() - 5)
   const last5days = amexCards.filter(c => c.openDate && new Date(c.openDate) >= cutoff5d)
