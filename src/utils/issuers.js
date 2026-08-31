@@ -33,6 +33,7 @@ const ISSUERS = [
   { key: 'regions',      name: 'Regions',          domain: 'regions.com',        color: '#4A8B3A', match: ['regions'] },
   { key: 'firsthorizon', name: 'First Horizon',    domain: 'firsthorizon.com',   color: '#00558C', match: ['first horizon'] },
   { key: 'republic',     name: 'Republic Bank',    domain: 'republicbank.com',   color: '#0B5D3B', match: ['republic bank'] },
+  { key: 'robinhood',    name: 'Robinhood',        domain: 'robinhood.com',      color: '#00C805', match: ['robinhood'] },
 ]
 
 const OTHER = { key: 'other', name: 'Other', domain: null, color: '#52525b' }

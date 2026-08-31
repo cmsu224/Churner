@@ -65,9 +65,9 @@ const BANK_RULES = {
   chase:       { months: 24, basis: 'bonus', chex: 'sensitive', note: 'Chase: ~24 months since your last checking/savings bonus. Chex-sensitive — too many recent inquiries draws a denial on its own.' },
   citi:        { months: 24, basis: 'close', chex: 'sensitive', note: 'Citi: roughly once per 24 months per bonus, and most offers also require no open OR closed Citi account in the prior 6 months — so the clock runs from closing.' },
   bofa:        { months: 24, basis: 'bonus', chex: 'standard',  note: 'Bank of America: typically once per 24 months (some offers are once per lifetime).' },
-  wellsfargo:  { months: 12, basis: 'bonus', chex: 'standard',  note: 'Wells Fargo: about once every 12 months.' },
+  wellsfargo:  { months: 12, basis: 'bonus', chex: 'none',      note: 'Wells Fargo: about once every 12 months. Doctor of Credit: "mixed reports, likely doesn\'t pull" — community-sourced, not personally confirmed like the Capital One/Robinhood entries, so treat as a lean rather than a certainty.' },
   usbank:      { months: 24, basis: 'close', chex: 'sensitive', note: 'U.S. Bank: roughly once per 24 months, measured from closing. Chex-sensitive.' },
-  capitalone:  { months: 12, basis: 'close', chex: 'standard',  note: 'Capital One: generally not eligible while you hold — or recently held — the account; ~12 months from closing.' },
+  capitalone:  { months: 12, basis: 'close', chex: 'none',      note: 'Capital One: generally not eligible while you hold — or recently held — the account; ~12 months from closing. 360 Checking/Savings leans on its own underwriting rather than ChexSystems — confirmed against a real ChexSystems disclosure (no inquiry from a Capital One account open).' },
   pnc:         { months: 24, basis: 'close', chex: 'sensitive', note: 'PNC: about once per 24 months, and current/recent customers are excluded. Chex-sensitive.' },
   td:          { months: 12, basis: 'close', chex: 'sensitive', note: 'TD Bank: about once per 12 months. Chex-sensitive.' },
   citizens:    { months: 24, basis: 'close', chex: 'sensitive', note: 'Citizens: about once per 24 months from closing.' },
@@ -87,6 +87,7 @@ const BANK_RULES = {
   santander:   { months: 12, basis: 'close', chex: 'sensitive', note: 'Santander: about once per 12 months, excluding recent customers. Chex-sensitive.' },
   bmo:         { months: 12, basis: 'close', chex: 'sensitive', note: 'BMO: about once per 12 months from closing. Chex-sensitive.' },
   regions:     { months: 12, basis: 'close', chex: 'standard',  note: 'Regions: typically no Regions checking in the prior ~12 months.' },
+  robinhood:   { months: 24, basis: 'bonus', chex: 'none', fallback: true, note: 'Robinhood: brokerage-linked Spending/Cash Card account — confirmed against a real ChexSystems disclosure (no inquiry from a Robinhood account open). Reoffer cadence unverified; conservative 24-month bonus-basis estimate.' },
 }
 
 export const DEFAULT_RULE = {

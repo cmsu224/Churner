@@ -16,6 +16,11 @@ dist-ssr
 .env
 .env.*
 
+# Personal documents dropped in for reference
+chex.pdf
+chex discloser.pdf
+*.pdf
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
