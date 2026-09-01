@@ -549,8 +549,8 @@ function NodeCard({
       onMouseLeave={onMouseLeave}
       onDoubleClick={(e) => { e.stopPropagation(); onEdit(node) }}
       className={`group absolute rounded-xl border bg-surface shadow-card transition-all cursor-grab active:cursor-grabbing ${ring} ${
-        dimmed ? 'opacity-35' : 'opacity-100'
-      } ${isDragging ? 'opacity-30 scale-95 ring-2 ring-accent' : ''}`}
+        isHidden ? 'border-dashed border-warning/60' : ''
+      } ${dimmed ? 'opacity-35' : 'opacity-100'} ${isDragging ? 'opacity-30 scale-95 ring-2 ring-accent' : ''}`}
       style={customCardStyle}
     >
       {/* Edit shortcut. Absolutely placed, so the name row reserves its width
@@ -635,7 +635,7 @@ function NodeCard({
           only appear on hover/focus — always-on they overlapped the top edge of
           the card underneath and stole its clicks. */}
       {!compact && (
-        <div data-no-drag="true" className="absolute -bottom-3 left-2 flex items-center gap-1 z-20 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
+        <div data-no-drag="true" className="absolute -bottom-3 left-2 w-max whitespace-nowrap flex items-center gap-1 z-20 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
           {node.kind === 'account' && (node.balance ?? 0) > 0 && !node.isHub && (
             <button
               type="button"
@@ -666,6 +666,30 @@ function NodeCard({
           >
             <Pencil size={9} /> Edit
           </button>
+          {/* Hiding used to live only inside Arrange mode, which is not where
+              anyone looks for it. It sits with the other card shortcuts now —
+              and on a hidden card the same button is the way back. */}
+          <button
+            type="button"
+            onMouseDown={e => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onHidden(node.key, !isHidden) }}
+            disabled={!isHidden && !!hideBlocked}
+            title={
+              isHidden
+                ? `Put ${node.name} back on the map`
+                : hideBlocked
+                ? `Can't hide ${node.name} — ${hideBlocked.toLowerCase()}`
+                : `Hide ${node.name} from the map. It keeps its balance, its totals and its reminders — this only stops it being drawn.`
+            }
+            aria-label={isHidden ? `Show ${node.name} on the map` : `Hide ${node.name} from the map`}
+            className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border transition-colors shadow-sm flex items-center gap-0.5 ${
+              isHidden
+                ? 'bg-warning/15 text-warning-ink border-warning/40 hover:bg-warning/25'
+                : 'bg-surface text-ink-muted border-edge-strong hover:text-accent-ink hover:border-accent/40 disabled:opacity-30 disabled:pointer-events-none'
+            }`}
+          >
+            {isHidden ? <><Eye size={9} /> Show</> : <EyeOff size={9} />}
+          </button>
         </div>
       )}
     </div>
@@ -684,6 +708,7 @@ export default function FlowDiagram({
   onResetLayout,
   onSetHub,
   onSetHidden,
+  onShowAllHidden,
 }) {
   const { sources, accounts, edges, perNode, totals, hub } = map
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640)
@@ -1217,7 +1242,19 @@ export default function FlowDiagram({
               className="ml-2 inline-flex items-center gap-1 text-[11px] font-normal text-ink-tertiary hover:text-ink-secondary transition-colors align-middle"
             >
               {showQuiet ? <Eye size={11} aria-hidden="true" /> : <EyeOff size={11} aria-hidden="true" />}
-              {showQuiet ? `hide ${offMapLabel} again` : `${offMapLabel} hidden`}
+              {showQuiet ? `hide ${offMapLabel} again` : `${offMapLabel} hidden — show`}
+            </button>
+          )}
+          {/* Revealed, every card carries its own Show button. This is the same
+              thing for all of them at once, for the case the drawer exists to
+              answer: "where did that account go, and how do I get it back?" */}
+          {showQuiet && hiddenNodes.length > 0 && (
+            <button
+              onClick={onShowAllHidden}
+              className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md border border-warning/40 bg-warning/10 text-warning-ink hover:bg-warning/20 transition-colors align-middle"
+            >
+              <Eye size={11} aria-hidden="true" />
+              Put {hiddenNodes.length === 1 ? 'it' : 'all'} back on the map
             </button>
           )}
           {/* Hidden is a display choice, never an accounting one — say so the

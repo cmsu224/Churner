@@ -479,6 +479,17 @@ export function setNodeHidden(layout, key, hidden) {
   return next
 }
 
+// Put every hidden card back at once. The layout's other job — which column a
+// card sits in and in what order — is untouched, so un-hiding doesn't also
+// throw away an arrangement.
+export function clearHiddenNodes(layout) {
+  let next = layout ?? {}
+  for (const key of Object.keys(next)) {
+    if (next[key]?.hidden) next = setNodeHidden(next, key, false)
+  }
+  return next
+}
+
 export const MOVE_DIRECTIONS = ['up', 'down', 'left', 'right']
 
 // Can this card move that way? Drives the disabled state on the arrows, so a

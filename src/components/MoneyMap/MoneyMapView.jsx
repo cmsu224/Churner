@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
-import { buildMoneyMap, moveNode, reorderNode, setNodeHidden } from '../../engines/moneyFlow'
+import { buildMoneyMap, moveNode, reorderNode, setNodeHidden, clearHiddenNodes, isNodeHidden } from '../../engines/moneyFlow'
 import { collectReminders, reminderCounts } from '../../engines/reminders'
 import FlowDiagram from './FlowDiagram'
 import QuickTransferBar from './QuickTransferBar'
@@ -73,6 +73,13 @@ export default function MoneyMapView() {
   const cardLayout = state.moneyMapLayout ?? {}
   function moveCard(key, direction, nodes) {
     dispatch({ type: 'SET_MAP_LAYOUT', layout: moveNode(nodes ?? map.nodes, cardLayout, key, direction) })
+  }
+
+  // Hiding a card is a display choice, so it rides in the same synced layout
+  // object as the arrangement. Every entry point — the card's own Hide button,
+  // the phone sheet, the edit modal — comes through here.
+  function setHidden(key, hidden) {
+    dispatch({ type: 'SET_MAP_LAYOUT', layout: setNodeHidden(cardLayout, key, hidden) })
   }
 
   function reorderCard(key, targetSide, targetIndex, nodes) {
@@ -155,7 +162,8 @@ export default function MoneyMapView() {
             onEdit={(node) => setEditingNodeKey(node.key)}
             onResetLayout={() => dispatch({ type: 'SET_MAP_LAYOUT', layout: {} })}
             onSetHub={(key) => dispatch({ type: 'SET_HUB', key })}
-            onSetHidden={(key, hidden) => dispatch({ type: 'SET_MAP_LAYOUT', layout: setNodeHidden(cardLayout, key, hidden) })}
+            onSetHidden={setHidden}
+            onShowAllHidden={() => dispatch({ type: 'SET_MAP_LAYOUT', layout: clearHiddenNodes(cardLayout) })}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
@@ -188,6 +196,8 @@ export default function MoneyMapView() {
         <TransferSheet
           node={sheetNode}
           map={map}
+          isHidden={isNodeHidden(sheetNode, cardLayout)}
+          onSetHidden={setHidden}
           onClose={() => setSheetKey(null)}
           onShowTransfers={(key) => setSelectedKey(key)}
           onEdit={(node) => setEditingNodeKey(node.key)}
