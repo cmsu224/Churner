@@ -21,6 +21,7 @@
 // clawbackShield.js, exactly as the action engine uses it.
 
 import { getClawbackStatus } from './clawbackShield'
+import { getDebitProgress } from './debitCard'
 import { parseDay, startOfToday, daysBetweenDays } from '../utils/format'
 
 // A push is normally on the destination's books in 1–3 business days. Past
@@ -148,16 +149,44 @@ function accountNodeState(account) {
   const made = account.ddsMade ?? 0
   const requiredCount = account.requiredDDCount ?? 1
   const tracksDDs = (account.requiredDD ?? 0) > 0 || (account.requiredDDCount ?? 1) > 1
-  if ((tracksDDs || made > 0) && made >= requiredCount) {
+  // The debit-card swipes are the other half of a lot of checking offers, so
+  // "requirements met" can't mean "the deposits are in" while ten purchases
+  // are still owed. Deposits lead the line when both are outstanding — they're
+  // the part that needs money moved rather than a card tapped.
+  const debit = getDebitProgress(account)
+  const debitOwed = debit && !debit.met
+  if ((tracksDDs || made > 0) && made >= requiredCount && !debitOwed) {
     return { tone: 'accent', label: 'Requirements met · bonus pending', shortLabel: 'Bonus pending' }
   }
-  if (tracksDDs) {
+  if (tracksDDs && made < requiredCount) {
     const needed = requiredCount - made
     return {
       tone: 'danger',
       label: `${needed} more direct deposit${needed === 1 ? '' : 's'}`,
       shortLabel: `${needed} more DD${needed === 1 ? '' : 's'}`,
     }
+  }
+  if (debitOwed) {
+    // A count is what almost every offer asks for; a spend-only requirement
+    // falls back to the dollars still to go.
+    const needed = debit.remainingCount
+    if (!debit.countMet && needed > 0) {
+      return {
+        tone: 'danger',
+        label: `${needed} more debit purchase${needed === 1 ? '' : 's'}`,
+        shortLabel: `${needed} more debit`,
+      }
+    }
+    return {
+      tone: 'danger',
+      label: `$${Math.round(debit.remainingSpend).toLocaleString()} more debit spend`,
+      shortLabel: 'Debit spend owed',
+    }
+  }
+  // Every requirement the account records is done — deposits, purchases, or
+  // both — so the only thing left to wait for is the bonus itself.
+  if (tracksDDs || debit) {
+    return { tone: 'accent', label: 'Requirements met · bonus pending', shortLabel: 'Bonus pending' }
   }
 
   // Nothing logged and no requirement recorded. There is no evidence the bonus

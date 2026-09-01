@@ -62,6 +62,9 @@ If you genuinely cannot tell who owns an item, omit "member" and it will be hand
       "requiredDD": 500,
       "requiredDDCount": 1,
       "ddDeadlineDays": 90,
+      "requiredDebitCount": 10,
+      "requiredDebitAmount": 5,
+      "debitDeadlineDays": 90,
       "minimumBalance": 0,
       "isTaxable": true,
       "status": "Opened",
@@ -99,6 +102,10 @@ isTaxable         — ALWAYS true for bank account bonuses (taxable as 1099-INT)
 requiredDD        — minimum single direct deposit amount required (e.g. 500)
 requiredDDCount   — number of qualifying DDs required (default 1)
 ddDeadlineDays    — days from account opening to meet the DD requirement (e.g. 60, 90, 120)
+requiredDebitCount  — number of debit card purchases the offer requires (e.g. 10). Omit if the offer has none.
+requiredDebitAmount — minimum size of a qualifying debit purchase (e.g. 5 for "$5 or more each")
+requiredDebitSpend  — total debit-card spend required, when the offer counts dollars instead of/as well as swipes
+debitDeadlineDays   — days from opening to finish the debit purchases (omit if it's the same window as the DD)
 minimumBalance    — required minimum balance to qualify for bonus (0 if none)
 
 DO NOT include "id" or "memberId" fields.
@@ -187,6 +194,13 @@ function mergeAiImport(state, aiData, members, fallbackMemberId) {
       ddDeadlineDays: a.ddDeadlineDays ?? undefined,
       ddLinkedDate: a.ddLinkedDate ?? null,
       ddSourceDescription: a.ddSourceDescription ?? '',
+      requiredDebitCount: a.requiredDebitCount ?? undefined,
+      debitsMade: a.debitsMade ?? undefined,
+      requiredDebitAmount: a.requiredDebitAmount ?? undefined,
+      requiredDebitSpend: a.requiredDebitSpend ?? undefined,
+      debitSpend: a.debitSpend ?? undefined,
+      debitDeadlineDays: a.debitDeadlineDays ?? undefined,
+      debitCompletedDate: a.debitCompletedDate ?? null,
       bonusAmount: a.bonusAmount ?? undefined,
       bonusDeadlineDays: a.bonusDeadlineDays ?? undefined,
       bonusReceivedDate: a.bonusReceivedDate ?? null,

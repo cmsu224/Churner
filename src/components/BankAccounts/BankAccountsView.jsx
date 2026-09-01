@@ -134,6 +134,8 @@ export default function BankAccountsView() {
       openedDate: '', status: 'Opened', currentBalance: '',
       requiredDD: '', requiredDDCount: '', ddsMade: '', ddDeadlineDays: '',
       ddSourceDescription: '', ddLinkedDate: '',
+      requiredDebitCount: '', debitsMade: '', requiredDebitAmount: '',
+      requiredDebitSpend: '', debitSpend: '', debitDeadlineDays: '',
       minimumBalance: '', bonusDeadlineDays: '', etfDays: '',
       bonusAmount: '', bonusReceivedDate: '', isTaxable: true,
       closedDate: '', offerUrl: '', notes: '',
@@ -170,6 +172,12 @@ export default function BankAccountsView() {
         ddDeadlineDays: intOpt(newAcct.ddDeadlineDays),
         requiredDDCount: intOpt(newAcct.requiredDDCount),
         ddsMade: intOpt(newAcct.ddsMade),
+        requiredDebitCount: intOpt(newAcct.requiredDebitCount),
+        debitsMade: intOpt(newAcct.debitsMade),
+        requiredDebitAmount: numOpt(newAcct.requiredDebitAmount),
+        requiredDebitSpend: numOpt(newAcct.requiredDebitSpend),
+        debitSpend: numOpt(newAcct.debitSpend),
+        debitDeadlineDays: intOpt(newAcct.debitDeadlineDays),
         bonusDeadlineDays: intOpt(newAcct.bonusDeadlineDays),
         etfDays: intOpt(newAcct.etfDays),
         last4: newAcct.last4 ? String(newAcct.last4).slice(-4) : undefined,
@@ -192,6 +200,9 @@ export default function BankAccountsView() {
   const acctStatus = newAcct?.status
   const showAddAcctBonus = ['Opened', 'DD Linked', 'Bonus Pending', 'Bonus Received'].includes(acctStatus)
   const showAddAcctDD = ['Opened', 'DD Linked'].includes(acctStatus)
+  // Debit purchases are worked over the same stretch of the lifecycle as the
+  // deposits, so the two sections appear and disappear together.
+  const showAddAcctDebit = showAddAcctDD
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -377,6 +388,46 @@ export default function BankAccountsView() {
                   <label className="text-xs text-ink-muted block mb-1">DD Source</label>
                   <input className={inp} value={newAcct.ddSourceDescription} onChange={e => setN('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, Social Security, ACH" />
                 </div>
+              </div>
+            )}
+
+            {/* Debit card — the purchase count some offers require alongside,
+                or instead of, the direct deposit */}
+            {showAddAcctDebit && (
+              <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+                <div className="text-xs font-medium text-ink-secondary mb-1">Debit card requirements</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1"># Purchases</label>
+                    <input type="number" min="0" className={inp} value={newAcct.requiredDebitCount} onChange={e => setN('requiredDebitCount', e.target.value)} placeholder="10" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1"># Completed</label>
+                    <input type="number" min="0" className={inp} value={newAcct.debitsMade} onChange={e => setN('debitsMade', e.target.value)} placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Min Per Purchase ($)</label>
+                    <input type="number" min="0" className={inp} value={newAcct.requiredDebitAmount} onChange={e => setN('requiredDebitAmount', e.target.value)} placeholder="5" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Total Spend ($)</label>
+                    <input type="number" min="0" className={inp} value={newAcct.requiredDebitSpend} onChange={e => setN('requiredDebitSpend', e.target.value)} placeholder="optional" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Spend Logged ($)</label>
+                    <input type="number" min="0" className={inp} value={newAcct.debitSpend} onChange={e => setN('debitSpend', e.target.value)} placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Deadline (days)</label>
+                    <input type="number" min="1" className={inp} value={newAcct.debitDeadlineDays} onChange={e => setN('debitDeadlineDays', e.target.value)} placeholder="90" />
+                  </div>
+                </div>
+                <p className="text-xs text-ink-faint">
+                  e.g. “10 debit card purchases of $5 or more within 90 days”. Leave the deadline empty and the countdown
+                  borrows the direct-deposit window.
+                </p>
               </div>
             )}
 

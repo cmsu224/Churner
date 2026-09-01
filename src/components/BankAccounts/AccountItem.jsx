@@ -8,6 +8,7 @@ import ReapplyClock from './ReapplyClock'
 import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountReeligibility } from '../../engines/bankReeligibility'
 import { getAccountNextStatus } from '../../engines/lifecycle'
+import { getDebitProgress } from '../../engines/debitCard'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { fmt$, fmtDate, todayISODate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Trash2, Shield, ExternalLink, RotateCcw } from 'lucide-react'
@@ -37,13 +38,15 @@ const btnSolid = {
 // The account's next step in the bonus lifecycle, as one-tap buttons — the bank
 // counterpart to the card status actions. Logging direct deposits leads while
 // any are still outstanding, because that's the actual work between opening the
-// account and the bonus landing; after the bonus posts the 181-day clawback
-// rule (getAccountNextStatus) decides between holding and closing.
+// account and the bonus landing; debit purchases take over as the primary once
+// the deposits are in. After the bonus posts the 181-day clawback rule
+// (getAccountNextStatus) decides between holding and closing.
 function getAccountQuickActions(account, nextStatus) {
   const today = todayISODate()
   const needed = account.requiredDDCount ?? 1
   const made = account.ddsMade ?? 0
   const needsDD = Number(account.requiredDD) > 0 || Number(account.requiredDDCount) > 0 || !!account.ddSourceDescription
+  const debit = getDebitProgress(account)
 
   const logDD = needed > 1
     ? { label: `+ Direct Deposit ${Math.min(made + 1, needed)}/${needed}`, color: 'blue',
@@ -55,12 +58,38 @@ function getAccountQuickActions(account, nextStatus) {
   const bonusPosted = { label: '✓ Bonus Posted', color: 'emerald',
     payload: { status: 'Bonus Received', bonusReceived: true, bonusReceivedDate: account.bonusReceivedDate || today } }
   const pending = { label: '→ Bonus Pending', color: 'zinc', payload: { status: 'Bonus Pending' } }
+  // One tap per qualifying swipe, the same grammar as logging a direct deposit.
+  // Finishing the count stamps the completion date, so the account records when
+  // the requirement was actually cleared and not just that it was.
+  // The tap that clears the last outstanding requirement also moves the account
+  // on to Bonus Pending — the same way logging a deposit sets DD Linked, and
+  // just as undoable.
+  const lastRequirement = debit && debit.remainingCount === 1 && debit.spendMet && (!needsDD || made >= needed)
+  const logDebit = debit && !debit.countMet && debit.requiredCount > 0
+    ? { label: `+ Debit Purchase ${debit.made + 1}/${debit.requiredCount}`, color: 'blue',
+        payload: {
+          debitsMade: debit.made + 1,
+          ...(debit.made + 1 >= debit.requiredCount
+            ? { debitCompletedDate: account.debitCompletedDate || today }
+            : {}),
+          ...(lastRequirement ? { status: 'Bonus Pending' } : {}),
+        } }
+    : null
+  // Deposits outrank swipes while both are owed — that's the one that needs
+  // money moved rather than a card tapped — so the debit button slots in behind
+  // them, and leads the row once they're done.
+  const withDebit = (actions) => {
+    if (!logDebit) return actions
+    return needsDD && made < needed
+      ? [actions[0], logDebit, ...actions.slice(1)]
+      : [logDebit, ...actions]
+  }
 
   switch (account.status || 'Opened') {
     case 'Opened':
-      return needsDD ? [logDD, bonusPosted] : [{ ...pending, color: 'blue' }, bonusPosted]
+      return withDebit(needsDD ? [logDD, bonusPosted] : [{ ...pending, color: 'blue' }, bonusPosted])
     case 'DD Linked':
-      return made < needed ? [logDD, bonusPosted] : [bonusPosted, pending]
+      return withDebit(made < needed ? [logDD, bonusPosted] : [bonusPosted, pending])
     case 'Bonus Pending':
       return [bonusPosted]
     case 'Bonus Received':
@@ -86,6 +115,15 @@ function ddDeadlineInfo(account) {
   deadline.setDate(deadline.getDate() + days)
   const daysLeft = Math.ceil((deadline - new Date()) / 86400000)
   return { daysLeft, deadline: deadline.toISOString(), overdue: daysLeft < 0 }
+}
+
+// The debit requirement in one short value: "3/10 done", "$120 of $500", or
+// both when the offer asks for a count AND a total.
+function debitSummary(debit) {
+  const parts = []
+  if (debit.requiredCount > 0) parts.push(`${debit.made}/${debit.requiredCount} done`)
+  if (debit.requiredSpend > 0) parts.push(`${fmt$(debit.spent)} of ${fmt$(debit.requiredSpend)}`)
+  return parts.join(' · ')
 }
 
 function numOpt(v) {
@@ -114,6 +152,7 @@ export default function AccountItem({ account, members }) {
   const reapply = getAccountReeligibility(account, state.bankAccounts ?? [])
   const nextStatus = getAccountNextStatus(account)
   const ddInfo = ddDeadlineInfo(account)
+  const debit = getDebitProgress(account)
   const quickActions = getAccountQuickActions(account, nextStatus)
 
   useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
@@ -162,6 +201,13 @@ export default function AccountItem({ account, members }) {
         ddDeadlineDays: intOpt(draft.ddDeadlineDays),
         requiredDDCount: intOpt(draft.requiredDDCount),
         ddsMade: intOpt(draft.ddsMade),
+        requiredDebitCount: intOpt(draft.requiredDebitCount),
+        debitsMade: intOpt(draft.debitsMade),
+        requiredDebitAmount: numOpt(draft.requiredDebitAmount),
+        requiredDebitSpend: numOpt(draft.requiredDebitSpend),
+        debitSpend: numOpt(draft.debitSpend),
+        debitDeadlineDays: intOpt(draft.debitDeadlineDays),
+        debitCompletedDate: draft.debitCompletedDate || null,
         bonusDeadlineDays: intOpt(draft.bonusDeadlineDays),
         etfDays: intOpt(draft.etfDays),
         last4: draft.last4 ? String(draft.last4).slice(-4) : undefined,
@@ -213,6 +259,18 @@ export default function AccountItem({ account, members }) {
       || Number(draft.requiredDDCount) > 0
       || !!draft.ddLinkedDate
       || !!draft.ddSourceDescription
+      || ['Opened', 'DD Linked'].includes(draft.status))
+    : false
+
+  // Debit-card purchases are their own requirement, so the section shows on the
+  // same statuses as the deposits, or whenever the account already carries any
+  // debit data (an offer with no direct deposit at all is common).
+  const showDebitSection = draft
+    ? (Number(draft.requiredDebitCount) > 0
+      || Number(draft.requiredDebitSpend) > 0
+      || Number(draft.debitsMade) > 0
+      || Number(draft.debitSpend) > 0
+      || !!draft.debitCompletedDate
       || ['Opened', 'DD Linked'].includes(draft.status))
     : false
 
@@ -290,6 +348,18 @@ export default function AccountItem({ account, members }) {
               <span className={(account.ddsMade ?? 0) >= account.requiredDDCount ? 'text-success-ink' : 'text-warning-ink'}>
                 {account.ddsMade ?? 0}/{account.requiredDDCount} done
               </span>
+            </div>
+          )}
+          {debit && (
+            <div className="flex justify-between">
+              <span>Debit purchases</span>
+              <span className={debit.met ? 'text-success-ink' : 'text-warning-ink'}>{debitSummary(debit)}</span>
+            </div>
+          )}
+          {debit && !debit.met && !account.bonusReceivedDate && debit.daysLeft !== null && (
+            <div className={`flex justify-between font-medium ${debit.overdue ? 'text-danger-ink' : debit.daysLeft <= 14 ? 'text-warning-ink' : 'text-ink-muted'}`}>
+              <span>Debit deadline</span>
+              <span>{debit.overdue ? `OVERDUE ${Math.abs(debit.daysLeft)}d ago` : `${debit.daysLeft}d left`}</span>
             </div>
           )}
           {(account.minimumBalance ?? 0) > 0 && !account.bonusReceivedDate && (
@@ -490,6 +560,53 @@ export default function AccountItem({ account, members }) {
                 <label className="text-xs text-ink-muted block mb-1">Direct Deposit Source</label>
                 <input className={inp} value={draft.ddSourceDescription ?? ''} onChange={e => set('ddSourceDescription', e.target.value)} placeholder="e.g. Payroll, Social Security, ACH" />
               </div>
+            </div>
+          )}
+
+          {/* Debit Card — the purchase count (and sometimes a spend total) an
+              offer asks for alongside, or instead of, the direct deposit */}
+          {showDebitSection && (
+            <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+              <div className="text-xs font-medium text-ink-secondary mb-2">Debit Card Requirements</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1"># Purchases Required</label>
+                  <input type="number" min="0" className={inp} value={draft.requiredDebitCount ?? ''} onChange={e => set('requiredDebitCount', e.target.value)} placeholder="10" />
+                </div>
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1"># Completed</label>
+                  <input type="number" min="0" className={inp} value={draft.debitsMade ?? ''} onChange={e => set('debitsMade', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1">Minimum Per Purchase ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.requiredDebitAmount ?? ''} onChange={e => set('requiredDebitAmount', e.target.value)} placeholder="5" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1">Total Debit Spend Required ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.requiredDebitSpend ?? ''} onChange={e => set('requiredDebitSpend', e.target.value)} placeholder="optional" />
+                </div>
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1">Debit Spend Logged ($)</label>
+                  <input type="number" min="0" className={inp} value={draft.debitSpend ?? ''} onChange={e => set('debitSpend', e.target.value)} placeholder="0" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1">Debit Deadline (days from open)</label>
+                  <input type="number" min="1" className={inp} value={draft.debitDeadlineDays ?? ''} onChange={e => set('debitDeadlineDays', e.target.value)} placeholder="90" />
+                </div>
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1">Requirement Completed Date</label>
+                  <DateField value={draft.debitCompletedDate} onChange={v => set('debitCompletedDate', v)} />
+                </div>
+              </div>
+              <p className="text-xs text-ink-faint">
+                Offers usually read “make 10 debit card purchases of $5 or more within 90 days”. The minimum per purchase is
+                what decides which swipes count. Leave the deadline empty and the countdown borrows the direct-deposit window,
+                then the overall bonus window.
+              </p>
             </div>
           )}
 
