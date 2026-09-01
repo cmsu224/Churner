@@ -2,11 +2,11 @@ import { useState } from 'react'
 import Modal from '../shared/Modal'
 import Field, { inp, inpRequired } from '../shared/Field'
 import { useChurn } from '../../store/ChurnContext'
-import { CASH_SOURCE_TYPES, nodeKey } from '../../engines/moneyFlow'
+import { CASH_SOURCE_TYPES, nodeKey, isNodeHidden, setNodeHidden, hideBlockedReason } from '../../engines/moneyFlow'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { getIssuerMeta } from '../../utils/issuers'
 import IssuerLogo from '../shared/IssuerLogo'
-import { Landmark, Wallet, Home, Trash2, Check, Palette } from 'lucide-react'
+import { Landmark, Wallet, Home, Trash2, Check, Palette, EyeOff, AlertTriangle } from 'lucide-react'
 
 const ACCT_TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 
@@ -70,6 +70,10 @@ export default function NodeEditModal({ node, onClose }) {
     rawAccount?.openingBalance != null ? String(rawAccount.openingBalance) : ''
   )
   const [notes, setNotes] = useState(isAccount ? (rawAccount?.notes || '') : (rawSource?.notes || ''))
+  // Off the map, but still in the app. Kept in the same synced layout object as
+  // the column arrangement, and edited here alongside everything else about the
+  // account so the difference between hiding and deleting is on one screen.
+  const [hidden, setHidden] = useState(() => isNodeHidden(node, state.moneyMapLayout))
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   if (!node || (!rawAccount && !rawSource)) return null
@@ -125,6 +129,18 @@ export default function NodeEditModal({ node, onClose }) {
       }
     }
 
+    // The hub is the one card that can't leave the map — everything aims money
+    // back at it — so promoting a hidden card to hub also puts it back.
+    const nextHidden = hidden && !isHub
+    if (nextHidden !== isNodeHidden(node, state.moneyMapLayout)) {
+      dispatch({ type: 'SET_MAP_LAYOUT', layout: setNodeHidden(state.moneyMapLayout ?? {}, node.key, nextHidden) })
+    }
+
+    onClose()
+  }
+
+  function hideAndClose() {
+    dispatch({ type: 'SET_MAP_LAYOUT', layout: setNodeHidden(state.moneyMapLayout ?? {}, node.key, true) })
     onClose()
   }
 
@@ -136,6 +152,10 @@ export default function NodeEditModal({ node, onClose }) {
     }
     onClose()
   }
+
+  // Checking "Set as Main Hub" in this same form has to take effect here too,
+  // or the two boxes could be saved contradicting each other.
+  const hideBlocked = hideBlockedReason({ ...node, isHub })
 
   const Icon = isSource ? (isHub ? Home : Wallet) : Landmark
 
@@ -355,6 +375,36 @@ export default function NodeEditModal({ node, onClose }) {
           </div>
         </label>
 
+        {/* On/off the map. Sits with the hub checkbox because they are the two
+            "where does this card live on the picture" settings, and directly
+            above Delete because that's the choice this is here to offer. */}
+        <label
+          className={`flex items-start gap-2.5 p-3 rounded-xl border transition-colors ${
+            hideBlocked
+              ? 'bg-raised/20 border-edge opacity-60 cursor-not-allowed'
+              : 'bg-raised/40 border-edge cursor-pointer hover:bg-raised/70'
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={hidden && !hideBlocked}
+            disabled={!!hideBlocked}
+            onChange={e => setHidden(e.target.checked)}
+            className="mt-0.5 rounded border-edge-strong text-accent focus:ring-accent"
+          />
+          <div>
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-ink">
+              <EyeOff size={13} />
+              Hide from the Money Map
+            </span>
+            <span className="block text-[11px] text-ink-tertiary">
+              {hideBlocked
+                ? `Can't hide the hub — ${hideBlocked.toLowerCase()}.`
+                : 'Stops this card being drawn on the map. Nothing is deleted: it keeps its balance, still counts in every total, and still raises its reminders. Un-hide it here, or from the “hidden — show” toggle above the map.'}
+            </span>
+          </div>
+        </label>
+
         {/* Notes */}
         <Field label="Notes">
           <textarea
@@ -367,35 +417,64 @@ export default function NodeEditModal({ node, onClose }) {
         </Field>
 
         {/* Form Actions */}
-        <div className="pt-2 border-t border-edge flex items-center justify-between gap-2">
+        <div className="pt-2 border-t border-edge flex items-center justify-between gap-2 flex-wrap">
           {confirmDelete ? (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="bg-danger hover:bg-danger/85 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
-              >
-                Confirm Delete
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(false)}
-                className="text-xs text-ink-muted hover:text-ink px-2 py-2"
-              >
-                Cancel
-              </button>
+            /* Delete is not hide, and confusing the two costs real data — so
+               the confirm step says exactly what goes, and offers hiding as the
+               thing most people actually wanted. */
+            <div className="w-full space-y-2.5 rounded-xl border border-danger/30 bg-danger/5 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={15} className="text-danger-ink flex-shrink-0 mt-px" aria-hidden="true" />
+                <div className="text-[11px] text-ink-secondary leading-relaxed">
+                  <span className="block text-xs font-semibold text-ink mb-0.5">
+                    Delete {name || 'this'} everywhere?
+                  </span>
+                  {isAccount
+                    ? 'This removes the account from the whole app — the Accounts page, its balance, its bonus tracking, its reminders — not just from the map. Its balance stops counting in the totals. Transfers already logged against it stay in the ledger, drawn from a greyed-out “Removed account” placeholder. This cannot be undone.'
+                    : 'This removes the cash source from the whole app, not just from the map. Its balance stops counting in the totals. Transfers already logged against it stay in the ledger, drawn from a greyed-out “Removed account” placeholder. This cannot be undone.'}
+                  <span className="block mt-1.5 text-ink-tertiary">
+                    Just want it off the map? Hide it instead — it keeps everything and stays one tap from coming back.
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="bg-danger hover:bg-danger/85 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                >
+                  Delete permanently
+                </button>
+                {!hideBlocked && !hidden && (
+                  <button
+                    type="button"
+                    onClick={hideAndClose}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-edge-strong bg-surface text-ink-muted hover:text-ink hover:bg-raised transition-colors"
+                  >
+                    <EyeOff size={13} /> Hide from the map instead
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="text-xs text-ink-muted hover:text-ink px-2 py-2"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
+              title={`Delete ${isAccount ? 'this account' : 'this source'} from the whole app. To only take it off the map, hide it instead.`}
               className="flex items-center gap-1.5 text-xs text-ink-faint hover:text-danger-ink p-2 rounded-lg transition-colors"
             >
-              <Trash2 size={14} /> Delete
+              <Trash2 size={14} /> Delete everywhere
             </button>
           )}
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className={`flex items-center gap-2 ml-auto ${confirmDelete ? 'hidden' : ''}`}>
             <button
               type="button"
               onClick={onClose}

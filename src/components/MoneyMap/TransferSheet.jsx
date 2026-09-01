@@ -4,14 +4,14 @@ import { inp } from '../shared/Field'
 import { useLogTransfer } from '../../hooks/useLogTransfer'
 import {
   TRANSFER_PURPOSES, nodeLabel, parseMoneyInput, recentCounterparties,
-  suggestTransferAmounts, defaultPurposeFor,
+  suggestTransferAmounts, defaultPurposeFor, hideBlockedReason,
 } from '../../engines/moneyFlow'
 import { fmt$, fmt$0, todayISODate, addDaysISO } from '../../utils/format'
 import DateField from '../shared/DateField'
 import NodeGlyph from './NodeGlyph'
 import {
   ArrowUpRight, ArrowDownLeft, List, ChevronLeft, Check,
-  Search, Bell, CornerDownLeft, Pencil,
+  Search, Bell, CornerDownLeft, Pencil, Eye, EyeOff,
 } from 'lucide-react'
 
 // Tap-driven entry, for the phone. Typing an amount, a source and a destination
@@ -72,7 +72,7 @@ function TapRow({ icon, title, subtitle, trailing, onClick, tone = 'default' }) 
   )
 }
 
-export default function TransferSheet({ node, map, onClose, onShowTransfers, onEdit }) {
+export default function TransferSheet({ node, map, isHidden, onSetHidden, onClose, onShowTransfers, onEdit }) {
   const logTransfer = useLogTransfer()
   const [step, setStep] = useState('direction')
   const [direction, setDirection] = useState(null) // 'out' = leaving node, 'in' = arriving
@@ -157,6 +157,9 @@ export default function TransferSheet({ node, map, onClose, onShowTransfers, onE
     setLogged(null)
   }
 
+  // Only the hub refuses to hide — everything aims money back at it.
+  const hideBlocked = hideBlockedReason(node)
+
   const heading = {
     direction: nodeLabel(node),
     pick: direction === 'out' ? `${node.name} → ?` : `? → ${node.name}`,
@@ -223,6 +226,21 @@ export default function TransferSheet({ node, map, onClose, onShowTransfers, onE
               subtitle="Change name, balance, color, or settings"
               onClick={() => { onClose(); onEdit?.(node) }}
             />
+            {/* The phone's way to take a card off the map and put it back. The
+                map has no hover, so without this the only route was Arrange
+                mode — which is not where anyone goes looking for it. */}
+            {(isHidden || !hideBlocked) && (
+              <TapRow
+                icon={isHidden ? <Eye size={18} /> : <EyeOff size={18} />}
+                title={isHidden ? 'Show on the map' : 'Hide from the map'}
+                subtitle={
+                  isHidden
+                    ? 'Draw this card on the map again'
+                    : 'Stop drawing this card. It keeps its balance, its totals and its reminders — nothing is deleted.'
+                }
+                onClick={() => { onSetHidden?.(node.key, !isHidden); onClose() }}
+              />
+            )}
           </div>
           <p className="px-5 pt-3 text-[11px] text-ink-tertiary">
             Either direction records the same thing — money out of one account and into another. Which end you tap just decides
