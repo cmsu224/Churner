@@ -2,6 +2,7 @@ import TrackerTable, { Milestone, Blank } from '../shared/TrackerTable'
 import IssuerLogo from '../shared/IssuerLogo'
 import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountReeligibility } from '../../engines/bankReeligibility'
+import { getDebitProgress } from '../../engines/debitCard'
 import { fmt$0, fmtDateTracker } from '../../utils/format'
 import { statusLabel } from '../../utils/statusMeta'
 
@@ -16,8 +17,18 @@ function requirementLabel(a) {
   } else if (count > 0) {
     parts.push(`${count} DD${count > 1 ? 's' : ''}`)
   }
+  const debitCount = Number(a.requiredDebitCount) || 0
+  if (debitCount > 0) {
+    const min = Number(a.requiredDebitAmount) > 0 ? ` ${fmt$0(a.requiredDebitAmount)}+` : ''
+    parts.push(`${debitCount} debit${min}`)
+  }
+  if (Number(a.requiredDebitSpend) > 0) parts.push(`${fmt$0(a.requiredDebitSpend)} debit spend`)
   if (Number(a.minimumBalance) > 0) parts.push(`${fmt$0(a.minimumBalance)} bal`)
   if (Number(a.ddDeadlineDays) > 0) parts.push(`${a.ddDeadlineDays}d`)
+  // Only when the debit purchases run on their own clock — otherwise the DD
+  // window above already is the deadline the debit requirement borrows.
+  const debitDays = Number(a.debitDeadlineDays) || 0
+  if (debitDays > 0 && debitDays !== Number(a.ddDeadlineDays)) parts.push(`${debitDays}d debit`)
   return parts.join(' · ')
 }
 
@@ -34,6 +45,22 @@ function DirectDeposits({ account }) {
     )
   }
   return <Milestone date={account.ddLinkedDate} done={made > 0} />
+}
+
+// Debit purchases: the completed/required fraction the account's
+// "+ Debit Purchase N/M" button increments, or the running spend total when the
+// offer counts dollars instead of swipes.
+function DebitPurchases({ account }) {
+  const debit = getDebitProgress(account)
+  if (!debit) return <Blank />
+  const tone = debit.met ? 'text-success-ink' : 'text-ink-secondary'
+  return (
+    <span className={`${tone} whitespace-nowrap`}>
+      {debit.requiredCount > 0
+        ? `${debit.made}/${debit.requiredCount}`
+        : `${fmt$0(debit.spent)}/${fmt$0(debit.requiredSpend)}`}
+    </span>
+  )
 }
 
 // The reapply clock, which only runs once the account is closed.
@@ -84,6 +111,7 @@ export default function AccountTable({ accounts, allAccounts, members, onRowClic
     { key: 'bonus', label: 'Bonus', align: 'right', render: a => Number(a.bonusAmount) > 0 ? <span className="text-ink font-medium">{fmt$0(a.bonusAmount)}</span> : <Blank /> },
     { key: 'req', label: 'Requirement', render: a => { const r = requirementLabel(a); return r ? <span className="text-ink-muted whitespace-nowrap">{r}</span> : <Blank /> } },
     { key: 'dd', label: 'DD', render: a => <DirectDeposits account={a} /> },
+    { key: 'debit', label: 'Debit', render: a => <DebitPurchases account={a} /> },
     { key: 'posted', label: 'Posted', render: a => <Milestone date={a.bonusReceivedDate} done={a.status === 'Bonus Received'} /> },
     { key: 'closeafter', label: 'Close after', render: a => <CloseAfter account={a} /> },
     { key: 'closed', label: 'Closed', render: a => <Milestone date={a.closedDate} done={a.status === 'Closed'} tone="muted" /> },

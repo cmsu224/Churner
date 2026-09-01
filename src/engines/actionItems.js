@@ -1,10 +1,11 @@
 import { getSpendDeadlineInfo, getAnnualFeeInfo, getReeligibilityInfo, getCardCloseShield } from './lifecycle'
 import { getClawbackStatus } from './clawbackShield'
 import { getClosedAccountReeligibility, latestPerBank } from './bankReeligibility'
+import { getDebitProgress, debitRemainingLabel, DEADLINE_SOURCE_LABEL } from './debitCard'
 import { getKeepAliveCards } from './creditAge'
 import { getBurnRate } from './burnRate'
 import { collectReminders } from './reminders'
-import { fmt$ } from '../utils/format'
+import { fmt$, fmt$0 } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
 
 function mName(members, memberId) {
@@ -223,6 +224,67 @@ export function generateActionItems(state) {
           title: `${remaining} more DD${remaining !== 1 ? 's' : ''} needed: ${n}`,
           detail: `${made}/${needed} qualifying direct deposits completed at ${acct.bankName}. Each must be ${acct.requiredDD ? '$' + acct.requiredDD.toLocaleString() + '+' : 'qualifying'}. Update "DDs Completed" on the account as you go. ${pn}'s account.`,
           dueDate: null, action: 'Make another deposit' })
+      }
+    }
+
+    // Debit-card purchases — the requirement that sits alongside the direct
+    // deposit on a lot of checking offers ("10 debit transactions of $5+ within
+    // 90 days"). Tiered exactly like the DD deadline, because it is the same
+    // kind of countdown: once the window shuts there is nothing to be done.
+    const debit = getDebitProgress(acct)
+    if (debit && !debit.met && !bonusReceived) {
+      const left = debitRemainingLabel(debit)
+      const qualifier = debit.perPurchaseMin > 0
+        ? ` Only purchases of ${fmt$0(debit.perPurchaseMin)} or more count.`
+        : ''
+      // A borrowed window is never presented as one the user typed in.
+      const windowNote = debit.deadlineFrom && debit.deadlineFrom !== 'debit'
+        ? ` This counts the account's ${DEADLINE_SOURCE_LABEL[debit.deadlineFrom]} — add a debit-card deadline if the offer gives that requirement its own.`
+        : ''
+      const d = debit.daysLeft
+      const dueStr = debit.deadline
+        ? new Date(debit.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : null
+      // The pace that actually clears the requirement, which is the thing you
+      // can act on today: a swipe a day is easy, six a day is a problem.
+      const progressStr = debit.requiredCount > 0
+        ? `${debit.made}/${debit.requiredCount} purchases logged`
+        : `${fmt$(debit.spent)} of ${fmt$(debit.requiredSpend)} logged`
+      const perDay = d > 0 && debit.remainingCount > 0 ? debit.remainingCount / d : 0
+      const pace = perDay > 0
+        ? perDay <= 1
+          ? ` That's about ${Math.max(1, Math.round(1 / perDay))} day${Math.round(1 / perDay) === 1 ? '' : 's'} per purchase — split one grocery run into a few small taps if you're behind.`
+          : ` That's ~${Math.ceil(perDay)} purchases a day — split each errand into separate small transactions.`
+        : ''
+
+      if (d !== null && d < 0) {
+        items.push({ id: `debit-overdue-${acct.id}`, type: 'critical', category: 'bonus', accountId: acct.id, memberId: acct.memberId,
+          title: `Debit purchase window closed: ${n}`,
+          detail: `The debit-card requirement at ${acct.bankName} (${left}) was still unfinished when the window closed ${Math.abs(d)} days ago. Call the bank — if the swipes were made but posted late, ask them to review the account manually and document the call.${qualifier}${windowNote} ${pn}'s account.`,
+          dueDate: debit.deadline, action: 'Call bank now' })
+      } else if (d !== null && d <= 7) {
+        items.push({ id: `debit-urgent-${acct.id}`, type: 'critical', category: 'bonus', accountId: acct.id, memberId: acct.memberId,
+          title: `${d}d to finish debit purchases: ${n}`,
+          detail: `${left} by ${dueStr} to qualify for the ${hasBonus ? fmt$(acct.bonusAmount) + ' ' : ''}bonus.${pace}${qualifier} Debit purchases can take a day or two to post, so leave slack.${windowNote} ${pn}'s account.`,
+          dueDate: debit.deadline, action: 'Use the debit card now' })
+      } else if (d !== null && d <= 30) {
+        items.push({ id: `debit-warn-${acct.id}`, type: 'warning', category: 'bonus', accountId: acct.id, memberId: acct.memberId,
+          title: `${d}d left on debit purchases: ${n}`,
+          detail: `${progressStr} — ${left} by ${dueStr}.${pace}${qualifier} Update the debit counter on the account as you go.${windowNote} ${pn}'s account.`,
+          dueDate: debit.deadline, action: 'Keep swiping the debit card' })
+      } else if (d !== null && d <= 60) {
+        items.push({ id: `debit-info-${acct.id}`, type: 'info', category: 'bonus', accountId: acct.id, memberId: acct.memberId,
+          title: `Debit purchases due by ${dueStr}: ${n}`,
+          detail: `${left} to finish the debit-card requirement at ${acct.bankName}.${qualifier} Point a recurring small charge at the card, or use it for coffee runs, and tap "+ Debit" as each one posts.${windowNote} ${pn}'s account.`,
+          dueDate: debit.deadline, action: 'Schedule the debit purchases' })
+      } else if (d === null && acct.openedDate) {
+        const daysOpen = Math.ceil((new Date() - new Date(acct.openedDate)) / 86400000)
+        if (daysOpen > 14) {
+          items.push({ id: `debit-generic-${acct.id}`, type: daysOpen > 45 ? 'warning' : 'info', category: 'bonus', accountId: acct.id, memberId: acct.memberId,
+            title: `Debit purchases outstanding: ${n}`,
+            detail: `Account opened ${daysOpen} days ago and the debit-card requirement is unfinished — ${left}.${qualifier} Add a debit-card deadline (days) to the account to get a precise countdown. ${pn}'s account.`,
+            dueDate: null, action: 'Use the debit card' })
+        }
       }
     }
 

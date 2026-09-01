@@ -4,7 +4,7 @@
 
 | Last working on | Last file edited | Next step | Pending |
 |---|---|---|---|
-| Money Map UX & reconciliation improvements (settled-only mismatch check, interactive Transfer flow, double-click edit, compact modal, deselect on blank click) | `AGENT.md` | Commit changes to main | None |
+| Debit-card requirement tracking for bank bonuses (new `debitCard.js` engine, `+ Debit Purchase N/M` quick action, form sections, action items, timeline event, Debit table column, Money Map status line) | `AGENT.md` | Push branch `claude/bank-churning-debit-tracking-nf9zus` and open the PR | None |
 
 ---
 
@@ -55,6 +55,7 @@ Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context 
     - `chexSystems.js` — ChexSystems inquiry count / window tracker.
     - `amex.js`, `bofa.js`, `capitalone.js`, `citi.js` — Issuer-specific application rules.
     - `bankEligibility.js`, `bankReeligibility.js` — Bank bonus eligibility rules & re-application windows.
+    - `debitCard.js` — Debit-card requirement on a bank bonus: purchase count, per-purchase qualifying minimum, cumulative debit spend, and the deadline (its own window, else the direct-deposit window, else the bonus window).
     - `cardReeligibility.js` — Card bonus reset windows (e.g., Sapphire 48mo).
     - `annualFees.js`, `cancelGuidance.js`, `clawbackShield.js` — Fee alerts & safe cancellation timing.
     - `earnings.js`, `taxPredictor.js` — Financial calculations and tax estimations.

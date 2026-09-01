@@ -9,9 +9,10 @@ import { getSpendDeadlineInfo, getAnnualFeeInfo, getCardCloseShield } from './li
 import { getCardReeligibility } from './cardReeligibility'
 import { getBankEligibility } from './bankEligibility'
 import { getClawbackStatus } from './clawbackShield'
+import { getDebitProgress, debitRemainingLabel, DEADLINE_SOURCE_LABEL } from './debitCard'
 import { collectReminders } from './reminders'
 import { getTransferStatus, isLanded, splitNodeKey, buildNodes, nodeLabel } from './moneyFlow'
-import { fmt$ } from '../utils/format'
+import { fmt$, fmt$0 } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
 
 const PAST_DAYS = 30      // agenda shows events overdue by up to this many days
@@ -32,6 +33,7 @@ const KIND_CATEGORY = {
   fee_refund_close: 'fees',
   retention_window: 'fees',
   dd_deadline: 'banks',
+  debit_deadline: 'banks',
   bonus_deadline: 'banks',
   clawback_clear: 'banks',
   etf_clear: 'banks',
@@ -226,6 +228,25 @@ export function collectEvents(state) {
         date: deadline.toISOString(),
         title: `Direct deposit deadline: ${n}`,
         detail: `Qualifying direct deposit must land at ${acct.bankName} by this date to stay on track for the bonus. ${pn}'s account.`,
+        memberId: acct.memberId,
+        accountId: acct.id,
+      }))
+    }
+
+    // Debit-card requirement. It gets its own dated entry even when the window
+    // is borrowed from the direct-deposit or bonus deadline — it's a separate
+    // pile of work due on that date — and the detail says which window it is.
+    const debit = getDebitProgress(acct)
+    if (debit && !debit.met && !bonusReceived && debit.deadline) {
+      const each = debit.perPurchaseMin > 0 ? `, each ${fmt$0(debit.perPurchaseMin)} or more` : ''
+      const borrowed = debit.deadlineFrom !== 'debit'
+        ? ` Dated from the account's ${DEADLINE_SOURCE_LABEL[debit.deadlineFrom]}.`
+        : ''
+      events.push(makeEvent({
+        kind: 'debit_deadline',
+        date: debit.deadline,
+        title: `Debit purchases due: ${n}`,
+        detail: `${debitRemainingLabel(debit)} on the ${acct.bankName} debit card by this date${each}.${borrowed} ${pn}'s account.`,
         memberId: acct.memberId,
         accountId: acct.id,
       }))
