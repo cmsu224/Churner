@@ -47,6 +47,12 @@ export function useGist() {
   const [lastSynced, setLastSynced] = useState(null)
   const [error, setError] = useState(null)
   const saveTimer = useRef(null)
+  // A debounce prevents bursts before a save starts; this queue prevents a
+  // second burst from starting while the first network write is still in
+  // flight. Without both, two PUTs can read the same blob SHA and the loser
+  // reports a conflict after the winner has already saved successfully.
+  const saveQueue = useRef(Promise.resolve())
+  const queuedSaves = useRef(0)
 
   const isConfigured = !!(pat() && (backend() === 'repo' ? repo() : gistId()))
 
@@ -85,15 +91,29 @@ export function useGist() {
   const saveToGist = useCallback(async (state) => {
     if (!isConfigured) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(async () => {
-      try {
-        setSyncing(true)
+    const content = JSON.stringify(state, null, 2)
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null
+      queuedSaves.current += 1
+      setSyncing(true)
+
+      const persist = async () => {
         setError(null)
-        const content = JSON.stringify(state, null, 2)
         if (backend() === 'repo') {
           const read = await fetch(`${repoUrl()}?ref=${encodeURIComponent(branch())}`, { headers: headers() })
           if (!read.ok) throw new Error(`Repository read failed: ${read.status}`)
           const current = await read.json()
+
+          const remoteContent = decodeBase64(current.content)
+          if (remoteContent === content) return
+
+          // Do not silently overwrite a change made by an automation, another
+          // tab, or another device since this client last loaded/saved.
+          const cached = localStorage.getItem(LS_CACHE)
+          if (cached && remoteContent !== cached) {
+            throw new Error('Repository changed elsewhere. Reload before saving again.')
+          }
+
           const res = await fetch(repoUrl(), {
             method: 'PUT',
             headers: headers(),
@@ -104,7 +124,20 @@ export function useGist() {
               branch: branch(),
             }),
           })
-          if (!res.ok) throw new Error(`Repository save failed: ${res.status}`)
+          if (!res.ok) {
+            // A writer may have committed between our GET and PUT. If it wrote
+            // the same snapshot, the desired state is already safely remote;
+            // otherwise preserve its data and ask this client to reload.
+            if (res.status === 409 || res.status === 422) {
+              const latest = await fetch(`${repoUrl()}?ref=${encodeURIComponent(branch())}`, { headers: headers() })
+              if (latest.ok) {
+                const latestFile = await latest.json()
+                if (decodeBase64(latestFile.content) === content) return
+              }
+              throw new Error('Repository changed during save. Reload before saving again.')
+            }
+            throw new Error(`Repository save failed: ${res.status}`)
+          }
         } else {
           const res = await fetch(`https://api.github.com/gists/${gistId()}`, {
             method: 'PATCH',
@@ -113,13 +146,25 @@ export function useGist() {
           })
           if (!res.ok) throw new Error(`Gist save failed: ${res.status}`)
         }
-        localStorage.setItem(LS_CACHE, content)
-        setLastSynced(new Date().toISOString())
-      } catch (e) {
-        setError(e.message)
-      } finally {
-        setSyncing(false)
       }
+
+      const run = async () => {
+        try {
+          await persist()
+          localStorage.setItem(LS_CACHE, content)
+          setLastSynced(new Date().toISOString())
+        } catch (e) {
+          setError(e.message)
+        } finally {
+          queuedSaves.current -= 1
+          if (queuedSaves.current === 0) setSyncing(false)
+        }
+      }
+
+      // Keep the queue usable even if an unexpected error escaped a previous
+      // save. `run` normally handles its own errors, but the rejection handler
+      // also protects future writes from a poisoned promise chain.
+      saveQueue.current = saveQueue.current.then(run, run)
     }, 1500)
   }, [isConfigured])
 
