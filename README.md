@@ -496,7 +496,7 @@ Page: `/import`.
 `src/hooks/useGist.js` + `src/store/ChurnContext.jsx`:
 
 - On first launch, a setup screen connects your **GitHub Personal Access Token** to either a private repository file (recommended), a new private Gist, or an existing Gist.
-- Repository mode uses `main/churner-data.json` and optimistic concurrency with the current Git blob SHA. This lets an authorized automation and the dashboard safely reconcile the same private source of truth.
+- Repository mode uses `main/churner-data.json` and optimistic concurrency with the current Git blob SHA. Writes are serialized so overlapping local state changes cannot race each other; if an automation, another tab, or another device changes the file, Churner preserves that remote version and asks you to reload instead of overwriting it.
 - Existing Gist configurations remain backward compatible. The selected backend and credentials stay in browser `localStorage`.
 - State changes auto-save to the selected backend, **debounced 1.5 seconds** to avoid hammering the API.
 - Loads from the selected backend on startup; this is how you sync across devices. A **skeleton loading screen** shows while the first load is in flight.
