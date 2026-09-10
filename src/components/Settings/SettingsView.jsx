@@ -12,8 +12,13 @@ export default function SettingsView() {
   const { theme, toggle: toggleTheme } = useTheme()
   const navigate = useNavigate()
 
+  const initialSync = gist.getSyncConfig()
   const [pat, setPat] = useState('')
+  const [syncBackend, setSyncBackend] = useState(initialSync.backend)
   const [gistId, setGistId] = useState(gist.getGistId())
+  const [repo, setRepo] = useState(initialSync.repo)
+  const [branch, setBranch] = useState(initialSync.branch)
+  const [repoPath, setRepoPath] = useState(initialSync.path)
   const [saveStatus, setSaveStatus] = useState(null)
 
   const notifyEnabled = !!state.settings?.notifyEnabled
@@ -70,9 +75,15 @@ export default function SettingsView() {
 
   function saveSync() {
     const token = pat.trim() || currentPat()
-    const id = gistId.trim()
-    if (!token || !id) return
-    gist.configure(token, id)
+    if (!token) return
+    if (syncBackend === 'repo') {
+      if (!repo.trim() || !branch.trim() || !repoPath.trim()) return
+      gist.configureRepository(token, repo.trim(), branch.trim(), repoPath.trim())
+    } else {
+      const id = gistId.trim()
+      if (!id) return
+      gist.configure(token, id)
+    }
     setSaveStatus('saved')
     setTimeout(() => window.location.reload(), 800)
   }
@@ -196,7 +207,7 @@ export default function SettingsView() {
       {/* GitHub Sync */}
       <section className="bg-surface border border-edge rounded-xl p-5">
         <h2 className="text-sm font-semibold text-ink mb-1">GitHub Sync</h2>
-        <p className="text-xs text-ink-tertiary mb-4">Update your Gist ID or Personal Access Token. Changes take effect on reload.</p>
+        <p className="text-xs text-ink-tertiary mb-4">A private repository is recommended because trusted assistants can reconcile the same data file. Changes take effect on reload.</p>
 
         {gist.error && (
           <div className="flex items-center gap-2 text-xs text-danger-ink bg-danger/10 border border-danger/20 rounded-lg px-3 py-2 mb-4">
@@ -206,18 +217,43 @@ export default function SettingsView() {
         )}
 
         <div className="space-y-3">
-          <div>
-            <label className="text-xs text-ink-muted block mb-1 font-medium">Gist ID</label>
-            <input
-              className={inp}
-              value={gistId}
-              onChange={e => setGistId(e.target.value)}
-              placeholder="e.g. a1b2c3d4e5f6..."
-            />
-            <p className="text-[11px] text-ink-faint mt-1">
-              Found in your Gist URL: <span className="text-ink-tertiary">gist.github.com/username/<strong>this-part</strong></span>
-            </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSyncBackend('repo')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all ${syncBackend === 'repo' ? 'bg-accent border-accent text-white' : 'bg-raised border-edge-strong text-ink-muted'}`}
+            >
+              Private repository
+            </button>
+            <button
+              onClick={() => setSyncBackend('gist')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all ${syncBackend === 'gist' ? 'bg-accent border-accent text-white' : 'bg-raised border-edge-strong text-ink-muted'}`}
+            >
+              Legacy Gist
+            </button>
           </div>
+          {syncBackend === 'repo' ? (
+            <>
+              <div>
+                <label className="text-xs text-ink-muted block mb-1 font-medium">Private repository</label>
+                <input className={inp} value={repo} onChange={e => setRepo(e.target.value)} placeholder="owner/repository" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1 font-medium">Branch</label>
+                  <input className={inp} value={branch} onChange={e => setBranch(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-ink-muted block mb-1 font-medium">JSON path</label>
+                  <input className={inp} value={repoPath} onChange={e => setRepoPath(e.target.value)} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="text-xs text-ink-muted block mb-1 font-medium">Gist ID</label>
+              <input className={inp} value={gistId} onChange={e => setGistId(e.target.value)} placeholder="e.g. a1b2c3d4e5f6..." />
+            </div>
+          )}
           <div>
             <label className="text-xs text-ink-muted block mb-1 font-medium">Personal Access Token</label>
             <input
@@ -228,12 +264,14 @@ export default function SettingsView() {
               placeholder="Leave blank to keep existing token"
               autoComplete="new-password"
             />
-            <p className="text-[11px] text-ink-faint mt-1">Leave blank to keep your current token. Needs <code className="text-ink-tertiary">gist</code> scope only.</p>
+            <p className="text-[11px] text-ink-faint mt-1">
+              Leave blank to keep your current token. Repository mode needs read/write Contents access to the selected private repository.
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={saveSync}
-              disabled={!gistId.trim()}
+              disabled={syncBackend === 'repo' ? !repo.trim() || !branch.trim() || !repoPath.trim() : !gistId.trim()}
               className="bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
             >
               Save &amp; Reload
@@ -272,7 +310,7 @@ export default function SettingsView() {
       {/* Danger zone */}
       <section className="bg-surface border border-edge rounded-xl p-5">
         <h2 className="text-sm font-semibold text-ink mb-1">Danger Zone</h2>
-        <p className="text-xs text-ink-tertiary mb-4">Disconnect from GitHub and clear all stored credentials. Your Gist data is not deleted.</p>
+        <p className="text-xs text-ink-tertiary mb-4">Disconnect from GitHub and clear all stored credentials. Your remote data is not deleted.</p>
         <button
           onClick={() => { gist.disconnect(); window.location.reload() }}
           className="bg-danger/20 hover:bg-danger/30 text-danger-ink hover:text-danger-ink border border-danger/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors"

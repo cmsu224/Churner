@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useGist } from '../../hooks/useGist'
 import { INITIAL_STATE } from '../../data/initialState'
-import { KeyRound, Link2, Plus } from 'lucide-react'
+import { KeyRound, Link2, Plus, Database } from 'lucide-react'
 
 export default function GistSetup({ onConfigured }) {
   const gist = useGist()
   const [pat, setPat] = useState('')
   const [gistId, setGistId] = useState('')
-  const [mode, setMode] = useState('existing')
+  const [repo, setRepo] = useState('cmsu224/Churning-database')
+  const [mode, setMode] = useState('repo')
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
@@ -16,14 +17,27 @@ export default function GistSetup({ onConfigured }) {
     if (!pat.trim()) { setErr('GitHub PAT is required'); return }
     setLoading(true)
     try {
-      if (mode === 'new') {
+      if (mode === 'repo') {
+        if (!repo.trim().includes('/')) throw new Error('Repository must use owner/name format')
+        const res = await fetch(`https://api.github.com/repos/${repo.trim()}/contents/churner-data.json?ref=main`, {
+          headers: {
+            Authorization: `Bearer ${pat.trim()}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+        })
+        if (!res.ok) throw new Error(`Cannot access repository data (${res.status})`)
+        gist.configureRepository(pat.trim(), repo.trim(), 'main', 'churner-data.json')
+        onConfigured()
+      } else if (mode === 'new') {
         const newId = await gist.createNewGist(pat.trim())
         await fetch(`https://api.github.com/gists/${newId}`, {
           method: 'PATCH',
           headers: {
-            Authorization: `token ${pat.trim()}`,
+            Authorization: `Bearer ${pat.trim()}`,
             Accept: 'application/vnd.github+json',
             'Content-Type': 'application/json',
+            'X-GitHub-Api-Version': '2022-11-28',
           },
           body: JSON.stringify({
             files: { 'churner-data.json': { content: JSON.stringify(INITIAL_STATE, null, 2) } },
@@ -34,7 +48,11 @@ export default function GistSetup({ onConfigured }) {
       } else {
         if (!gistId.trim()) { setErr('Gist ID is required'); setLoading(false); return }
         const res = await fetch(`https://api.github.com/gists/${gistId.trim()}`, {
-          headers: { Authorization: `token ${pat.trim()}`, Accept: 'application/vnd.github+json' },
+          headers: {
+            Authorization: `Bearer ${pat.trim()}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
         })
         if (!res.ok) throw new Error(`Invalid Gist ID or token (${res.status})`)
         gist.configure(pat.trim(), gistId.trim())
@@ -58,7 +76,7 @@ export default function GistSetup({ onConfigured }) {
         <div className="bg-surface border border-edge-strong rounded-xl p-6 shadow-xl">
           <h2 className="text-lg font-semibold text-ink mb-1">Connect Your Data</h2>
           <p className="text-ink-muted text-sm mb-6">
-            Your data lives in a private GitHub Gist — only you can see it. No servers required.
+            Your data lives in private GitHub storage that only authorized tools can access.
           </p>
 
           <div className="space-y-4">
@@ -71,37 +89,48 @@ export default function GistSetup({ onConfigured }) {
                 type="password"
                 value={pat}
                 onChange={e => setPat(e.target.value)}
-                placeholder="ghp_..."
+                placeholder="github_pat_..."
                 className="w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors"
               />
               <p className="text-ink-tertiary text-xs mt-1">
-                Needs <code className="text-ink-secondary">gist</code> scope at{' '}
-                github.com/settings/tokens. Stored in your browser only.
+                Repository mode needs read/write Contents access to that repository. Stored in your browser only.
               </p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => setMode('repo')}
+                className={`py-2 px-2 rounded-lg text-xs font-medium border transition-all ${mode === 'repo' ? 'bg-accent border-accent text-white' : 'bg-raised border-edge-strong text-ink-muted'}`}
+              >
+                <Database size={13} className="inline mr-1" />Private Repo
+              </button>
               <button
                 onClick={() => setMode('existing')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
-                  mode === 'existing'
-                    ? 'bg-accent border-accent text-white'
-                    : 'bg-raised border-edge-strong text-ink-muted hover:border-edge-strong'
-                }`}
+                className={`py-2 px-2 rounded-lg text-xs font-medium border transition-all ${mode === 'existing' ? 'bg-accent border-accent text-white' : 'bg-raised border-edge-strong text-ink-muted'}`}
               >
-                <Link2 size={13} className="inline mr-1.5" />Use Existing
+                <Link2 size={13} className="inline mr-1" />Use Gist
               </button>
               <button
                 onClick={() => setMode('new')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
-                  mode === 'new'
-                    ? 'bg-accent border-accent text-white'
-                    : 'bg-raised border-edge-strong text-ink-muted hover:border-edge-strong'
-                }`}
+                className={`py-2 px-2 rounded-lg text-xs font-medium border transition-all ${mode === 'new' ? 'bg-accent border-accent text-white' : 'bg-raised border-edge-strong text-ink-muted'}`}
               >
-                <Plus size={13} className="inline mr-1.5" />Create New
+                <Plus size={13} className="inline mr-1" />New Gist
               </button>
             </div>
+
+            {mode === 'repo' && (
+              <div>
+                <label className="block text-sm font-medium text-ink-secondary mb-1.5">Private repository</label>
+                <input
+                  type="text"
+                  value={repo}
+                  onChange={e => setRepo(e.target.value)}
+                  placeholder="owner/repository"
+                  className="w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors"
+                />
+                <p className="text-ink-tertiary text-xs mt-1">Reads <code className="text-ink-secondary">main/churner-data.json</code>.</p>
+              </div>
+            )}
 
             {mode === 'existing' && (
               <div>
@@ -113,23 +142,17 @@ export default function GistSetup({ onConfigured }) {
                   placeholder="e.g. a1b2c3d4e5f6..."
                   className="w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors"
                 />
-                <p className="text-ink-tertiary text-xs mt-1">
-                  Found in the URL: gist.github.com/username/<strong>ID</strong>
-                </p>
               </div>
             )}
 
             {mode === 'new' && (
               <div className="bg-raised rounded-lg p-3 text-ink-muted text-xs">
-                A private gist named <code className="text-ink-secondary">churner-data.json</code> will be
-                created in your account with your initial data.
+                A private Gist named <code className="text-ink-secondary">churner-data.json</code> will be created with initial data.
               </div>
             )}
 
             {err && (
-              <p className="text-danger-ink text-sm bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">
-                {err}
-              </p>
+              <p className="text-danger-ink text-sm bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">{err}</p>
             )}
 
             <button
@@ -137,7 +160,7 @@ export default function GistSetup({ onConfigured }) {
               disabled={loading}
               className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
             >
-              {loading ? 'Connecting...' : mode === 'new' ? 'Create & Connect' : 'Connect'}
+              {loading ? 'Connecting...' : mode === 'new' ? 'Create & Connect' : mode === 'repo' ? 'Connect Repository' : 'Connect Gist'}
             </button>
           </div>
         </div>

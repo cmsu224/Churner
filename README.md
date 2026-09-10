@@ -491,13 +491,15 @@ Page: `/import`.
   - The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card.
 - **Import** — paste or file-load JSON, preview what will be added (with per-member assignment breakdown and an unassigned-items warning), then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
 
-### 22. Data Sync (GitHub Gist)
+### 22. Data Sync (Private GitHub Repository or Gist)
 
 `src/hooks/useGist.js` + `src/store/ChurnContext.jsx`:
 
-- On first launch, a setup screen connects your **GitHub Personal Access Token** and either **creates a new private Gist** (`churner-data.json`) or links an existing Gist ID.
-- State changes auto-save to the Gist, **debounced 1.5 seconds** to avoid hammering the API.
-- Loads from the Gist on startup; this is how you sync across devices. A **skeleton loading screen** shows while the first load is in flight.
+- On first launch, a setup screen connects your **GitHub Personal Access Token** to either a private repository file (recommended), a new private Gist, or an existing Gist.
+- Repository mode uses `main/churner-data.json` and optimistic concurrency with the current Git blob SHA. This lets an authorized automation and the dashboard safely reconcile the same private source of truth.
+- Existing Gist configurations remain backward compatible. The selected backend and credentials stay in browser `localStorage`.
+- State changes auto-save to the selected backend, **debounced 1.5 seconds** to avoid hammering the API.
+- Loads from the selected backend on startup; this is how you sync across devices. A **skeleton loading screen** shows while the first load is in flight.
 - **Backward-compatible loading** — every field added since your Gist was written is defaulted on load (deep-defaulting for nested settings/notification state), and the old `players`/`playerId` schema is migrated automatically. Older data never breaks or loses anything.
 - **Offline fallback** — a local cache in `localStorage` keeps the app working without a connection and on API errors.
 - A live **sync indicator** in the header shows syncing / synced-at / error states, with retry/reconnect actions on failure.
