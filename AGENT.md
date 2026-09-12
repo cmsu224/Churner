@@ -12,7 +12,7 @@
 
 **Churner** is a multi-person (up to 4 players: P1–P4) churning management dashboard designed to track credit card sign-up bonuses, bank account bonuses, churning eligibility rules (Chase 5/24, Amex lifetime/family language, Citi 24/48mo, CapOne velocity, BofA rules, ChexSystems, etc.), keep-alive / fee schedules, money movement pipeline / simulator, and earnings & tax tracking.
 
-Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context state (`src/store/ChurnContext.jsx`), and synced privately across devices via GitHub Gist (`src/hooks/useGist.js`).
+Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context state (`src/store/ChurnContext.jsx`), and synced privately across devices through GitHub (`src/hooks/useGist.js`). The current/default backend is `cmsu224/Churning-database` on `main`, using `churner-data.json`; GitHub Gist remains supported as an alternate backend.
 
 ---
 
@@ -46,8 +46,8 @@ Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context 
     - `Tax/` — 1099-INT prediction and tax reporting estimator for bank bonuses.
     - `Players/` — Player profile management (P1-P4: names, colors, SSN/TIN hints, credit scores).
     - `Simulator/` — "What If" application simulator checking eligibility before applying.
-    - `ImportExport/` — Data backup, JSON export/import, and Gist sync configuration.
-    - `Settings/` — User preferences, theme toggle, Gist PAT setup.
+    - `ImportExport/` — Data backup, JSON export/import, and GitHub repository/Gist sync configuration.
+    - `Settings/` — User preferences, theme toggle, and GitHub sync/PAT setup.
   - `engines/` — Pure logic engines calculating churning rules and action items:
     - `actionItems.js` — Aggregates all urgent / upcoming action items across all modules.
     - `moneyFlow.js` — Builds Money Map graph, ribbons, reconciliation, `reorderNode` for drag-and-drop, member-aware node building and quick transfer matching.
@@ -64,7 +64,7 @@ Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context 
   - `store/`
     - `ChurnContext.jsx` — Core state store with reducers for players, cards, bank accounts, settings.
   - `hooks/`
-    - `useGist.js` — GitHub Gist synchronization engine (bidirectional sync).
+    - `useGist.js` — GitHub repository/Gist synchronization engine (bidirectional sync; repository backend is current default).
     - `useActionItems.js` — Hook for reactive action items list.
     - `useHighlight.js`, `useLogTransfer.js`, `useTheme.js` — UI utility hooks.
   - `data/`
@@ -79,6 +79,6 @@ Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context 
 
 ## Key Decisions & Conventions
 
-- **Privacy Constraint**: GitHub PAT is stored in `localStorage` only; no personal churner data in git.
+- **Privacy Constraint**: GitHub PAT is stored in `localStorage` only; no personal churner data in the public application repo. Live personal state is stored separately in the private data repository when using the repository backend.
 - **Single Source of Truth**: Keep `README.md` in sync whenever adding/modifying engines, pages, rules, or data models.
 - **Git workflow**: Work directly on `main`.
