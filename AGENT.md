@@ -4,7 +4,7 @@
 
 | Last working on | Last file edited | Next step | Pending |
 |---|---|---|---|
-| Debit-card requirement tracking for bank bonuses (new `debitCard.js` engine, `+ Debit Purchase N/M` quick action, form sections, action items, timeline event, Debit table column, Money Map status line) | `AGENT.md` | Push branch `claude/bank-churning-debit-tracking-nf9zus` and open the PR | None |
+| Adding `CHURNING_ASSISTANT.md` (ChatGPT churning assistant playbook) and correcting the AGENT.md sync description to cover both repository and Gist backends | `AGENT.md` | Push branch `claude/churner-docs-update-gzvyw1` and open the PR | None |
 
 ---
 
@@ -12,7 +12,7 @@
 
 **Churner** is a multi-person (up to 4 players: P1–P4) churning management dashboard designed to track credit card sign-up bonuses, bank account bonuses, churning eligibility rules (Chase 5/24, Amex lifetime/family language, Citi 24/48mo, CapOne velocity, BofA rules, ChexSystems, etc.), keep-alive / fee schedules, money movement pipeline / simulator, and earnings & tax tracking.
 
-Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context state (`src/store/ChurnContext.jsx`), and synced privately across devices through GitHub (`src/hooks/useGist.js`). The current/default backend is `cmsu224/Churning-database` on `main`, using `churner-data.json`; GitHub Gist remains supported as an alternate backend.
+Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context state (`src/store/ChurnContext.jsx`), and synced privately across devices through GitHub (`src/hooks/useGist.js`). `useGist.js` supports **two** sync backends: a GitHub **repository** backend (the current default) and the original **Gist** backend. The default repository-backed data source is `cmsu224/Churning-database/main/churner-data.json`; GitHub Gist remains fully supported as an alternate backend.
 
 ---
 
@@ -64,7 +64,7 @@ Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context 
   - `store/`
     - `ChurnContext.jsx` — Core state store with reducers for players, cards, bank accounts, settings.
   - `hooks/`
-    - `useGist.js` — GitHub repository/Gist synchronization engine (bidirectional sync; repository backend is current default).
+    - `useGist.js` — GitHub synchronization engine (bidirectional sync). Supports both backends: `repo` (default, `cmsu224/Churning-database/main/churner-data.json`) and `gist`.
     - `useActionItems.js` — Hook for reactive action items list.
     - `useHighlight.js`, `useLogTransfer.js`, `useTheme.js` — UI utility hooks.
   - `data/`
@@ -79,6 +79,6 @@ Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context 
 
 ## Key Decisions & Conventions
 
-- **Privacy Constraint**: GitHub PAT is stored in `localStorage` only; no personal churner data in the public application repo. Live personal state is stored separately in the private data repository when using the repository backend.
+- **Privacy Constraint**: GitHub PAT is stored in `localStorage` only; no personal churner data in the public application repo. Live personal state is stored separately — in the private `cmsu224/Churning-database` repository on the repository backend, or in a private Gist on the Gist backend.
 - **Single Source of Truth**: Keep `README.md` in sync whenever adding/modifying engines, pages, rules, or data models.
 - **Git workflow**: Work directly on `main`.
