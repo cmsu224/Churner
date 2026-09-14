@@ -42,6 +42,18 @@ function decodeBase64(value) {
   return new TextDecoder().decode(bytes)
 }
 
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+// GitHub marks contents responses `max-age=60`, so a plain fetch can be served
+// from the browser cache — a read right after a save would see the file as it
+// was before that save. Always bypass the HTTP cache for sync reads.
+async function readRepoFile() {
+  const res = await fetch(`${repoUrl()}?ref=${encodeURIComponent(branch())}`, { headers: headers(), cache: 'no-store' })
+  if (!res.ok) throw new Error(`GitHub repository API ${res.status}: ${res.statusText}`)
+  const data = await res.json()
+  return { sha: data.sha, content: decodeBase64(data.content) }
+}
+
 export function useGist() {
   const [syncing, setSyncing] = useState(false)
   const [lastSynced, setLastSynced] = useState(null)
@@ -53,6 +65,12 @@ export function useGist() {
   // reports a conflict after the winner has already saved successfully.
   const saveQueue = useRef(Promise.resolve())
   const queuedSaves = useRef(0)
+  // Blob SHA of the repository file this tab last loaded or wrote. Saves send
+  // it straight to GitHub, which rejects the PUT if anyone else has committed
+  // since — an authoritative check that, unlike comparing against a fresh
+  // read, can't be fooled by a cached or not-yet-replicated response. Kept
+  // per tab (not in localStorage) so one tab's save can't vouch for another.
+  const repoSha = useRef(null)
 
   const isConfigured = !!(pat() && (backend() === 'repo' ? repo() : gistId()))
 
@@ -63,10 +81,9 @@ export function useGist() {
       setError(null)
       let content
       if (backend() === 'repo') {
-        const res = await fetch(`${repoUrl()}?ref=${encodeURIComponent(branch())}`, { headers: headers() })
-        if (!res.ok) throw new Error(`GitHub repository API ${res.status}: ${res.statusText}`)
-        const data = await res.json()
-        content = decodeBase64(data.content)
+        const file = await readRepoFile()
+        repoSha.current = file.sha
+        content = file.content
       } else {
         const res = await fetch(`https://api.github.com/gists/${gistId()}`, { headers: headers() })
         if (!res.ok) throw new Error(`GitHub Gist API ${res.status}: ${res.statusText}`)
@@ -100,18 +117,19 @@ export function useGist() {
       const persist = async () => {
         setError(null)
         if (backend() === 'repo') {
-          const read = await fetch(`${repoUrl()}?ref=${encodeURIComponent(branch())}`, { headers: headers() })
-          if (!read.ok) throw new Error(`Repository read failed: ${read.status}`)
-          const current = await read.json()
-
-          const remoteContent = decodeBase64(current.content)
-          if (remoteContent === content) return
-
-          // Do not silently overwrite a change made by an automation, another
-          // tab, or another device since this client last loaded/saved.
-          const cached = localStorage.getItem(LS_CACHE)
-          if (cached && remoteContent !== cached) {
-            throw new Error('Repository changed elsewhere. Reload before saving again.')
+          let sha = repoSha.current
+          if (sha && localStorage.getItem(LS_CACHE) === content) return
+          if (!sha) {
+            // No trusted SHA (the startup load failed and fell back to the
+            // cache). Read one, and don't overwrite a remote that no longer
+            // matches the cache this client's state was built from.
+            const current = await readRepoFile()
+            if (current.content === content) { repoSha.current = current.sha; return }
+            const cached = localStorage.getItem(LS_CACHE)
+            if (cached && current.content !== cached) {
+              throw new Error('Repository changed elsewhere. Reload before saving again.')
+            }
+            sha = current.sha
           }
 
           const res = await fetch(repoUrl(), {
@@ -120,24 +138,29 @@ export function useGist() {
             body: JSON.stringify({
               message: 'Update Churner data',
               content: encodeBase64(content),
-              sha: current.sha,
+              sha,
               branch: branch(),
             }),
           })
-          if (!res.ok) {
-            // A writer may have committed between our GET and PUT. If it wrote
-            // the same snapshot, the desired state is already safely remote;
-            // otherwise preserve its data and ask this client to reload.
-            if (res.status === 409 || res.status === 422) {
-              const latest = await fetch(`${repoUrl()}?ref=${encodeURIComponent(branch())}`, { headers: headers() })
-              if (latest.ok) {
-                const latestFile = await latest.json()
-                if (decodeBase64(latestFile.content) === content) return
-              }
-              throw new Error('Repository changed during save. Reload before saving again.')
-            }
+          if (res.ok) {
+            repoSha.current = (await res.json()).content.sha
+            return
+          }
+          if (res.status !== 409 && res.status !== 422) {
             throw new Error(`Repository save failed: ${res.status}`)
           }
+          // Our SHA is out of date, so someone else committed. If they wrote
+          // this exact snapshot it's already safely remote; otherwise preserve
+          // their data and ask this client to reload. GitHub can briefly serve
+          // the pre-write version, so a read still showing our own SHA is
+          // retried rather than trusted.
+          for (let attempt = 0; attempt < 4; attempt += 1) {
+            const latest = await readRepoFile()
+            if (latest.content === content) { repoSha.current = latest.sha; return }
+            if (latest.sha !== sha) break
+            await wait(750 * (attempt + 1))
+          }
+          throw new Error('Repository changed elsewhere. Reload before saving again.')
         } else {
           const res = await fetch(`https://api.github.com/gists/${gistId()}`, {
             method: 'PATCH',

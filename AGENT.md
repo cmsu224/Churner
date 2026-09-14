@@ -4,7 +4,7 @@
 
 | Last working on | Last file edited | Next step | Pending |
 |---|---|---|---|
-| Adding `CHURNING_ASSISTANT.md` (ChatGPT churning assistant playbook) and correcting the AGENT.md sync description to cover both repository and Gist backends | `AGENT.md` | Push branch `claude/churner-docs-update-gzvyw1` and open the PR | None |
+| Fixed repository-mode saves being dropped when changes land back-to-back (a 3rd $12 DD transfer was lost): saves now use the per-tab blob SHA from the last load/write instead of trusting a pre-save read, which GitHub's `max-age=60` caching / post-write lag made stale; all sync reads use `cache: 'no-store'` | `src/hooks/useGist.js` | Push to `main` to deploy; user re-adds the lost $12 Robinhood → Republic DD transfer | None |
 
 ---
 
