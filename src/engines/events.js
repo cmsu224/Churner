@@ -11,6 +11,7 @@ import { getBankEligibility } from './bankEligibility'
 import { getClawbackStatus } from './clawbackShield'
 import { getDebitProgress, debitRemainingLabel, DEADLINE_SOURCE_LABEL } from './debitCard'
 import { collectReminders } from './reminders'
+import { getMonthlyFeeStatus, upcomingFeeCycles, feeRuleLabel } from './monthlyFee'
 import { getTransferStatus, isLanded, splitNodeKey, buildNodes, nodeLabel } from './moneyFlow'
 import { fmt$, fmt$0 } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
@@ -37,6 +38,7 @@ const KIND_CATEGORY = {
   bonus_deadline: 'banks',
   clawback_clear: 'banks',
   etf_clear: 'banks',
+  monthly_fee: 'fees',
   close_shield_clear: 'fees',
   card_reeligible: 'eligibility',
   bank_reeligible: 'eligibility',
@@ -273,6 +275,26 @@ export function collectEvents(state) {
           date: shield.safeDate,
           title: `Safe to close: ${n}`,
           detail: `Past the 181-day clawback window — the bank can no longer reverse the bonus. ${pn}'s account.`,
+          memberId: acct.memberId,
+          accountId: acct.id,
+        }))
+      }
+    }
+
+    // Monthly fee waiver — one reminder per cycle on the "send it by" day, so
+    // the phone nudges before the fee hits, every month the account is held.
+    const fee = getMonthlyFeeStatus(acct, { transfers: state.transfers })
+    if (fee) {
+      for (const cycle of upcomingFeeCycles(acct, { transfers: state.transfers })) {
+        const due = new Date(cycle.cycleEnd + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        events.push(makeEvent({
+          kind: 'monthly_fee',
+          id: `monthly_fee-${acct.id}-${cycle.cycleKey}`,
+          date: cycle.sendBy + 'T00:00:00',
+          title: fee.ddRequired > 0 && !(fee.mode === 'any' && fee.balanceOk)
+            ? `Send ${fmt$0(fee.ddRequired)} DD to skip ${fmt$0(fee.fee)} fee: ${n}`
+            : `Check balance to skip ${fmt$0(fee.fee)} fee: ${n}`,
+          detail: `${acct.bankName} charges ${fmt$0(fee.fee)}/month unless you ${feeRuleLabel(fee)}. This cycle ends ${due}. ${pn}'s account.`,
           memberId: acct.memberId,
           accountId: acct.id,
         }))

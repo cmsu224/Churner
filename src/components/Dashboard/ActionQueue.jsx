@@ -6,6 +6,7 @@ import { fmtDate } from '../../utils/format'
 const CATEGORY_ICON = {
   spend: CreditCard,
   annual_fee: Calendar,
+  monthly_fee: Calendar,
   cancel: Scissors,
   bonus: Gift,
   clawback: Shield,

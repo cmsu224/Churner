@@ -9,8 +9,9 @@ import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountReeligibility } from '../../engines/bankReeligibility'
 import { getAccountNextStatus } from '../../engines/lifecycle'
 import { getDebitProgress } from '../../engines/debitCard'
+import { getMonthlyFeeStatus, feeRuleLabel, toggleFeeDDLog } from '../../engines/monthlyFee'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
-import { fmt$, fmtDate, todayISODate } from '../../utils/format'
+import { fmt$, fmt$0, fmtDate, todayISODate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Trash2, Shield, ExternalLink, RotateCcw } from 'lucide-react'
 
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
@@ -153,7 +154,17 @@ export default function AccountItem({ account, members }) {
   const nextStatus = getAccountNextStatus(account)
   const ddInfo = ddDeadlineInfo(account)
   const debit = getDebitProgress(account)
+  const fee = getMonthlyFeeStatus(account, { transfers: state.transfers })
   const quickActions = getAccountQuickActions(account, nextStatus)
+  // This cycle's waiver deposit, one tap — a Money Map DD push already counts,
+  // so the button only shows while it's still owed (or was ticked by hand).
+  if (fee && fee.ddRequired > 0 && fee.ddSource !== 'transfer' && !(fee.mode === 'any' && fee.balanceOk)) {
+    quickActions.push(fee.ddDone
+      ? { label: `↺ Fee DD not done (${fee.monthLabel})`, color: 'zinc',
+          payload: { feeWaiverDDLog: toggleFeeDDLog(account, fee.cycleKey) } }
+      : { label: `✓ Fee DD done (${fee.monthLabel})`, color: 'blue',
+          payload: { feeWaiverDDLog: toggleFeeDDLog(account, fee.cycleKey) } })
+  }
 
   useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
 
@@ -198,6 +209,11 @@ export default function AccountItem({ account, members }) {
         // The Money Map's ledger baseline: what it held before the first push.
         openingBalance: numOpt(draft.openingBalance) ?? 0,
         minimumBalance: numOpt(draft.minimumBalance),
+        monthlyFee: numOpt(draft.monthlyFee),
+        feeWaiverBalance: numOpt(draft.feeWaiverBalance),
+        feeWaiverDD: numOpt(draft.feeWaiverDD),
+        feeWaiverMode: draft.feeWaiverMode === 'all' ? 'all' : 'any',
+        feeCycleDay: intOpt(draft.feeCycleDay),
         ddDeadlineDays: intOpt(draft.ddDeadlineDays),
         requiredDDCount: intOpt(draft.requiredDDCount),
         ddsMade: intOpt(draft.ddsMade),
@@ -366,6 +382,28 @@ export default function AccountItem({ account, members }) {
             <div className="flex justify-between">
               <span>Min balance</span>
               <span>{fmt$(account.minimumBalance)}</span>
+            </div>
+          )}
+          {fee && (
+            <div className={`rounded-lg px-2 py-1.5 -mx-1 ${fee.waived || !fee.hasWaiver ? 'bg-raised/50' : fee.daysLeft <= 3 ? 'bg-danger/10' : 'bg-warning/10'}`}>
+              <div className="flex justify-between gap-2">
+                <span>Monthly fee</span>
+                <span className={!fee.hasWaiver ? 'text-danger-ink font-medium' : fee.waived ? 'text-success-ink font-medium' : fee.daysLeft <= 3 ? 'text-danger-ink font-medium' : 'text-warning-ink font-medium'}>
+                  {!fee.hasWaiver
+                    ? `${fmt$0(fee.fee)}/mo — no waiver`
+                    : fee.waived
+                    ? `${fee.monthLabel} fee avoided ✓`
+                    : `${fmt$0(fee.fee)} due ${fmtDate(fee.cycleEnd)} (${fee.daysLeft}d)`}
+                </span>
+              </div>
+              {fee.hasWaiver && (
+                <div className="text-ink-tertiary mt-0.5">
+                  Every month: {feeRuleLabel(fee)}.
+                  {!fee.waived && fee.balanceOk === false && ` Balance is ${fmt$0(Math.ceil(fee.shortfall))} short.`}
+                  {!fee.waived && fee.ddDone === false && ` Send the deposit by ${fmtDate(fee.sendBy)}.`}
+                  {fee.ddSource === 'transfer' && ' Deposit logged on the Money Map.'}
+                </div>
+              )}
             </div>
           )}
           {account.bonusReceivedDate && (
@@ -609,6 +647,45 @@ export default function AccountItem({ account, members }) {
               </p>
             </div>
           )}
+
+          {/* Monthly fee — what it costs to keep the account open (clawback
+              hold or a keeper) and what waives it each statement cycle */}
+          <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+            <div className="text-xs font-medium text-ink-secondary mb-2">Monthly Fee &amp; How to Avoid It</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-ink-muted block mb-1">Monthly Fee ($)</label>
+                <input type="number" min="0" className={inp} value={draft.monthlyFee ?? ''} onChange={e => set('monthlyFee', e.target.value)} placeholder="e.g. 12 — empty if none" />
+              </div>
+              <div>
+                <label className="text-xs text-ink-muted block mb-1">Fee Cycle Ends (day of month)</label>
+                <input type="number" min="1" max="31" className={inp} value={draft.feeCycleDay ?? ''} onChange={e => set('feeCycleDay', e.target.value)} placeholder="month end" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-ink-muted block mb-1">Waived by Keeping Balance ($)</label>
+                <input type="number" min="0" className={inp} value={draft.feeWaiverBalance ?? ''} onChange={e => set('feeWaiverBalance', e.target.value)} placeholder="e.g. 1500" />
+              </div>
+              <div>
+                <label className="text-xs text-ink-muted block mb-1">Waived by Monthly Direct Deposit ($)</label>
+                <input type="number" min="0" className={inp} value={draft.feeWaiverDD ?? ''} onChange={e => set('feeWaiverDD', e.target.value)} placeholder="e.g. 500" />
+              </div>
+            </div>
+            {Number(draft.feeWaiverBalance) > 0 && Number(draft.feeWaiverDD) > 0 && (
+              <div>
+                <label className="text-xs text-ink-muted block mb-1">To avoid the fee you need</label>
+                <select className={inp} value={draft.feeWaiverMode ?? 'any'} onChange={e => set('feeWaiverMode', e.target.value)}>
+                  <option value="any">Either one (balance OR deposit)</option>
+                  <option value="all">Both (balance AND deposit)</option>
+                </select>
+              </div>
+            )}
+            <p className="text-xs text-ink-faint">
+              While the account is held open you get a reminder every month to top up the balance or send the deposit. A direct
+              deposit push logged on the Money Map counts automatically.
+            </p>
+          </div>
 
           {/* Offer & Notes */}
           <div>

@@ -380,7 +380,7 @@ export function getStrandedCash(state) {
     if (balance <= 0) continue
     // Money still doing a job: below the required minimum, or the bonus hasn't
     // posted yet, is money that has to stay put.
-    const minimum = round2(a.minimumBalance)
+    const minimum = round2(Math.max(Number(a.minimumBalance) || 0, a.status === 'Closed' ? 0 : Number(a.feeWaiverBalance) || 0))
     const free = round2(balance - minimum)
     if (free <= 0) continue
 

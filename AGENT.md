@@ -4,7 +4,7 @@
 
 | Last working on | Last file edited | Next step | Pending |
 |---|---|---|---|
-| Fixed repository-mode saves being dropped when changes land back-to-back (a 3rd $12 DD transfer was lost): saves now use the per-tab blob SHA from the last load/write instead of trusting a pre-save read, which GitHub's `max-age=60` caching / post-write lag made stale; all sync reads use `cache: 'no-store'` | `src/hooks/useGist.js` | Push to `main` to deploy; user re-adds the lost $12 Robinhood → Republic DD transfer | None |
+| Added monthly-fee tracking for held bank accounts: new `engines/monthlyFee.js` (fee, balance/DD waiver, any/all rule, cycle day, `feeWaiverDDLog`, Money Map DD pushes count), per-cycle action items (`monthly_fee`), timeline events, account-card fee row + "Fee DD done" button + edit section, AI import fields, stranded-cash floor, README | `src/components/BankAccounts/AccountItem.jsx` | Push to `main` to deploy; set fee rules on held accounts | Not committed |
 
 ---
 
@@ -55,6 +55,7 @@ Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context 
     - `chexSystems.js` — ChexSystems inquiry count / window tracker.
     - `amex.js`, `bofa.js`, `capitalone.js`, `citi.js` — Issuer-specific application rules.
     - `bankEligibility.js`, `bankReeligibility.js` — Bank bonus eligibility rules & re-application windows.
+    - `monthlyFee.js` — Monthly maintenance fee while an account is held: waiver by balance and/or monthly DD, statement-cycle math, send-by date (cycle end − 5d), per-cycle reminders.
     - `debitCard.js` — Debit-card requirement on a bank bonus: purchase count, per-purchase qualifying minimum, cumulative debit spend, and the deadline (its own window, else the direct-deposit window, else the bonus window).
     - `cardReeligibility.js` — Card bonus reset windows (e.g., Sapphire 48mo).
     - `annualFees.js`, `cancelGuidance.js`, `clawbackShield.js` — Fee alerts & safe cancellation timing.

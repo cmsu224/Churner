@@ -5,6 +5,7 @@ import { getDebitProgress, debitRemainingLabel, DEADLINE_SOURCE_LABEL } from './
 import { getKeepAliveCards } from './creditAge'
 import { getBurnRate } from './burnRate'
 import { collectReminders } from './reminders'
+import { getMonthlyFeeStatus, feeRuleLabel } from './monthlyFee'
 import { fmt$, fmt$0 } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
 
@@ -317,6 +318,32 @@ export function generateActionItems(state) {
         title: `Hold open ${shield.daysRemaining}d more: ${n}`,
         detail: `Bonus received! Keep this account open${(acct.minimumBalance ?? 0) > 0 ? ' and above ' + fmt$(acct.minimumBalance) : ''} for ${shield.daysRemaining} more days to clear the 181-day clawback window. Closing early risks losing the bonus. ${pn}'s account.`,
         dueDate: shield.safeDate, action: 'Keep account open' })
+    }
+
+    // Monthly fee — while an account is held open (clawback window, or just
+    // kept), the fee comes back every cycle unless the waiver is met. The id
+    // carries the cycle, so next month's reminder shows up fresh even if this
+    // month's was dismissed.
+    const fee = getMonthlyFeeStatus(acct, { transfers: state.transfers })
+    if (fee && fee.hasWaiver && !fee.waived) {
+      const due = new Date(fee.cycleEnd + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      const sendBy = new Date(fee.sendBy + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      const needBalance = fee.balanceOk === false
+      const needDD = fee.ddDone === false
+      const type = fee.daysLeft <= 3 ? 'critical' : fee.daysToSend <= 3 ? 'warning' : 'info'
+      const steps = []
+      if (needBalance) steps.push(`add ${fmt$0(Math.ceil(fee.shortfall))} so the balance is at least ${fmt$0(fee.balanceRequired)} (it shows ${fmt$0(fee.balance)})`)
+      if (needDD) steps.push(`push a ${fmt$0(fee.ddRequired)} direct deposit — send it by ${sendBy} so it lands in time`)
+      const joiner = fee.mode === 'all' ? ' AND ' : ' OR '
+      const title = needDD && !(needBalance && fee.mode === 'any')
+        ? `${fmt$0(fee.ddRequired)} DD by ${due} to skip ${fmt$0(fee.fee)} fee: ${n}`
+        : needBalance && !needDD
+        ? `Add ${fmt$0(Math.ceil(fee.shortfall))} to skip ${fmt$0(fee.fee)} fee: ${n}`
+        : `Skip the ${fmt$0(fee.fee)} monthly fee by ${due}: ${n}`
+      items.push({ id: `monthly-fee-${acct.id}-${fee.cycleKey}`, type, category: 'monthly_fee', accountId: acct.id, memberId: acct.memberId,
+        title,
+        detail: `${acct.bankName} charges ${fmt$0(fee.fee)} every month unless you ${feeRuleLabel(fee)}. To avoid the ${fee.monthLabel} fee (cycle ends ${due}): ${steps.join(joiner)}.${bonusReceived && !shield.safe ? ` The account has to stay open ${shield.daysRemaining} more days for the clawback window, so this repeats every month until then.` : ''} Tap "Fee DD done" on the account once it lands, or log it on the Money Map as a direct deposit push. ${pn}'s account.`,
+        dueDate: fee.cycleEnd, action: needDD ? 'Send the direct deposit' : 'Top up the balance' })
     }
   }
 

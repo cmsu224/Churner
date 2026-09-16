@@ -66,6 +66,9 @@ If you genuinely cannot tell who owns an item, omit "member" and it will be hand
       "requiredDebitAmount": 5,
       "debitDeadlineDays": 90,
       "minimumBalance": 0,
+      "monthlyFee": 12,
+      "feeWaiverBalance": 1500,
+      "feeWaiverDD": 500,
       "isTaxable": true,
       "status": "Opened",
       "notes": ""
@@ -107,6 +110,11 @@ requiredDebitAmount — minimum size of a qualifying debit purchase (e.g. 5 for 
 requiredDebitSpend  — total debit-card spend required, when the offer counts dollars instead of/as well as swipes
 debitDeadlineDays   — days from opening to finish the debit purchases (omit if it's the same window as the DD)
 minimumBalance    — required minimum balance to qualify for bonus (0 if none)
+monthlyFee        — monthly maintenance fee in dollars (omit if none)
+feeWaiverBalance  — balance that waives the monthly fee (omit if not an option)
+feeWaiverDD       — monthly direct deposit amount that waives the fee (omit if not an option)
+feeWaiverMode     — "any" if either waiver works (default), "all" if both are needed
+feeCycleDay       — day of month the fee cycle ends (omit for month end)
 
 DO NOT include "id" or "memberId" fields.
 Omit or null any field you don't know. Do NOT guess dates.
@@ -205,6 +213,11 @@ function mergeAiImport(state, aiData, members, fallbackMemberId) {
       bonusDeadlineDays: a.bonusDeadlineDays ?? undefined,
       bonusReceivedDate: a.bonusReceivedDate ?? null,
       minimumBalance: a.minimumBalance ?? undefined,
+      monthlyFee: a.monthlyFee ?? undefined,
+      feeWaiverBalance: a.feeWaiverBalance ?? undefined,
+      feeWaiverDD: a.feeWaiverDD ?? undefined,
+      feeWaiverMode: a.feeWaiverMode === 'all' ? 'all' : undefined,
+      feeCycleDay: a.feeCycleDay ?? undefined,
       isTaxable: a.isTaxable ?? true,
       offerUrl: a.offerUrl ?? null,
       safeToCloseDate,
