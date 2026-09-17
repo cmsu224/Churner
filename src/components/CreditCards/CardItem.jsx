@@ -4,6 +4,7 @@ import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
+import { EditorActions, EditorTabs } from '../shared/CompactEditor'
 import { getSpendProgress, getReeligibilityInfo, getCardCloseShield, getFeeRefundDays } from '../../engines/lifecycle'
 import { getCardFeeSchedule } from '../../engines/annualFees'
 import { getCancelGuidance } from '../../engines/cancelGuidance'
@@ -12,10 +13,17 @@ import { getBurnRate } from '../../engines/burnRate'
 import { valueCardBonus, isCardBonusPending } from '../../engines/earnings'
 import { CARD_STATUSES } from '../../utils/statusMeta'
 import { fmt$, fmt$0, fmtPts, fmtDate, fmtDateCompact, todayISODate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Zap, RotateCcw, Plus, X, Lightbulb, Receipt } from 'lucide-react'
+import { ChevronDown, ChevronUp, Zap, RotateCcw, Plus, X, Lightbulb, Receipt } from 'lucide-react'
 
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
+
+const ISSUERS = ['Chase', 'Amex', 'Capital One', 'Citi', 'Bank of America', 'Barclays', 'Wells Fargo', 'US Bank', 'Discover']
+const EDIT_SECTIONS = [
+  { id: 'basics', label: 'Basics' },
+  { id: 'offer', label: 'Offer & fee' },
+  { id: 'details', label: 'Details' },
+]
 
 const btnColors = {
   emerald: 'border border-edge-strong text-ink-tertiary hover:text-success-ink hover:border-success/50',
@@ -184,8 +192,9 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
   const [confirming, setConfirming] = useState(false)
+  const [editSection, setEditSection] = useState('basics')
+  const [customIssuer, setCustomIssuer] = useState(false)
   const [undoSnapshot, setUndoSnapshot] = useState(null)
-  const [showMore, setShowMore] = useState(false)
   const [showDowngradeInput, setShowDowngradeInput] = useState(false)
   const [downgradingTo, setDowngradingTo] = useState('')
   const [showLogSpend, setShowLogSpend] = useState(autoOpenLogSpend)
@@ -239,7 +248,8 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
 
   function startEdit() {
     setDraft({ ...card })
-    setShowMore(false)
+    setEditSection('basics')
+    setCustomIssuer(!!card.issuer && !ISSUERS.includes(card.issuer))
     setExpanded(true)
   }
 
@@ -666,7 +676,16 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
       {/* Expanded edit form */}
       {expanded && draft && !confirming && (
         <div className="border-t border-edge-strong p-4 space-y-3">
+          <EditorTabs sections={EDIT_SECTIONS} active={editSection} onChange={setEditSection} />
+          <EditorActions
+            onDelete={() => setConfirming(true)}
+            onCancel={cancelEdit}
+            onSave={saveEdit}
+            saveDisabled={!draft.cardName?.trim()}
+            deleteLabel={`Delete ${card.cardName}`}
+          />
 
+          {editSection === 'basics' && <>
           {/* Keep Alive keeps its status actions here, behind the expand — the
               collapsed card stays lean. Applying one also closes the form so
               the stale draft can't overwrite the new status on Save. */}
@@ -712,10 +731,32 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Issuer</label>
-              <input list="issuers" className={inp} value={draft.issuer ?? ''} onChange={e => set('issuer', e.target.value)} placeholder="Chase" />
-              <datalist id="issuers">
-                {['Chase', 'Amex', 'Capital One', 'Citi', 'Bank of America', 'Barclays', 'Wells Fargo', 'US Bank', 'Discover'].map(i => <option key={i} value={i} />)}
-              </datalist>
+              <select
+                className={inp}
+                value={customIssuer ? '__custom__' : (draft.issuer ?? '')}
+                onChange={e => {
+                  if (e.target.value === '__custom__') {
+                    setCustomIssuer(true)
+                    set('issuer', '')
+                  } else {
+                    setCustomIssuer(false)
+                    set('issuer', e.target.value)
+                  }
+                }}
+              >
+                <option value="">Select issuer</option>
+                {ISSUERS.map(issuer => <option key={issuer} value={issuer}>{issuer}</option>)}
+                <option value="__custom__">Other issuer…</option>
+              </select>
+              {customIssuer && (
+                <input
+                  className={`${inp} mt-2`}
+                  value={draft.issuer ?? ''}
+                  onChange={e => set('issuer', e.target.value)}
+                  placeholder="Enter issuer"
+                  autoFocus
+                />
+              )}
             </div>
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Last 4</label>
@@ -736,12 +777,14 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
               </div>
             )}
           </div>
+          </>}
 
+          {editSection === 'offer' && <>
           {/* Earning Bonus — only shown for Active Churn or when spend data exists */}
           {showEarnBonusSection && (
             <div className="bg-raised/50 rounded-lg p-3 space-y-2">
               <div className="text-xs font-medium text-ink-secondary mb-2">Earning Bonus</div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Spend Req ($)</label>
                   <input type="number" min="0" className={inp} value={draft.spendRequirement ?? ''} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
@@ -756,8 +799,10 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 </div>
               </div>
               {(card.spendLog ?? []).length > 0 ? (
-                <div className="pt-1">
-                  <div className="text-xs text-ink-tertiary mb-1.5">Spend log</div>
+                <details className="pt-1">
+                  <summary className="cursor-pointer text-xs font-medium text-ink-muted">
+                    Spend log ({card.spendLog.length})
+                  </summary>
                   <ul className="space-y-1">
                     {[...card.spendLog].sort((a, b) => new Date(b.date) - new Date(a.date)).map(entry => (
                       <li key={entry.id} className="flex items-center gap-2 text-xs bg-raised/60 rounded-md px-2 py-1.5">
@@ -775,7 +820,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                     ))}
                   </ul>
                   <p className="text-[11px] text-ink-faint mt-1.5">Deleting an entry subtracts it from the total. The Spent field still works for manual totals.</p>
-                </div>
+                </details>
               ) : (
                 <p className="text-[11px] text-ink-faint">Tip: the “+ Log” button on the collapsed card itemizes spend and powers the pace projection.</p>
               )}
@@ -786,7 +831,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
           {showBonusSection && (
             <div className="bg-raised/50 rounded-lg p-3 space-y-2">
               <div className="text-xs font-medium text-ink-secondary mb-2">Bonus & Rewards</div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Bonus</label>
                   <input type="number" min="0" className={inp} value={draft.bonusValue ?? ''} onChange={e => set('bonusValue', e.target.value)} placeholder="pts/$" />
@@ -834,13 +879,23 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                         Posted today
                       </button>
                     </div>
-                    <p className="text-[11px] text-ink-faint mt-1">The date the fee <em>actually</em> hit the statement, from the most recent time it posted. Issuers bill it on the first statement after the anniversary, so nothing starts the {getFeeRefundDays(card)}-day cancel-for-full-refund clock until this is set — and setting it once pins every later cycle to your real statement date. Blank = the open-date anniversary is used as the cycle date, with the fee expected on the statement after it.</p>
+                    <details className="mt-1 text-[11px] text-ink-faint">
+                      <summary className="cursor-pointer font-medium text-ink-tertiary">How fee timing works</summary>
+                      The date the fee <em>actually</em> hit the statement, from the most recent time it posted. Issuers bill it on the first statement after the anniversary, so nothing starts the {getFeeRefundDays(card)}-day cancel-for-full-refund clock until this is set. Blank uses the open-date anniversary.
+                    </details>
                   </div>
                 </>
               )}
             </div>
           )}
+          {!showEarnBonusSection && !showBonusSection && (
+            <p className="rounded-lg bg-raised/50 p-3 text-sm text-ink-muted">
+              This card has no active offer or annual-fee details yet. Change its status in Basics to add them.
+            </p>
+          )}
+          </>}
 
+          {editSection === 'details' && <>
           {/* Closed date — for accurate fee history on retired cards */}
           {(draft.status === 'Closed' || draft.status === 'Downgraded' || !!draft.closedDate) && (
             <div>
@@ -863,19 +918,8 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
           </div>
           <p className="text-xs text-ink-faint -mt-1">Business & authorized-user cards are excluded from Chase 5/24.</p>
 
-          {/* Optional extras — balance, limit, notes. Balance isn't something
-              most churners update often, so it's collapsed by default. */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowMore(o => !o)}
-              className="flex items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-ink transition-colors"
-            >
-              {showMore ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-              More details (optional)
-            </button>
-            {showMore && (
-              <div className="mt-2 space-y-3">
+          {/* Optional extras live in their own short section. */}
+          <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
@@ -890,17 +934,9 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                   <label className="text-xs text-ink-tertiary block mb-1">Notes</label>
                   <textarea rows={2} className={inp} value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} placeholder="optional" />
                 </div>
-              </div>
-            )}
           </div>
+          </>}
 
-          <div className="flex gap-2 pt-1">
-            <button onClick={() => setConfirming(true)} className="p-2 text-ink-tertiary hover:text-danger-ink transition-colors">
-              <Trash2 size={15} />
-            </button>
-            <button onClick={cancelEdit} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
-            <button onClick={saveEdit} disabled={!draft.cardName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Save</button>
-          </div>
         </div>
       )}
     </div>

@@ -4,7 +4,7 @@
 
 | Last working on | Last file edited | Next step | Pending |
 |---|---|---|---|
-| 2026-09-17: monthly fee can now be waived by debit swipes per cycle (`feeWaiverDebitCount`, optional `feeWaiverDebitAmount`, hand-ticked `feeWaiverDebitLog` via "✓ Fee swipes done"); `feeWaiverDD` of 1 = any direct deposit; any/all mode covers all 3 waivers. Engines shared verbatim with ChurnPilot `mobile/src/engines` (tests live there). DB: WF + Republic accounts set | `src/components/BankAccounts/AccountItem.jsx` | Commit + push to `main` to deploy | Not committed; fee cycle day unknown for WF/Republic (month end assumed) |
+| 2026-09-17: card DD deadline hidden once bonus paid or all DDs logged (was showing OVERDUE on Capital One); synced ChurnPilot's tabbed compact editor (`shared/CompactEditor.jsx` + css, bank/issuer dropdowns) into AccountItem + CardItem; two-app rule added. Earlier: fee waiver by debit swipes | `src/components/CreditCards/CardItem.jsx` | none | Fee cycle day unknown for WF/Republic (month end assumed) |
 
 ---
 
@@ -80,6 +80,7 @@ Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context 
 
 ## Key Decisions & Conventions
 
+- **Two-app rule (always)**: any functional change here (engines, components, data fields, import prompt) must be made in ChurnPilot too (`C:\git\Personal Projects\Churning app\mobile\src`) in the same task, and the reverse. Engines are copied verbatim (tests live in ChurnPilot `src/rules/engine.test.ts`); UI files differ in layout (mobile has tabbed editors) so port the logic by hand there. GitHub sync stays web-only; Capacitor/trial/billing stay mobile-only.
 - **Privacy Constraint**: GitHub PAT is stored in `localStorage` only; no personal churner data in the public application repo. Live personal state is stored separately — in the private `cmsu224/Churning-database` repository on the repository backend, or in a private Gist on the Gist backend.
 - **Single Source of Truth**: Keep `README.md` in sync whenever adding/modifying engines, pages, rules, or data models.
 - **Git workflow**: Work directly on `main`.

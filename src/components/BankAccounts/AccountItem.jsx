@@ -4,6 +4,7 @@ import StatusBadge from '../shared/StatusBadge'
 import PlayerBadge from '../shared/PlayerBadge'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
+import { EditorActions, EditorTabs } from '../shared/CompactEditor'
 import ReapplyClock from './ReapplyClock'
 import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountReeligibility } from '../../engines/bankReeligibility'
@@ -12,7 +13,7 @@ import { getDebitProgress } from '../../engines/debitCard'
 import { getMonthlyFeeStatus, feeRuleLabel, toggleFeeDDLog, toggleFeeDebitLog } from '../../engines/monthlyFee'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { fmt$, fmt$0, fmtDate, todayISODate } from '../../utils/format'
-import { ChevronDown, ChevronUp, Trash2, Shield, ExternalLink, RotateCcw } from 'lucide-react'
+import { ChevronDown, ChevronUp, Shield, ExternalLink, RotateCcw } from 'lucide-react'
 
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 // Statuses that mean the bonus already landed (matches the Earnings and Tax
@@ -20,6 +21,20 @@ const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 const RECEIVED_STATUSES = ['Bonus Received', 'Cooling Period', 'Safe to Close', 'Closed']
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
+
+const BANKS = [
+  'Chase', 'Citi', 'Bank of America', 'Wells Fargo', 'US Bank', 'Capital One',
+  'PNC', 'TD Bank', 'Citizens', 'Truist', 'Discover', 'SoFi', 'Ally',
+  'Fidelity', 'Charles Schwab', 'Navy Federal', 'USAA', 'Huntington', 'BMO',
+]
+const EDIT_SECTIONS = [
+  { id: 'basics', label: 'Basics' },
+  { id: 'bonus', label: 'Bonus' },
+  { id: 'deposit', label: 'Deposit' },
+  { id: 'debit', label: 'Debit' },
+  { id: 'fees', label: 'Fees' },
+  { id: 'details', label: 'Details' },
+]
 
 // Same button grammar as the credit-card quick actions: the primary next step
 // is a solid, filled button; anything else stays outlined.
@@ -110,6 +125,10 @@ function getAccountQuickActions(account, nextStatus) {
 
 function ddDeadlineInfo(account) {
   if (!account.openedDate || account.ddLinkedDate) return null
+  // Once the bonus posted or every required DD is logged, the deadline no
+  // longer matters — same rule the action queue uses.
+  if (account.bonusReceivedDate || account.bonusReceived) return null
+  if ((account.ddsMade ?? 0) >= (account.requiredDDCount ?? 1)) return null
   if (!(account.ddDeadlineDays > 0) && !(account.requiredDD > 0)) return null
   const days = account.ddDeadlineDays ?? 90
   const deadline = new Date(account.openedDate)
@@ -144,6 +163,8 @@ export default function AccountItem({ account, members }) {
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
   const [confirming, setConfirming] = useState(false)
+  const [editSection, setEditSection] = useState('basics')
+  const [customBank, setCustomBank] = useState(false)
   const [undoSnapshot, setUndoSnapshot] = useState(null)
   const undoTimerRef = useRef(null)
 
@@ -195,6 +216,8 @@ export default function AccountItem({ account, members }) {
 
   function startEdit() {
     setDraft({ ...account })
+    setEditSection('basics')
+    setCustomBank(!!account.bankName && !BANKS.includes(account.bankName))
     setExpanded(true)
   }
 
@@ -474,7 +497,16 @@ export default function AccountItem({ account, members }) {
       {/* Expanded edit form */}
       {expanded && draft && (
         <div className="border-t border-edge-strong p-4 space-y-3">
+          <EditorTabs sections={EDIT_SECTIONS} active={editSection} onChange={setEditSection} />
+          <EditorActions
+            onDelete={() => setConfirming(true)}
+            onCancel={cancelEdit}
+            onSave={saveEdit}
+            saveDisabled={!draft.bankName?.trim()}
+            deleteLabel={`Delete ${account.bankName}`}
+          />
 
+          {editSection === 'basics' && <>
           {/* Core */}
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -493,7 +525,32 @@ export default function AccountItem({ account, members }) {
 
           <div>
             <label className="text-xs text-accent-ink block mb-1 font-medium">Bank Name <span className="text-accent-ink">*required</span></label>
-            <input className={inpRequired} value={draft.bankName ?? ''} onChange={e => set('bankName', e.target.value)} placeholder="e.g. Chase, Wells Fargo" />
+            <select
+              className={inpRequired}
+              value={customBank ? '__custom__' : (draft.bankName ?? '')}
+              onChange={e => {
+                if (e.target.value === '__custom__') {
+                  setCustomBank(true)
+                  set('bankName', '')
+                } else {
+                  setCustomBank(false)
+                  set('bankName', e.target.value)
+                }
+              }}
+            >
+              <option value="">Select bank</option>
+              {BANKS.map(bank => <option key={bank} value={bank}>{bank}</option>)}
+              <option value="__custom__">Other bank…</option>
+            </select>
+            {customBank && (
+              <input
+                className={`${inpRequired} mt-2`}
+                value={draft.bankName ?? ''}
+                onChange={e => set('bankName', e.target.value)}
+                placeholder="Enter bank name"
+                autoFocus
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -519,7 +576,9 @@ export default function AccountItem({ account, members }) {
               <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
             </div>
           </div>
+          </>}
 
+          {editSection === 'details' && <>
           <div>
             <label className="text-xs text-ink-tertiary block mb-1">Started With ($)</label>
             <input type="number" min="0" className={inp} value={draft.openingBalance ?? ''} onChange={e => set('openingBalance', e.target.value)} placeholder="0" />
@@ -541,7 +600,9 @@ export default function AccountItem({ account, members }) {
               </p>
             </div>
           )}
+          </>}
 
+          {editSection === 'bonus' && <>
           {/* Sign-Up Bonus — shown for active bonus statuses or when bonus data exists */}
           {showBonusSection && (
             <div className="bg-raised/50 rounded-lg p-3 space-y-2">
@@ -578,12 +639,19 @@ export default function AccountItem({ account, members }) {
               )}
             </div>
           )}
+          {!showBonusSection && (
+            <p className="rounded-lg bg-raised/50 p-3 text-sm text-ink-muted">
+              This account has no bonus details yet. Change its status in Basics to add them.
+            </p>
+          )}
+          </>}
 
+          {editSection === 'deposit' && <>
           {/* Direct Deposit — shown when DD is required or already linked */}
           {showDDSection && (
             <div className="bg-raised/50 rounded-lg p-3 space-y-2">
               <div className="text-xs font-medium text-ink-secondary mb-2">Direct Deposit Requirements</div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Direct Deposit Amount ($)</label>
                   <input type="number" min="0" className={inp} value={draft.requiredDD ?? ''} onChange={e => set('requiredDD', e.target.value)} placeholder="500" />
@@ -613,13 +681,20 @@ export default function AccountItem({ account, members }) {
               </div>
             </div>
           )}
+          {!showDDSection && (
+            <p className="rounded-lg bg-raised/50 p-3 text-sm text-ink-muted">
+              No direct-deposit requirement is attached to this account.
+            </p>
+          )}
+          </>}
 
+          {editSection === 'debit' && <>
           {/* Debit Card — the purchase count (and sometimes a spend total) an
               offer asks for alongside, or instead of, the direct deposit */}
           {showDebitSection && (
             <div className="bg-raised/50 rounded-lg p-3 space-y-2">
               <div className="text-xs font-medium text-ink-secondary mb-2">Debit Card Requirements</div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1"># Purchases Required</label>
                   <input type="number" min="0" className={inp} value={draft.requiredDebitCount ?? ''} onChange={e => set('requiredDebitCount', e.target.value)} placeholder="10" />
@@ -653,14 +728,20 @@ export default function AccountItem({ account, members }) {
                   <DateField value={draft.debitCompletedDate} onChange={v => set('debitCompletedDate', v)} />
                 </div>
               </div>
-              <p className="text-xs text-ink-faint">
-                Offers usually read “make 10 debit card purchases of $5 or more within 90 days”. The minimum per purchase is
-                what decides which swipes count. Leave the deadline empty and the countdown borrows the direct-deposit window,
-                then the overall bonus window.
-              </p>
+              <details className="text-xs text-ink-faint">
+                <summary className="cursor-pointer font-medium text-ink-tertiary">How debit requirements work</summary>
+                The minimum per purchase decides which swipes count. An empty deadline borrows the direct-deposit window, then the overall bonus window.
+              </details>
             </div>
           )}
+          {!showDebitSection && (
+            <p className="rounded-lg bg-raised/50 p-3 text-sm text-ink-muted">
+              No debit-purchase requirement is attached to this account.
+            </p>
+          )}
+          </>}
 
+          {editSection === 'fees' && <>
           {/* Monthly fee — what it costs to keep the account open (clawback
               hold or a keeper) and what waives it each statement cycle */}
           <div className="bg-raised/50 rounded-lg p-3 space-y-2">
@@ -710,7 +791,9 @@ export default function AccountItem({ account, members }) {
               automatically; tick “Fee swipes done” on the card once the purchases post.
             </p>
           </div>
+          </>}
 
+          {editSection === 'details' && <>
           {/* Offer & Notes */}
           <div>
             <label className="text-xs text-ink-tertiary block mb-1">Offer Link</label>
@@ -721,14 +804,8 @@ export default function AccountItem({ account, members }) {
             <label className="text-xs text-ink-muted block mb-1">Notes</label>
             <textarea rows={2} className={inp} value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} placeholder="e.g. Offer terms, DD requirements, expiry" />
           </div>
+          </>}
 
-          <div className="flex gap-2 pt-1">
-            <button onClick={() => setConfirming(true)} className="p-2 text-ink-tertiary hover:text-danger-ink transition-colors">
-              <Trash2 size={15} />
-            </button>
-            <button onClick={cancelEdit} className="flex-1 bg-raised hover:bg-overlay text-ink-secondary py-2 rounded-lg text-sm transition-colors">Cancel</button>
-            <button onClick={saveEdit} disabled={!draft.bankName?.trim()} className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Save</button>
-          </div>
         </div>
       )}
     </div>
