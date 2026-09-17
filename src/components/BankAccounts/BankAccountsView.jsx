@@ -10,9 +10,11 @@ import DateField from '../shared/DateField'
 import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/FilterBar'
 import { getIssuerMeta } from '../../utils/issuers'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
+import { getAccountAttentionScore } from '../../engines/lifecycle'
 import { Plus, X, Layers, Table, ChevronDown, ChevronUp } from 'lucide-react'
 
 const SORT_OPTIONS = [
+  { value: 'recommended', label: 'Recommended' },
   { value: 'newest',  label: 'Newest first' },
   { value: 'oldest',  label: 'Oldest first' },
   { value: 'bonus',   label: 'Highest bonus' },
@@ -20,6 +22,9 @@ const SORT_OPTIONS = [
 ]
 const ACCT_TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 const DEFAULT_FILTERS = { statuses: [], banks: [], types: [], hasBonus: false, bonusPending: false }
+// Accounts are ordered by how much attention they need by default — see
+// getAccountAttentionScore in the lifecycle engine.
+const DEFAULT_SORT = 'recommended'
 
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -54,7 +59,7 @@ export default function BankAccountsView() {
   const [newAcct, setNewAcct] = useState(null)
   const [filterMember, setFilterMember] = useState(() => urlParams.get('member') ?? 'all')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
-  const [sortBy, setSortBy] = useState('newest')
+  const [sortBy, setSortBy] = useState(DEFAULT_SORT)
   // Opt-in grouping, decoupled from sort (see CreditCardsView for the rationale).
   const [grouped, setGrouped] = useState(false)
   // 'cards' = the expand-in-place list; 'table' = the dense milestone grid.
@@ -81,7 +86,7 @@ export default function BankAccountsView() {
   function toggleType(t) {
     setFilters(f => ({ ...f, types: f.types.includes(t) ? f.types.filter(x => x !== t) : [...f.types, t] }))
   }
-  function clearFilters() { setFilters(DEFAULT_FILTERS); setSortBy('newest') }
+  function clearFilters() { setFilters(DEFAULT_FILTERS); setSortBy(DEFAULT_SORT) }
 
   const activeCount = [
     filters.statuses.length > 0,
@@ -89,7 +94,7 @@ export default function BankAccountsView() {
     filters.types.length > 0,
     filters.hasBonus,
     filters.bonusPending,
-    sortBy !== 'newest',
+    sortBy !== DEFAULT_SORT,
   ].filter(Boolean).length
 
   function applyFiltersAndSort(accounts) {
@@ -105,7 +110,12 @@ export default function BankAccountsView() {
       if (filters.bonusPending && !(a.bonusAmount > 0 && !a.bonusReceivedDate)) return false
       return true
     })
+    const transfers = state.transfers ?? []
     const sortFn = {
+      // Most attention-needing first; equally urgent accounts fall back to newest.
+      recommended: (a, b) =>
+        getAccountAttentionScore(b, { transfers }) - getAccountAttentionScore(a, { transfers }) ||
+        new Date(b.openedDate || '1970') - new Date(a.openedDate || '1970'),
       newest:  (a, b) => new Date(b.openedDate || '1970') - new Date(a.openedDate || '1970'),
       oldest:  (a, b) => new Date(a.openedDate || '9999') - new Date(b.openedDate || '9999'),
       bonus:   (a, b) => (b.bonusAmount ?? 0) - (a.bonusAmount ?? 0),
@@ -138,6 +148,8 @@ export default function BankAccountsView() {
       requiredDebitSpend: '', debitSpend: '', debitDeadlineDays: '',
       minimumBalance: '', bonusDeadlineDays: '', etfDays: '',
       bonusAmount: '', bonusReceivedDate: '', isTaxable: true,
+      monthlyFee: '', feeCycleDay: '', feeWaiverBalance: '', feeWaiverDD: '',
+      feeWaiverDebitCount: '', feeWaiverDebitAmount: '', feeWaiverMode: 'any',
       closedDate: '', offerUrl: '', notes: '',
     })
     setMoreOpen(false)
@@ -169,6 +181,13 @@ export default function BankAccountsView() {
         // correct balance being reported as over by its own opening figure.
         openingBalance: parseFloat(newAcct.currentBalance) || 0,
         minimumBalance: numOpt(newAcct.minimumBalance),
+        monthlyFee: numOpt(newAcct.monthlyFee),
+        feeWaiverBalance: numOpt(newAcct.feeWaiverBalance),
+        feeWaiverDD: numOpt(newAcct.feeWaiverDD),
+        feeWaiverDebitCount: intOpt(newAcct.feeWaiverDebitCount),
+        feeWaiverDebitAmount: numOpt(newAcct.feeWaiverDebitAmount),
+        feeWaiverMode: newAcct.feeWaiverMode === 'all' ? 'all' : 'any',
+        feeCycleDay: intOpt(newAcct.feeCycleDay),
         ddDeadlineDays: intOpt(newAcct.ddDeadlineDays),
         requiredDDCount: intOpt(newAcct.requiredDDCount),
         ddsMade: intOpt(newAcct.ddsMade),
@@ -203,6 +222,8 @@ export default function BankAccountsView() {
   // Debit purchases are worked over the same stretch of the lifecycle as the
   // deposits, so the two sections appear and disappear together.
   const showAddAcctDebit = showAddAcctDD
+  // A monthly fee matters for as long as the account stays open.
+  const showAddAcctFee = acctStatus !== 'Closed'
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -428,6 +449,60 @@ export default function BankAccountsView() {
                   e.g. “10 debit card purchases of $5 or more within 90 days”. Leave the deadline empty and the countdown
                   borrows the direct-deposit window.
                 </p>
+              </div>
+            )}
+
+            {/* Monthly fee — same fields as the edit form's Fees tab */}
+            {showAddAcctFee && (
+              <div className="bg-raised/50 rounded-lg p-3 space-y-2">
+                <div className="text-xs font-medium text-ink-secondary mb-1">Monthly fee &amp; how to avoid it</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Monthly Fee ($)</label>
+                    <input type="number" min="0" className={inp} value={newAcct.monthlyFee} onChange={e => setN('monthlyFee', e.target.value)} placeholder="e.g. 12 — empty if none" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-muted block mb-1">Fee Cycle Ends (day of month)</label>
+                    <input type="number" min="1" max="31" className={inp} value={newAcct.feeCycleDay} onChange={e => setN('feeCycleDay', e.target.value)} placeholder="month end" />
+                  </div>
+                </div>
+                {Number(newAcct.monthlyFee) > 0 && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-ink-muted block mb-1">Waived by Keeping Balance ($)</label>
+                        <input type="number" min="0" className={inp} value={newAcct.feeWaiverBalance} onChange={e => setN('feeWaiverBalance', e.target.value)} placeholder="e.g. 1500" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-ink-muted block mb-1">Direct Deposit Needed per Cycle ($)</label>
+                        <input type="number" min="0" className={inp} value={newAcct.feeWaiverDD} onChange={e => setN('feeWaiverDD', e.target.value)} placeholder="e.g. 500 — 1 = any amount" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-ink-muted block mb-1">Debit Swipes Needed per Cycle</label>
+                        <input type="number" min="0" className={inp} value={newAcct.feeWaiverDebitCount} onChange={e => setN('feeWaiverDebitCount', e.target.value)} placeholder="e.g. 10" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-ink-muted block mb-1">Minimum per Swipe ($)</label>
+                        <input type="number" min="0" className={inp} value={newAcct.feeWaiverDebitAmount} onChange={e => setN('feeWaiverDebitAmount', e.target.value)} placeholder="any amount" />
+                      </div>
+                    </div>
+                    {[newAcct.feeWaiverBalance, newAcct.feeWaiverDD, newAcct.feeWaiverDebitCount].filter(v => Number(v) > 0).length > 1 && (
+                      <div>
+                        <label className="text-xs text-ink-muted block mb-1">To avoid the fee you need</label>
+                        <select className={inp} value={newAcct.feeWaiverMode} onChange={e => setN('feeWaiverMode', e.target.value)}>
+                          <option value="any">Any one of them</option>
+                          <option value="all">All of them</option>
+                        </select>
+                      </div>
+                    )}
+                    <p className="text-xs text-ink-faint">
+                      You get a reminder every month to top up the balance, send the deposit or make the swipes. Enter 1 as the
+                      deposit if any direct deposit counts.
+                    </p>
+                  </>
+                )}
               </div>
             )}
 

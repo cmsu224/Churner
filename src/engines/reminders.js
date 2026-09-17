@@ -24,14 +24,12 @@ import { fmt$, parseDay, startOfToday, daysBetweenDays } from '../utils/format'
 // posts while you're still deciding what to do.
 export const STRANDED_CASH_DAYS = 14
 
-// The check-backs marking a transfer landed answers by itself. Both are the
-// same question — "did that money actually get there?" — and the answer is yes
-// the moment you tap "It landed", so leaving them on the board is how a check
-// you've already done ends up three days overdue in the notification centre.
-// `check_dd` is deliberately not here: whether the bank *coded* the deposit as
-// a direct deposit is a different question, and the money arriving doesn't
-// answer it. Neither does landing touch a reminder you wrote yourself.
-export const ANSWERED_BY_LANDING = ['check_transfer', 'check_bonus']
+// The check-backs marking a transfer landed answers by itself. Tapping "It
+// landed" means you just looked at the account, so a check-back set on that
+// in-flight push — did it arrive, did the bonus post, did it code as a direct
+// deposit — comes off the board instead of going overdue in the notification
+// centre. A reminder you wrote yourself is left alone.
+export const ANSWERED_BY_LANDING = ['check_transfer', 'check_bonus', 'check_dd']
 
 // True for a check-back that is only waiting on the money to arrive. A push
 // logged as already landed can still carry one — "check on it in 3 weeks" — and

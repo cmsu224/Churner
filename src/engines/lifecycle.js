@@ -1,5 +1,8 @@
 import { isRetired } from '../utils/statusMeta'
 import { daysSinceUsed, WARN_DAYS, CRITICAL_DAYS } from './creditAge'
+import { getDebitProgress } from './debitCard'
+import { getClawbackStatus } from './clawbackShield'
+import { getMonthlyFeeStatus } from './monthlyFee'
 
 // How many days after an annual fee posts you can cancel (or downgrade) and
 // still get it refunded IN FULL. 30 days is the industry norm (Chase, Amex,
@@ -313,6 +316,67 @@ export function getCardAttentionScore(card) {
   // Past the 12-month clawback shield with the bonus earned — free to act on.
   const cs = getCardCloseShield(card)
   if (cs?.safe) score += 80
+
+  return score
+}
+
+// ── Attention score (the "Recommended" bank account order) ──────────────────
+// Same idea as the card score: the status sets the tier, then deadlines add
+// bumps big enough to cross tiers. An account still working its bonus
+// outranks one on hold, closed accounts sink to the bottom.
+const ACCOUNT_STATUS_BASE = {
+  'Opened':         600, // requirements still to do
+  'DD Linked':      580,
+  'Bonus Pending':  500, // waiting on the bank to pay
+  'Safe to Close':  450, // a decision is owed
+  'Bonus Received': 350,
+  'Cooling Period': 300, // holding through the clawback window
+  'Closed':           0,
+}
+
+function deadlineBump(daysLeft) {
+  if (daysLeft < 0)   return 400 // missed — call the bank
+  if (daysLeft <= 7)  return 350
+  if (daysLeft <= 30) return 250
+  return 100
+}
+
+/** @param {any} account @param {{ transfers?: any[] }} [opts] */
+export function getAccountAttentionScore(account, { transfers = [] } = {}) {
+  if (!account) return 0
+  let score = ACCOUNT_STATUS_BASE[account.status] ?? 300
+  if (account.status === 'Closed') return score
+  const bonusPaid = !!(account.bonusReceivedDate || account.bonusReceived)
+
+  // Bonus requirements — the direct deposit and debit card deadlines. Only the
+  // most urgent one counts, so two open requirements don't double up.
+  let requirement = 0
+  if (!bonusPaid && account.openedDate && !account.ddLinkedDate &&
+      (account.ddsMade ?? 0) < (account.requiredDDCount ?? 1) &&
+      (account.ddDeadlineDays > 0 || account.requiredDD > 0)) {
+    const opened = parseDay(account.openedDate)
+    if (opened) requirement = deadlineBump(daysBetween(startOfToday(), addDays(opened, account.ddDeadlineDays ?? 90)))
+  }
+  const debit = bonusPaid ? null : getDebitProgress(account)
+  if (debit && !debit.met && debit.daysLeft !== null) {
+    requirement = Math.max(requirement, deadlineBump(debit.daysLeft))
+  }
+  score += requirement
+
+  // Whole-offer deadline with no bonus yet.
+  if (!bonusPaid && parseDay(account.openedDate) && account.bonusDeadlineDays > 0) {
+    const deadline = addDays(parseDay(account.openedDate), account.bonusDeadlineDays)
+    const daysLeft = daysBetween(startOfToday(), deadline)
+    if (daysLeft < 0) score += 400
+    else if (daysLeft <= 14) score += 300
+  }
+
+  // Monthly fee that isn't waived this cycle yet.
+  const fee = getMonthlyFeeStatus(account, { transfers })
+  if (fee && fee.hasWaiver && !fee.waived) score += fee.daysLeft <= 7 ? 200 : 100
+
+  // Bonus paid and past the 181-day clawback window — free to close.
+  if (bonusPaid && getClawbackStatus(account).safe) score += 80
 
   return score
 }

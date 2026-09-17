@@ -223,8 +223,8 @@ function reducer(state, action) {
         transfers: state.transfers.map(t => t.id === action.id ? landed : t),
         // Every check-back that was only ever asking "did that money get
         // there?" has just answered itself, so it comes off the board instead
-        // of going overdue for a check you've already done. A direct-deposit
-        // coding check and anything you wrote yourself are left alone.
+        // of going overdue for a check you've already done — including the
+        // direct-deposit coding check. Anything you wrote yourself stays.
         reminders: completeReminders(
           state.reminders,
           r => r.transferId === action.id && answeredByLanding(r),
