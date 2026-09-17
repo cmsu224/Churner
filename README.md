@@ -219,7 +219,7 @@ Page: `/accounts`. Same expand-in-place pattern; only **bank name is required**.
 
 The direct deposit fields drive the multi-tier direct-deposit reminders, the multi-DD progress tracker, and the minimum-balance and bonus-deadline countdowns in the [Action Engine](#2-action-engine-the-brain). The **181-day clawback shield** tells you when each account is safe to close, and the optional ETF window feeds an "early-termination fee window ends" event on the [Timeline](#4-timeline--calendar--ics-export).
 
-**Monthly fees while you hold the account** (`src/engines/monthlyFee.js`). You often can't empty an account once the bonus posts — it has to stay open through the clawback window, and most checking accounts charge a monthly fee unless you keep a balance or get a direct deposit every cycle. Record the fee, the balance and/or monthly direct deposit that waive it, whether **either** one or **both** are needed, and the day the fee cycle ends (empty = month end; a day past the month's length clamps to its last day). The account card then shows a **Monthly fee** row — "Sep fee avoided ✓" or "$12 due Sep 30 (14d)" with the rule, the balance shortfall and the send-by date. A cycle's deposit counts as made when it's ticked with **✓ Fee DD done** (stored in `feeWaiverDDLog` as `YYYY-MM`) **or** when Money Map pushes with purpose *Direct deposit* landed in the account inside the cycle for at least the waiver amount. Reminders ask you to **send the money 5 days before the cycle ends** (`FEE_SEND_LEAD_DAYS`) so ACH has time to land. The fee-waiver balance is also treated as money that must stay put by the Money Map's stranded-cash check.
+**Monthly fees while you hold the account** (`src/engines/monthlyFee.js`). You often can't empty an account once the bonus posts — it has to stay open through the clawback window, and most checking accounts charge a monthly fee unless you keep a balance or get a direct deposit every cycle. Record the fee, what waives it — a balance, a direct deposit total per cycle (enter 1 when any deposit counts), and/or a number of debit card swipes (optionally with a minimum per swipe) — whether **any one** or **all** of them are needed, and the day the fee cycle ends (empty = month end; a day past the month's length clamps to its last day). The account card then shows a **Monthly fee** row — "Sep fee avoided ✓" or "$12 due Sep 30 (14d)" with the rule, the balance shortfall and the send-by date. Swipes are ticked by hand with **✓ Fee swipes done** (`feeWaiverDebitLog`). A cycle's deposit counts as made when it's ticked with **✓ Fee DD done** (stored in `feeWaiverDDLog` as `YYYY-MM`) **or** when Money Map pushes with purpose *Direct deposit* landed in the account inside the cycle for at least the waiver amount. Reminders ask you to **send the money 5 days before the cycle ends** (`FEE_SEND_LEAD_DAYS`) so ACH has time to land. The fee-waiver balance is also treated as money that must stay put by the Money Map's stranded-cash check.
 
 **Debit-card requirements** (`src/engines/debitCard.js`). Plenty of checking bonuses want the card *used* as well as funded — *"make 10 debit card purchases of $5 or more within 90 days"* — and some count dollars instead of swipes (*"$500 of debit-card purchases"*). All three parts of that wording are tracked, because an offer that combines them only pays once every part is met:
 
@@ -643,10 +643,12 @@ bankAccounts[]     { id, memberId, status, bankName, accountType, last4,
                      debitCompletedDate,
                      minimumBalance, bonusDeadlineDays, etfDays, isTaxable,
                      monthlyFee,           ← monthly maintenance fee ($)
-                     feeWaiverBalance, feeWaiverDD,   ← what waives it
+                     feeWaiverBalance, feeWaiverDD,   ← what waives it (DD 1 = any deposit)
+                     feeWaiverDebitCount, feeWaiverDebitAmount, ← debit swipes per cycle that waive it
                      feeWaiverMode: 'any'|'all',      ← either one, or both
                      feeCycleDay,          ← day the fee cycle ends; empty = month end
                      feeWaiverDDLog[],     ← 'YYYY-MM' cycles the waiver DD was made
+                     feeWaiverDebitLog[],  ← 'YYYY-MM' cycles the waiver swipes were made
                      isHub,                ← this account is the money-map hub
                      offerUrl, notes }
 pointsBalances[]   { id, memberId, program, balance,

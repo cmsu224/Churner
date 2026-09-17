@@ -5,7 +5,7 @@ import { getDebitProgress, debitRemainingLabel, DEADLINE_SOURCE_LABEL } from './
 import { getKeepAliveCards } from './creditAge'
 import { getBurnRate } from './burnRate'
 import { collectReminders } from './reminders'
-import { getMonthlyFeeStatus, feeRuleLabel } from './monthlyFee'
+import { getMonthlyFeeStatus, feeRuleLabel, feeDebitLabel } from './monthlyFee'
 import { fmt$, fmt$0 } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
 
@@ -330,20 +330,25 @@ export function generateActionItems(state) {
       const sendBy = new Date(fee.sendBy + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       const needBalance = fee.balanceOk === false
       const needDD = fee.ddDone === false
+      const needDebit = fee.debitDone === false
       const type = fee.daysLeft <= 3 ? 'critical' : fee.daysToSend <= 3 ? 'warning' : 'info'
       const steps = []
       if (needBalance) steps.push(`add ${fmt$0(Math.ceil(fee.shortfall))} so the balance is at least ${fmt$0(fee.balanceRequired)} (it shows ${fmt$0(fee.balance)})`)
-      if (needDD) steps.push(`push a ${fmt$0(fee.ddRequired)} direct deposit — send it by ${sendBy} so it lands in time`)
+      if (needDD) steps.push(`${fee.ddRequired <= 1 ? 'push any direct deposit' : `push ${fmt$0(fee.ddRequired)} in direct deposits`} — send it by ${sendBy} so it lands in time`)
+      if (needDebit) steps.push(`${feeDebitLabel(fee)} before ${due} (purchases take a few days to post)`)
       const joiner = fee.mode === 'all' ? ' AND ' : ' OR '
-      const title = needDD && !(needBalance && fee.mode === 'any')
-        ? `${fmt$0(fee.ddRequired)} DD by ${due} to skip ${fmt$0(fee.fee)} fee: ${n}`
-        : needBalance && !needDD
+      const onlyDebit = needDebit && !needDD && !needBalance
+      const title = onlyDebit
+        ? `${fee.debitRequired} debit swipe${fee.debitRequired === 1 ? '' : 's'} by ${due} to skip ${fmt$0(fee.fee)} fee: ${n}`
+        : needDD && !needDebit && !(needBalance && fee.mode === 'any')
+        ? `${fee.ddRequired <= 1 ? 'Any DD' : `${fmt$0(fee.ddRequired)} DD`} by ${due} to skip ${fmt$0(fee.fee)} fee: ${n}`
+        : needBalance && !needDD && !needDebit
         ? `Add ${fmt$0(Math.ceil(fee.shortfall))} to skip ${fmt$0(fee.fee)} fee: ${n}`
         : `Skip the ${fmt$0(fee.fee)} monthly fee by ${due}: ${n}`
       items.push({ id: `monthly-fee-${acct.id}-${fee.cycleKey}`, type, category: 'monthly_fee', accountId: acct.id, memberId: acct.memberId,
         title,
-        detail: `${acct.bankName} charges ${fmt$0(fee.fee)} every month unless you ${feeRuleLabel(fee)}. To avoid the ${fee.monthLabel} fee (cycle ends ${due}): ${steps.join(joiner)}.${bonusReceived && !shield.safe ? ` The account has to stay open ${shield.daysRemaining} more days for the clawback window, so this repeats every month until then.` : ''} Tap "Fee DD done" on the account once it lands, or log it on the Money Map as a direct deposit push. ${pn}'s account.`,
-        dueDate: fee.cycleEnd, action: needDD ? 'Send the direct deposit' : 'Top up the balance' })
+        detail: `${acct.bankName} charges ${fmt$0(fee.fee)} every month unless you ${feeRuleLabel(fee)}. To avoid the ${fee.monthLabel} fee (cycle ends ${due}): ${steps.join(joiner)}.${bonusReceived && !shield.safe ? ` The account has to stay open ${shield.daysRemaining} more days for the clawback window, so this repeats every month until then.` : ''} ${[needDD && 'Tap "Fee DD done" on the account once it lands, or log it on the Money Map as a direct deposit push.', needDebit && 'Tap "Fee swipes done" on the account once the purchases post.'].filter(Boolean).join(' ')} ${pn}'s account.`,
+        dueDate: fee.cycleEnd, action: onlyDebit || (needDebit && !needDD && fee.mode === 'any') ? 'Make the debit purchases' : needDD ? 'Send the direct deposit' : 'Top up the balance' })
     }
   }
 

@@ -6,10 +6,14 @@
 // Fields on the account:
 //   monthlyFee          — the fee in dollars (0 / empty = no fee to dodge)
 //   feeWaiverBalance    — balance that waives the fee
-//   feeWaiverDD         — monthly direct deposit amount that waives the fee
+//   feeWaiverDD         — total direct deposit per cycle that waives the fee
+//                         ($1 = any direct deposit counts)
+//   feeWaiverDebitCount — debit card purchases per cycle that waive the fee
+//   feeWaiverDebitAmount— minimum per purchase for it to count (optional)
 //   feeWaiverMode       — 'any' (one waiver is enough, the default) or 'all'
 //   feeCycleDay         — day of month the fee cycle ends (empty = month end)
 //   feeWaiverDDLog      — ['YYYY-MM', …] cycles the waiver deposit was logged
+//   feeWaiverDebitLog   — ['YYYY-MM', …] cycles the waiver swipes were logged
 //
 // A Money Map direct-deposit push that lands inside the cycle for at least the
 // waiver amount also counts, so logging the transfer is enough.
@@ -65,6 +69,8 @@ export function getMonthlyFeeStatus(account, { transfers = [], today = startOfTo
   const fee = Number(account.monthlyFee)
   const balanceRequired = Math.max(0, Number(account.feeWaiverBalance) || 0)
   const ddRequired = Math.max(0, Number(account.feeWaiverDD) || 0)
+  const debitRequired = Math.max(0, Math.floor(Number(account.feeWaiverDebitCount) || 0))
+  const debitMinAmount = Math.max(0, Number(account.feeWaiverDebitAmount) || 0)
   const mode = account.feeWaiverMode === 'all' ? 'all' : 'any'
   const cycle = getFeeCycle(account, today)
   const daysLeft = daysBetweenDays(today, cycle.end)
@@ -90,7 +96,9 @@ export function getMonthlyFeeStatus(account, { transfers = [], today = startOfTo
     }
   }
 
-  const checks = [balanceOk, ddDone].filter(v => v !== null)
+  const debitDone = debitRequired > 0 ? (account.feeWaiverDebitLog ?? []).includes(cycle.key) : null
+
+  const checks = [balanceOk, ddDone, debitDone].filter(v => v !== null)
   const hasWaiver = checks.length > 0
   const waived = hasWaiver && (mode === 'all' ? checks.every(Boolean) : checks.some(Boolean))
 
@@ -103,6 +111,9 @@ export function getMonthlyFeeStatus(account, { transfers = [], today = startOfTo
     ddRequired,
     ddDone,
     ddSource,
+    debitRequired,
+    debitMinAmount,
+    debitDone,
     mode,
     hasWaiver,
     waived,
@@ -122,17 +133,39 @@ export function feeRuleLabel(status) {
   if (!status) return ''
   const parts = []
   if (status.balanceRequired > 0) parts.push(`keep $${status.balanceRequired.toLocaleString()} in the account`)
-  if (status.ddRequired > 0) parts.push(`get a $${status.ddRequired.toLocaleString()} direct deposit`)
+  if (status.ddRequired > 0) parts.push(feeDDLabel(status))
+  if (status.debitRequired > 0) parts.push(feeDebitLabel(status))
   if (!parts.length) return `No way to skip it recorded — this account costs $${status.fee}/month`
   return parts.join(status.mode === 'all' ? ' and ' : ' or ')
 }
 
-// Toggle this cycle's "waiver deposit done" mark. Returns the new log.
-export function toggleFeeDDLog(account, cycleKey) {
-  const log = account.feeWaiverDDLog ?? []
+// "get $500 in direct deposits" — $1 or less means any deposit counts.
+export function feeDDLabel(status) {
+  return status.ddRequired <= 1
+    ? 'get any direct deposit'
+    : `get $${status.ddRequired.toLocaleString()} in direct deposits`
+}
+
+// "make 10 debit card purchases of $5+"
+export function feeDebitLabel(status) {
+  const n = status.debitRequired
+  return `make ${n} debit card purchase${n === 1 ? '' : 's'}${status.debitMinAmount > 0 ? ` of $${status.debitMinAmount.toLocaleString()}+` : ''}`
+}
+
+function toggleLog(log, cycleKey) {
   return log.includes(cycleKey)
     ? log.filter(k => k !== cycleKey)
     : [...log, cycleKey].sort().slice(-24)
+}
+
+// Toggle this cycle's "waiver deposit done" mark. Returns the new log.
+export function toggleFeeDDLog(account, cycleKey) {
+  return toggleLog(account.feeWaiverDDLog ?? [], cycleKey)
+}
+
+// Toggle this cycle's "waiver swipes done" mark. Returns the new log.
+export function toggleFeeDebitLog(account, cycleKey) {
+  return toggleLog(account.feeWaiverDebitLog ?? [], cycleKey)
 }
 
 // Future cycles (including the current one if not waived) for the calendar
@@ -142,14 +175,17 @@ export function upcomingFeeCycles(account, { transfers = [], count = 3, today = 
   const status = getMonthlyFeeStatus(account, { transfers, today })
   if (!status || !status.hasWaiver) return []
   // A balance that already waives the fee on its own needs no future nags.
-  const balanceCovers = status.balanceOk === true && (status.mode === 'any' || status.ddRequired === 0)
+  const balanceCovers = status.balanceOk === true && (status.mode === 'any' || (status.ddRequired === 0 && status.debitRequired === 0))
   if (balanceCovers) return []
   const rows = []
   let day = today
   for (let i = 0; i < count; i++) {
     const cycle = getFeeCycle(account, day)
     const current = i === 0
-    const logged = (account.feeWaiverDDLog ?? []).includes(cycle.key)
+    const marks = []
+    if (status.ddRequired > 0) marks.push((account.feeWaiverDDLog ?? []).includes(cycle.key))
+    if (status.debitRequired > 0) marks.push((account.feeWaiverDebitLog ?? []).includes(cycle.key))
+    const logged = marks.length > 0 && (status.mode === 'all' ? marks.every(Boolean) : marks.some(Boolean))
     if (!(current ? status.waived : logged)) {
       const sendBy = new Date(cycle.end)
       sendBy.setDate(sendBy.getDate() - FEE_SEND_LEAD_DAYS)

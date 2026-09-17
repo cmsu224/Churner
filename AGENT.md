@@ -4,7 +4,7 @@
 
 | Last working on | Last file edited | Next step | Pending |
 |---|---|---|---|
-| Added monthly-fee tracking for held bank accounts: new `engines/monthlyFee.js` (fee, balance/DD waiver, any/all rule, cycle day, `feeWaiverDDLog`, Money Map DD pushes count), per-cycle action items (`monthly_fee`), timeline events, account-card fee row + "Fee DD done" button + edit section, AI import fields, stranded-cash floor, README | `src/components/BankAccounts/AccountItem.jsx` | Push to `main` to deploy; set fee rules on held accounts | Not committed |
+| 2026-09-17: monthly fee can now be waived by debit swipes per cycle (`feeWaiverDebitCount`, optional `feeWaiverDebitAmount`, hand-ticked `feeWaiverDebitLog` via "✓ Fee swipes done"); `feeWaiverDD` of 1 = any direct deposit; any/all mode covers all 3 waivers. Engines shared verbatim with ChurnPilot `mobile/src/engines` (tests live there). DB: WF + Republic accounts set | `src/components/BankAccounts/AccountItem.jsx` | Commit + push to `main` to deploy | Not committed; fee cycle day unknown for WF/Republic (month end assumed) |
 
 ---
 

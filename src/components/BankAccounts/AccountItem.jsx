@@ -9,7 +9,7 @@ import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountReeligibility } from '../../engines/bankReeligibility'
 import { getAccountNextStatus } from '../../engines/lifecycle'
 import { getDebitProgress } from '../../engines/debitCard'
-import { getMonthlyFeeStatus, feeRuleLabel, toggleFeeDDLog } from '../../engines/monthlyFee'
+import { getMonthlyFeeStatus, feeRuleLabel, toggleFeeDDLog, toggleFeeDebitLog } from '../../engines/monthlyFee'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { fmt$, fmt$0, fmtDate, todayISODate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Trash2, Shield, ExternalLink, RotateCcw } from 'lucide-react'
@@ -158,12 +158,21 @@ export default function AccountItem({ account, members }) {
   const quickActions = getAccountQuickActions(account, nextStatus)
   // This cycle's waiver deposit, one tap — a Money Map DD push already counts,
   // so the button only shows while it's still owed (or was ticked by hand).
-  if (fee && fee.ddRequired > 0 && fee.ddSource !== 'transfer' && !(fee.mode === 'any' && fee.balanceOk)) {
+  if (fee && fee.ddRequired > 0 && fee.ddSource !== 'transfer' && !(fee.mode === 'any' && (fee.balanceOk || fee.debitDone))) {
     quickActions.push(fee.ddDone
       ? { label: `↺ Fee DD not done (${fee.monthLabel})`, color: 'zinc',
           payload: { feeWaiverDDLog: toggleFeeDDLog(account, fee.cycleKey) } }
       : { label: `✓ Fee DD done (${fee.monthLabel})`, color: 'blue',
           payload: { feeWaiverDDLog: toggleFeeDDLog(account, fee.cycleKey) } })
+  }
+  // Same for the debit-swipe waiver — the swipes can't be seen from here, so
+  // they're ticked by hand once they post.
+  if (fee && fee.debitRequired > 0 && !(fee.mode === 'any' && (fee.balanceOk || (fee.ddDone && !fee.debitDone)))) {
+    quickActions.push(fee.debitDone
+      ? { label: `↺ Fee swipes not done (${fee.monthLabel})`, color: 'zinc',
+          payload: { feeWaiverDebitLog: toggleFeeDebitLog(account, fee.cycleKey) } }
+      : { label: `✓ Fee swipes done (${fee.monthLabel})`, color: 'blue',
+          payload: { feeWaiverDebitLog: toggleFeeDebitLog(account, fee.cycleKey) } })
   }
 
   useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
@@ -212,6 +221,8 @@ export default function AccountItem({ account, members }) {
         monthlyFee: numOpt(draft.monthlyFee),
         feeWaiverBalance: numOpt(draft.feeWaiverBalance),
         feeWaiverDD: numOpt(draft.feeWaiverDD),
+        feeWaiverDebitCount: intOpt(draft.feeWaiverDebitCount),
+        feeWaiverDebitAmount: numOpt(draft.feeWaiverDebitAmount),
         feeWaiverMode: draft.feeWaiverMode === 'all' ? 'all' : 'any',
         feeCycleDay: intOpt(draft.feeCycleDay),
         ddDeadlineDays: intOpt(draft.ddDeadlineDays),
@@ -401,6 +412,8 @@ export default function AccountItem({ account, members }) {
                   Every month: {feeRuleLabel(fee)}.
                   {!fee.waived && fee.balanceOk === false && ` Balance is ${fmt$0(Math.ceil(fee.shortfall))} short.`}
                   {!fee.waived && fee.ddDone === false && ` Send the deposit by ${fmtDate(fee.sendBy)}.`}
+                  {!fee.waived && fee.debitDone === false && ` Make the purchases before ${fmtDate(fee.cycleEnd)}.`}
+                  {fee.debitDone && ' Swipes done this cycle.'}
                   {fee.ddSource === 'transfer' && ' Deposit logged on the Money Map.'}
                 </div>
               )}
@@ -668,22 +681,33 @@ export default function AccountItem({ account, members }) {
                 <input type="number" min="0" className={inp} value={draft.feeWaiverBalance ?? ''} onChange={e => set('feeWaiverBalance', e.target.value)} placeholder="e.g. 1500" />
               </div>
               <div>
-                <label className="text-xs text-ink-muted block mb-1">Waived by Monthly Direct Deposit ($)</label>
-                <input type="number" min="0" className={inp} value={draft.feeWaiverDD ?? ''} onChange={e => set('feeWaiverDD', e.target.value)} placeholder="e.g. 500" />
+                <label className="text-xs text-ink-muted block mb-1">Direct Deposit Needed per Cycle ($)</label>
+                <input type="number" min="0" className={inp} value={draft.feeWaiverDD ?? ''} onChange={e => set('feeWaiverDD', e.target.value)} placeholder="e.g. 500 — 1 = any amount" />
               </div>
             </div>
-            {Number(draft.feeWaiverBalance) > 0 && Number(draft.feeWaiverDD) > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-ink-muted block mb-1">Debit Swipes Needed per Cycle</label>
+                <input type="number" min="0" className={inp} value={draft.feeWaiverDebitCount ?? ''} onChange={e => set('feeWaiverDebitCount', e.target.value)} placeholder="e.g. 10" />
+              </div>
+              <div>
+                <label className="text-xs text-ink-muted block mb-1">Minimum per Swipe ($)</label>
+                <input type="number" min="0" className={inp} value={draft.feeWaiverDebitAmount ?? ''} onChange={e => set('feeWaiverDebitAmount', e.target.value)} placeholder="any amount" />
+              </div>
+            </div>
+            {[draft.feeWaiverBalance, draft.feeWaiverDD, draft.feeWaiverDebitCount].filter(v => Number(v) > 0).length > 1 && (
               <div>
                 <label className="text-xs text-ink-muted block mb-1">To avoid the fee you need</label>
                 <select className={inp} value={draft.feeWaiverMode ?? 'any'} onChange={e => set('feeWaiverMode', e.target.value)}>
-                  <option value="any">Either one (balance OR deposit)</option>
-                  <option value="all">Both (balance AND deposit)</option>
+                  <option value="any">Any one of them</option>
+                  <option value="all">All of them</option>
                 </select>
               </div>
             )}
             <p className="text-xs text-ink-faint">
-              While the account is held open you get a reminder every month to top up the balance or send the deposit. A direct
-              deposit push logged on the Money Map counts automatically.
+              While the account is held open you get a reminder every month to top up the balance, send the deposit or make the
+              swipes. Enter 1 as the deposit if any direct deposit counts. A direct deposit push logged on the Money Map counts
+              automatically; tick “Fee swipes done” on the card once the purchases post.
             </p>
           </div>
 

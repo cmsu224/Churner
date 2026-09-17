@@ -292,7 +292,9 @@ export function collectEvents(state) {
           id: `monthly_fee-${acct.id}-${cycle.cycleKey}`,
           date: cycle.sendBy + 'T00:00:00',
           title: fee.ddRequired > 0 && !(fee.mode === 'any' && fee.balanceOk)
-            ? `Send ${fmt$0(fee.ddRequired)} DD to skip ${fmt$0(fee.fee)} fee: ${n}`
+            ? `Send ${fee.ddRequired <= 1 ? 'a' : fmt$0(fee.ddRequired)} DD to skip ${fmt$0(fee.fee)} fee: ${n}`
+            : fee.debitRequired > 0 && !(fee.mode === 'any' && fee.balanceOk)
+            ? `Make ${fee.debitRequired} debit swipe${fee.debitRequired === 1 ? '' : 's'} to skip ${fmt$0(fee.fee)} fee: ${n}`
             : `Check balance to skip ${fmt$0(fee.fee)} fee: ${n}`,
           detail: `${acct.bankName} charges ${fmt$0(fee.fee)}/month unless you ${feeRuleLabel(fee)}. This cycle ends ${due}. ${pn}'s account.`,
           memberId: acct.memberId,

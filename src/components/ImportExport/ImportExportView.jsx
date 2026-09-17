@@ -112,8 +112,10 @@ debitDeadlineDays   — days from opening to finish the debit purchases (omit if
 minimumBalance    — required minimum balance to qualify for bonus (0 if none)
 monthlyFee        — monthly maintenance fee in dollars (omit if none)
 feeWaiverBalance  — balance that waives the monthly fee (omit if not an option)
-feeWaiverDD       — monthly direct deposit amount that waives the fee (omit if not an option)
-feeWaiverMode     — "any" if either waiver works (default), "all" if both are needed
+feeWaiverDD       — total direct deposit per cycle that waives the fee; 1 if any deposit counts (omit if not an option)
+feeWaiverDebitCount  — debit card purchases per cycle that waive the fee (omit if not an option)
+feeWaiverDebitAmount — minimum amount per purchase for it to count (omit if any amount)
+feeWaiverMode     — "any" if any one waiver works (default), "all" if every listed waiver is needed
 feeCycleDay       — day of month the fee cycle ends (omit for month end)
 
 DO NOT include "id" or "memberId" fields.
@@ -216,6 +218,8 @@ function mergeAiImport(state, aiData, members, fallbackMemberId) {
       monthlyFee: a.monthlyFee ?? undefined,
       feeWaiverBalance: a.feeWaiverBalance ?? undefined,
       feeWaiverDD: a.feeWaiverDD ?? undefined,
+      feeWaiverDebitCount: a.feeWaiverDebitCount ?? undefined,
+      feeWaiverDebitAmount: a.feeWaiverDebitAmount ?? undefined,
       feeWaiverMode: a.feeWaiverMode === 'all' ? 'all' : undefined,
       feeCycleDay: a.feeCycleDay ?? undefined,
       isTaxable: a.isTaxable ?? true,
