@@ -78,3 +78,15 @@ export function getTaxYears(bankAccounts) {
   }
   return [...years].sort((a, b) => b - a)
 }
+
+// Every taxable bank bonus ever received, all years together — what the
+// Earnings page takes tax off to get "lifetime net after tax". Undated ones
+// count here (the money came in; only the year is unknown).
+export function getLifetimeTaxableBankBonuses(bankAccounts) {
+  let total = 0
+  for (const acct of (bankAccounts ?? [])) {
+    const amount = Number(acct.bonusAmount) || 0
+    if (amount > 0 && isBankBonusReceived(acct) && isBankBonusTaxable(acct)) total += amount
+  }
+  return total
+}

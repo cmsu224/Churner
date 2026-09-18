@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { SidebarNav, BottomNav } from './NavBar'
 import NotificationCenter from './NotificationCenter'
 import CommandPalette from './CommandPalette'
@@ -17,7 +17,6 @@ import TimelineView from '../Timeline/TimelineView'
 import EarningsView from '../Earnings/EarningsView'
 import SimulatorView from '../Simulator/SimulatorView'
 import RulesView from '../Rules/RulesView'
-import TaxView from '../Tax/TaxView'
 import PlayersView from '../Players/PlayersView'
 import ResourcesView from '../Resources/ResourcesView'
 import ImportExportView from '../ImportExport/ImportExportView'
@@ -156,7 +155,7 @@ export default function AppShell() {
                 <Route path="/earnings" element={<EarningsView />} />
                 <Route path="/simulator" element={<SimulatorView />} />
                 <Route path="/rules" element={<RulesView />} />
-                <Route path="/tax" element={<TaxView />} />
+                <Route path="/tax" element={<Navigate to="/earnings" replace />} />
                 <Route path="/resources" element={<ResourcesView />} />
                 <Route path="/import" element={<ImportExportView />} />
                 <Route path="/members" element={<PlayersView />} />

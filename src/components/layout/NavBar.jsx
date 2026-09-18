@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users, Link2,
+  LayoutDashboard, CreditCard, Landmark, BookOpen, Users, Link2,
   ArrowDownUp, Settings, CalendarDays, ClipboardList, TrendingUp, FlaskConical,
   MoreHorizontal, Coins, Receipt, Waypoints,
 } from 'lucide-react'
@@ -20,7 +20,6 @@ const INSIGHT_NAV = [
   { to: '/fees', icon: Receipt, label: 'Annual Fees' },
   { to: '/rules', icon: BookOpen, label: 'Eligibility' },
   { to: '/simulator', icon: FlaskConical, label: 'Simulator' },
-  { to: '/tax', icon: Calculator, label: 'Tax' },
 ]
 
 const SETTINGS_NAV = [

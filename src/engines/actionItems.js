@@ -6,6 +6,7 @@ import { getKeepAliveCards } from './creditAge'
 import { getBurnRate } from './burnRate'
 import { collectReminders } from './reminders'
 import { getMonthlyFeeStatus, feeRuleLabel, feeDebitLabel } from './monthlyFee'
+import { getLastFeePosting, isFeeRefundPending } from './earnings'
 import { fmt$, fmt$0 } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
 
@@ -27,9 +28,24 @@ export function generateActionItems(state) {
 
   // ── CREDIT CARDS ──────────────────────────────────────────────────────────
   for (const card of (state.creditCards ?? [])) {
-    if (isRetired(card)) continue
     const n = cardLabel(card)
     const pn = mName(members, card.memberId)
+
+    // Fee refund check-back after a cancel/downgrade: a fee that posted in the
+    // year before closing may come back (full or prorated). Ask once, until the
+    // card says what was refunded ("No refund" records 0). Only recent closes,
+    // so old retired cards don't nag.
+    if (isRetired(card)) {
+      if (isFeeRefundPending(card)) {
+        const last = getLastFeePosting(card)
+        const posted = last.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        items.push({ id: `fee-refund-check-${card.id}`, type: 'info', category: 'annual_fee', cardId: card.id, memberId: card.memberId,
+          title: `Did the annual fee come back? ${n}`,
+          detail: `The $${card.annualFee} fee posted around ${posted} and the card was ${card.status === 'Downgraded' ? 'downgraded' : 'closed'}${card.closedDate ? '' : ' (no closed date set yet)'}. Issuers usually refund it — in full inside the refund window, sometimes prorated after. Check the statement, then tap "Fee refunded" or "No refund" on the card so Earnings counts it right. ${pn}'s card.`,
+          dueDate: null, action: 'Check statement for the refund' })
+      }
+      continue
+    }
 
     // Spend deadline
     const si = getSpendDeadlineInfo(card)

@@ -20,7 +20,7 @@ const PAGES = [
   { label: 'Earnings', route: '/earnings', icon: TrendingUp, keywords: 'roi analytics profit bonuses' },
   { label: 'Eligibility', route: '/rules', icon: BookOpen, keywords: 'rules 5/24 issuer windows' },
   { label: 'Simulator', route: '/simulator', icon: FlaskConical, keywords: 'what if projection 5/24' },
-  { label: 'Tax', route: '/tax', icon: Calculator, keywords: 'taxes 1099' },
+  { label: 'Tax', route: '/earnings', icon: Calculator, keywords: 'taxes 1099' },
   { label: 'Members', route: '/members', icon: Users, keywords: 'household people' },
   { label: 'Resources', route: '/resources', icon: Link2, keywords: 'links guides offers' },
   { label: 'Import / Export', route: '/import', icon: ArrowDownUp, keywords: 'backup restore json ai' },

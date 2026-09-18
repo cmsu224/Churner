@@ -10,7 +10,7 @@ import { getCardFeeSchedule } from '../../engines/annualFees'
 import { getCancelGuidance } from '../../engines/cancelGuidance'
 import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
-import { valueCardBonus, isCardBonusPending } from '../../engines/earnings'
+import { valueCardBonus, isCardBonusPending, isFeeRefundPending } from '../../engines/earnings'
 import { CARD_STATUSES } from '../../utils/statusMeta'
 import { fmt$, fmt$0, fmtPts, fmtDate, fmtDateCompact, todayISODate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Zap, RotateCcw, Plus, X, Lightbulb, Receipt } from 'lucide-react'
@@ -179,9 +179,19 @@ function getQuickActions(card) {
       ]
     case 'Downgrade/Close Due':
       return [
-        { label: '✓ Mark Closed', color: 'red', payload: { status: 'Closed' } },
+        { label: '✓ Mark Closed', color: 'red', payload: { status: 'Closed', closedDate: card.closedDate || today } },
         { label: 'Keep It', color: 'emerald', payload: { status: 'Keep Alive' } },
       ]
+    case 'Closed':
+    case 'Downgraded':
+      // Check-back: did the issuer refund the last annual fee? Recording the
+      // amount (0 = no refund) is what Earnings uses, and clears the reminder.
+      return isFeeRefundPending(card)
+        ? [
+            { label: '✓ Fee refunded', color: 'emerald', payload: { feeRefundAmount: card.annualFee } },
+            { label: 'No refund', color: 'zinc', payload: { feeRefundAmount: 0 } },
+          ]
+        : []
     default:
       return []
   }
@@ -277,6 +287,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
         lastUsedDate: draft.lastUsedDate || null,
         bonusReceivedDate: draft.bonusReceivedDate || null,
         closedDate: draft.closedDate || null,
+        feeRefundAmount: draft.feeRefundAmount !== '' && draft.feeRefundAmount != null && Number.isFinite(parseFloat(draft.feeRefundAmount)) ? parseFloat(draft.feeRefundAmount) : null,
         feePostDate: draft.feePostDate || null,
         // spendLog is managed only via LOG_SPEND / DELETE_SPEND_ENTRY, never in
         // this form. Take it from the live card, not the draft snapshot, so a
@@ -356,7 +367,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
     // Clear any stale undo snapshot so it can't leave an orphan Keep Alive card
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
     setUndoSnapshot(null)
-    dispatch({ type: 'UPDATE_CARD', payload: { ...card, status: 'Downgraded', downgradedToCard: downgradingTo.trim() } })
+    dispatch({ type: 'UPDATE_CARD', payload: { ...card, status: 'Downgraded', downgradedToCard: downgradingTo.trim(), closedDate: card.closedDate || todayISODate() } })
     dispatch({ type: 'ADD_CARD', payload: {
       memberId: card.memberId,
       cardName: downgradingTo.trim(),
@@ -902,6 +913,22 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
               <label className="text-xs text-ink-tertiary block mb-1">Closed / Downgraded Date</label>
               <DateField value={draft.closedDate} onChange={v => set('closedDate', v)} />
               <p className="text-[11px] text-ink-faint mt-1">Stops the Earnings fee estimate at this date.</p>
+            </div>
+          )}
+          {(draft.status === 'Closed' || draft.status === 'Downgraded') && Number(draft.annualFee) > 0 && (
+            <div>
+              <label className="text-xs text-ink-tertiary block mb-1">Annual Fee Refunded ($)</label>
+              <div className="flex gap-2 items-start">
+                <input type="number" min="0" className={inp} value={draft.feeRefundAmount ?? ''} onChange={e => set('feeRefundAmount', e.target.value)} placeholder="blank = not checked yet" />
+                <button
+                  type="button"
+                  onClick={() => set('feeRefundAmount', draft.annualFee)}
+                  className="text-xs px-2.5 py-2 rounded-lg transition-colors border border-edge-strong text-ink-tertiary hover:text-success-ink hover:border-success/50 flex-shrink-0"
+                >
+                  Full refund
+                </button>
+              </div>
+              <p className="text-[11px] text-ink-faint mt-1">What the issuer gave back when you cancelled or downgraded (0 = no refund). Earnings takes it off the fees paid.</p>
             </div>
           )}
 

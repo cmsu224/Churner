@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import { getEarningsSummary, getCardEarnings, getAccountEarnings } from '../../engines/earnings'
+import { getLifetimeTaxableBankBonuses } from '../../engines/taxPredictor'
 import MonthlyEarningsChart from './charts'
+import TaxView from '../Tax/TaxView'
 import PageHeader from '../shared/PageHeader'
 import StatCard from '../shared/StatCard'
 import EmptyState from '../shared/EmptyState'
@@ -67,6 +69,13 @@ export default function EarningsView() {
     .filter(({ e }) => e.realized > 0)
     .sort((a, b) => String(b.e.realizedDate ?? '').localeCompare(String(a.e.realizedDate ?? ''))), [state])
 
+  // Lifetime net after tax: bonuses − fees − estimated federal tax on every
+  // taxable bank bonus ever received (card bonuses are rebates, not income).
+  const bracket = state.settings?.taxBracket ?? 22
+  const lifetimeTaxable = useMemo(() => getLifetimeTaxableBankBonuses(state.bankAccounts), [state.bankAccounts])
+  const lifetimeTax = (lifetimeTaxable * bracket) / 100
+  const netAfterTax = household.net - lifetimeTax
+
   const hasAnything = household.lifetime > 0 || household.feesPaid > 0
   const maxMemberNet = Math.max(1, ...perMember.map(m => Math.abs(m.lifetime - m.feesPaid)))
   const years = Object.keys(household.byYear).sort((a, b) => b - a)
@@ -97,7 +106,12 @@ export default function EarningsView() {
                 sub={`${fmt$(household.lifetime)} earned`}
                 tone={household.net >= 0 ? 'success' : 'danger'}
               />
-              <StatCard label="Trailing 12 Months" value={fmt$(household.trailing12)} />
+              <StatCard
+                label="Lifetime Net After Tax"
+                value={fmt$(netAfterTax)}
+                sub={`−${fmt$(lifetimeTax)} est. tax (${bracket}%)`}
+                tone={netAfterTax >= 0 ? 'success' : 'danger'}
+              />
               <StatCard label={`This Year (${currentYear})`} value={fmt$(household.byYear[currentYear] ?? 0)} />
               <StatCard label="Fees Paid" value={fmt$(household.feesPaid)} tone={household.feesPaid > 0 ? 'danger' : 'default'} sub="fees that have posted, est." />
             </div>
@@ -162,7 +176,6 @@ export default function EarningsView() {
                     </div>
                     <div className="text-[11px] text-ink-tertiary mt-1 tabular-nums">
                       earned {fmt$(m.lifetime)} · cards {fmt$(m.lifetime - m.bankTotal)} · banks {fmt$(m.bankTotal)}{m.feesPaid > 0 ? <span className="text-danger-ink"> · fees −{fmt$(m.feesPaid)}</span> : null}
-                      {m.trailing12 > 0 ? ` · T12M ${fmt$(m.trailing12)}` : ''}
                     </div>
                   </div>
                 )
@@ -217,6 +230,8 @@ export default function EarningsView() {
           </section>
         </>
       )}
+
+      <TaxView />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../shared/PageHeader'
 import {
-  ClipboardList, TrendingUp, BookOpen, FlaskConical, Calculator,
+  ClipboardList, TrendingUp, BookOpen, FlaskConical,
   Users, Link2, ArrowDownUp, Settings, ChevronRight, Coins, Receipt,
   CalendarDays, Waypoints,
 } from 'lucide-react'
@@ -16,10 +16,9 @@ const GROUPS = [
       { to: '/points', icon: Coins, label: 'Points', desc: 'Loyalty balances across every program, per person' },
       { to: '/fees', icon: Receipt, label: 'Annual Fees', desc: 'Every card fee due date and refund window in one place' },
       { to: '/applications', icon: ClipboardList, label: 'Applications', desc: 'Plan applications and track approvals & denials' },
-      { to: '/earnings', icon: TrendingUp, label: 'Earnings', desc: 'What the household is actually making' },
+      { to: '/earnings', icon: TrendingUp, label: 'Earnings', desc: 'What the household is actually making, after fees and tax' },
       { to: '/rules', icon: BookOpen, label: 'Eligibility', desc: 'Issuer rules and bonus re-eligibility' },
       { to: '/simulator', icon: FlaskConical, label: 'Simulator', desc: 'What-if projections for future applications' },
-      { to: '/tax', icon: Calculator, label: 'Tax', desc: 'Taxable bank bonuses by year' },
     ],
   },
   {

@@ -71,17 +71,20 @@ export function isAccountBonusPending(acct) {
 // booking its first fee as paid on day one, while the card itself still says
 // the fee hasn't posted. Adjustments:
 //   - feeWaivedFirstYear skips the first posting
-//   - the closed date stops the clock, and a posting the card was closed
-//     within the issuer's refund window AFTER (getFeeRefundDays — 30d for most
-//     issuers, longer for Citi/Capital One/Barclays; same rule the Annual Fee
-//     tracker uses) is fully refunded, so it doesn't count either
-function computeFeesPaid(card) {
-  if (!(card.annualFee > 0) || !card.openDate) return 0
+//   - the closed date stops the clock
+//   - refunds: a confirmed `feeRefundAmount` (what the issuer actually gave
+//     back on cancel/downgrade — full, prorated, or 0 for "no refund") is taken
+//     off the fees and replaces the guess below, so a refund is never counted
+//     twice. Without it, a posting the card was closed within the issuer's
+//     refund window AFTER (getFeeRefundDays — 30d for most issuers, longer for
+//     Citi/Capital One/Barclays; same rule the Annual Fee tracker uses) is
+//     assumed fully refunded.
+function feePostingDates(card) {
+  if (!(card.annualFee > 0) || !card.openDate) return []
   const open = new Date(card.openDate)
   const end = card.closedDate ? new Date(card.closedDate) : new Date()
-  if (end < open) return 0
+  if (end < open) return []
   const anchor = card.feePostDate ? new Date(card.feePostDate) : open
-  const refundDays = getFeeRefundDays(card)
   // A confirmed post date is the real billing date; an open-date anchor is only
   // the cycle date, so allow the statement lag before counting the fee.
   const lagMs = (card.feePostDate ? 0 : STATEMENT_LAG_DAYS) * 86400000
@@ -90,13 +93,47 @@ function computeFeesPaid(card) {
   const first = new Date(anchor)
   first.setFullYear(open.getFullYear())
   if (first < open) first.setFullYear(first.getFullYear() + 1)
-  let postings = 0
-  for (const d = new Date(first); d - end <= -lagMs; d.setFullYear(d.getFullYear() + 1)) {
-    if (card.closedDate && end - d <= refundDays * 86400000) continue // refunded on cancel
-    postings++
+  const dates = []
+  for (const d = new Date(first); d - end <= -lagMs; d.setFullYear(d.getFullYear() + 1)) dates.push(new Date(d))
+  return card.feeWaivedFirstYear ? dates.slice(1) : dates
+}
+
+export function hasConfirmedFeeRefund(card) {
+  return card?.feeRefundAmount != null && card.feeRefundAmount !== '' && Number.isFinite(Number(card.feeRefundAmount))
+}
+
+// The most recent fee that posted before the card was closed (or today), or
+// null. Used to ask "did you get that fee back?" after a cancel/downgrade.
+export function getLastFeePosting(card) {
+  const dates = feePostingDates(card)
+  return dates.length ? dates[dates.length - 1] : null
+}
+
+// How long after a cancel/downgrade the fee-refund check-back stays up.
+export const FEE_REFUND_CHECK_DAYS = 120
+
+// True while a closed/downgraded card should ask "did the fee come back?": a
+// fee posted in the year before it closed, nothing is recorded yet, and it
+// closed recently (a card with no closed date counts as closed today).
+export function isFeeRefundPending(card, now = new Date()) {
+  if (!(card?.status === 'Closed' || card?.status === 'Downgraded')) return false
+  if (!((card.annualFee ?? 0) > 0) || hasConfirmedFeeRefund(card)) return false
+  const last = getLastFeePosting(card)
+  if (!last) return false
+  const closed = card.closedDate ? new Date(card.closedDate) : now
+  return closed - last <= 365 * 86400000 && (now - closed) / 86400000 <= FEE_REFUND_CHECK_DAYS
+}
+
+function computeFeesPaid(card) {
+  const dates = feePostingDates(card)
+  if (!dates.length) return 0
+  if (hasConfirmedFeeRefund(card)) {
+    return Math.max(0, dates.length * card.annualFee - Math.max(0, Number(card.feeRefundAmount)))
   }
-  if (card.feeWaivedFirstYear) postings -= 1
-  return Math.max(0, postings) * card.annualFee
+  const end = card.closedDate ? new Date(card.closedDate) : null
+  const refundMs = getFeeRefundDays(card) * 86400000
+  const kept = end ? dates.filter(d => end - d > refundMs) : dates
+  return kept.length * card.annualFee
 }
 
 export function getCardEarnings(card, settings) {

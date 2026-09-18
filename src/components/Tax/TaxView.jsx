@@ -6,6 +6,8 @@ import { AlertCircle } from 'lucide-react'
 
 const BRACKETS = [10, 12, 22, 24, 32, 35, 37]
 
+// Rendered at the bottom of the Earnings page (the old /tax route redirects
+// there), so it's a section, not a page.
 export default function TaxView() {
   const { state, dispatch } = useChurn()
   const navigate = useNavigate()
@@ -46,9 +48,9 @@ export default function TaxView() {
   }
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-ink">Tax Liability — {taxYear}</h1>
+    <section id="tax" aria-label="Tax liability">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-base font-semibold text-ink">Tax Liability — {taxYear}</h2>
         <button
           onClick={exportCSV}
           className="bg-raised hover:bg-overlay text-ink-secondary text-sm px-3 py-1.5 rounded-lg transition-colors"
@@ -179,6 +181,6 @@ export default function TaxView() {
           This tool provides estimates only. Consult a tax professional for advice specific to your situation.
         </div>
       </div>
-    </div>
+    </section>
   )
 }
