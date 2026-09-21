@@ -1,4 +1,5 @@
 import { getSpendDeadlineInfo } from './lifecycle'
+import { addDays, daysBetweenDays, parseDay, startOfToday } from '../utils/format'
 
 // Burn-rate projection for cards with an open minimum-spend requirement.
 //
@@ -16,48 +17,55 @@ export function getBurnRate(card) {
   const req = Number(card.spendRequirement) || 0
   const spent = Number(card.currentSpend) || 0
   const remaining = Math.max(0, req - spent)
-  const today = new Date()
-  const open = new Date(card.openDate)
-  const daysElapsed = Math.max(1, Math.floor((today - open) / 86400000))
+  const today = startOfToday()
+  // A stored date the app can't read leaves every figure below NaN. Treating
+  // it as "no usable pace" keeps the card out of the pace warning instead of
+  // throwing on `new Date(NaN).toISOString()` and taking the whole action
+  // queue down with it.
+  const open = parseDay(card.openDate)
+  const daysElapsed = open ? Math.max(1, daysBetweenDays(open, today)) : null
 
-  let perDay
+  let perDay = null
   let paceSource = 'average'
   const log = (card.spendLog ?? []).filter(e => e.date && (Number(e.amount) || 0) !== 0)
-  if (log.length > 0) {
-    const windowStart = new Date(today)
-    windowStart.setDate(windowStart.getDate() - PACE_WINDOW_DAYS)
+  if (daysElapsed !== null && log.length > 0) {
+    const windowStart = addDays(today, -PACE_WINDOW_DAYS)
     const recent = log
-      .filter(e => new Date(e.date) >= windowStart)
+      .filter(e => {
+        const day = parseDay(e.date)
+        return !!day && day >= windowStart
+      })
       .reduce((s, e) => s + (Number(e.amount) || 0), 0)
     perDay = Math.max(0, recent) / Math.min(PACE_WINDOW_DAYS, daysElapsed)
     paceSource = 'log'
-  } else {
+  } else if (daysElapsed !== null) {
     perDay = spent / daysElapsed
   }
 
-  const stalled = perDay < 1 // less than $1/day of pace — no meaningful projection
+  // Less than $1/day of pace — or no readable pace at all — means no
+  // meaningful projection.
+  const stalled = !Number.isFinite(perDay) || perDay < 1
   let projectedDate = null
   if (!stalled && remaining > 0) {
-    const d = new Date(today)
-    d.setDate(d.getDate() + Math.ceil(remaining / perDay))
-    projectedDate = d.toISOString()
+    projectedDate = addDays(today, Math.ceil(remaining / perDay)).toISOString()
   }
 
-  const deadline = new Date(info.deadline)
+  const deadline = parseDay(info.deadline)
   // Past the deadline there's no meaningful weekly target — clamping daysLeft to
   // 1 would report an absurd figure (remaining × 7). The overdue case is owned
   // by the critical "spend deadline missed" action item; callers show a plain
   // "past deadline" note instead of a $/week number.
   const overdue = info.daysLeft <= 0
-  const onTrack = remaining === 0 || (!overdue && !stalled && projectedDate && new Date(projectedDate) <= deadline)
+  const onTrack = remaining === 0
+    || (!overdue && !stalled && !!projectedDate && !!deadline && parseDay(projectedDate) <= deadline)
   const neededPerWeek = overdue ? null : remaining / (info.daysLeft / 7)
 
   return {
     remaining,
     daysLeft: info.daysLeft,
     deadline: info.deadline,
-    perDay,
-    perWeek: perDay * 7,
+    perDay: perDay ?? 0,
+    perWeek: (perDay ?? 0) * 7,
     paceSource,
     stalled,
     overdue,

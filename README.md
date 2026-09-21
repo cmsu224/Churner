@@ -82,6 +82,7 @@ The home screen (`/`) is a prioritized command center, not a passive summary. **
 
 Two rules hold across every item here (and on the [Timeline](#4-timeline--calendar--ics-export)):
 
+- **A record the app can't read never takes a page down.** A stored day the calendar doesn't have (`2026-13-45`, `2026-02-30` — which a hand-edited backup can carry) reads as *no date*, rather than rolling over into a real-looking day nobody typed. Every engine treats a missing date as "can't say" instead of computing `NaN`, and a card or account with no name renders as *Unnamed card* / *Unnamed account*.
 - **Deadlines are whole calendar days, counted locally.** Dates are stored as calendar days (`YYYY-MM-DD`) and parsed to *local* midnight by `parseDay` in `src/utils/format.js` — never as UTC — so "90 days from Jan 1" is Apr 1 for everyone, and a deadline due today reads `0d`, not `-1d`. Every engine shares those helpers (`parseDay`, `startOfToday`, `addDays`, `daysBetweenDays`).
 - **A bank bonus counts as received in one place.** `isAccountBonusReceived` (`src/utils/statusMeta.js`, re-exported from `src/engines/earnings.js`) treats the **received date**, the **received flag** *or* a **status past the bonus stage** (Bonus Received / Holding / Safe to Close / Closed) as "the money landed", and the Action Engine, Timeline, Earnings, Money Map and Tax page all call it. So an account whose status says the bonus posted stops producing direct-deposit, debit and bonus-window nags even when no date was recorded, and its bonus still counts in Earnings.
 

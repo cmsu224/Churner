@@ -21,7 +21,15 @@ export const fmtPts = (n) =>
 export const parseDay = (value) => {
   if (!value) return null
   const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  if (m) {
+    const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])]
+    const date = new Date(year, month - 1, day)
+    // A day the calendar doesn't have is not a day. '2026-13-45' and
+    // '2026-02-30' otherwise roll over into a real-looking date nobody typed,
+    // which is worse than reporting no date at all.
+    const real = date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    return real ? date : null
+  }
   const d = new Date(value)
   return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }

@@ -50,12 +50,15 @@ function memberName(members, memberId) {
   return (members ?? []).find(p => p.id === memberId)?.name ?? ''
 }
 
+// A record with no name still has to be nameable — see actionItems.js.
 function cardLabel(card) {
-  return card.cardName + (card.last4 ? ` ···${card.last4}` : '')
+  const name = String(card.cardName ?? '').trim() || 'Unnamed card'
+  return name + (card.last4 ? ` ···${card.last4}` : '')
 }
 
 function acctLabel(acct) {
-  return acct.bankName + (acct.last4 ? ` ···${acct.last4}` : '')
+  const name = String(acct.bankName ?? '').trim() || 'Unnamed account'
+  return name + (acct.last4 ? ` ···${acct.last4}` : '')
 }
 
 function monthsBetween(from, to) {

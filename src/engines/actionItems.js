@@ -14,12 +14,17 @@ function mName(members, memberId) {
   return (members ?? []).find(p => p.id === memberId)?.name ?? ''
 }
 
+// A record with no name still has to be nameable: an imported backup or a
+// credit-report row can arrive without one, and "Spend deadline missed:
+// undefined" is not an action item anyone can act on.
 function cardLabel(card) {
-  return card.cardName + (card.last4 ? ` ···${card.last4}` : '')
+  const name = String(card.cardName ?? '').trim() || 'Unnamed card'
+  return name + (card.last4 ? ` ···${card.last4}` : '')
 }
 
 function acctLabel(a) {
-  return a.bankName + (a.last4 ? ` ···${a.last4}` : '')
+  const name = String(a.bankName ?? '').trim() || 'Unnamed account'
+  return name + (a.last4 ? ` ···${a.last4}` : '')
 }
 
 export function generateActionItems(state) {
