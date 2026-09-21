@@ -37,6 +37,12 @@ const ARRANGE_SIZES = {
   wide:    { NODE_W: 216, NODE_H: 124, ROW_GAP: 12, COL_GAP: 150 },
   compact: { NODE_W: 168, NODE_H: 138, ROW_GAP: 10, COL_GAP: 20 },
 }
+// Narrower than this and the bank name has nowhere to go, so the canvas
+// scrolls instead — but only on a phone small enough to need it. The gutter
+// gives back width before the cards do: an amount pill may overhang it a
+// little, but a name broken mid-word ("Rem / oved") reads as a bug.
+const MIN_NODE_W = 124
+const MIN_COL_GAP = 52
 const PAD_Y = 12
 
 const PURPOSE_STROKE = {
@@ -223,6 +229,7 @@ function TransferFlowModal({ fromNode, toNode, onClose, onLogged }) {
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-base font-bold text-ink-tertiary pointer-events-none">$</span>
               <input
                 type="number"
+                inputMode="decimal"
                 step="any"
                 className={`${inpRequired} pl-8 text-lg font-bold tabular-nums`}
                 value={amount}
@@ -303,6 +310,7 @@ function TransferFlowModal({ fromNode, toNode, onClose, onLogged }) {
             <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
               <input
                 type="number"
+                inputMode="decimal"
                 min={1}
                 max={90}
                 className="w-12 bg-surface border border-edge rounded px-1.5 py-0.5 text-xs text-center font-bold text-ink"
@@ -608,11 +616,17 @@ function NodeCard({
             : `${nodeLabel(node)} — Double-click to edit, drag to reorder`
         }
       >
-        <span className={`block min-w-0 ${compact && hasFlows ? 'pr-12' : 'pr-5'}`}>{nameBlock}</span>
+        {/* Room for the corner icons, but no more: on a 130px phone card
+            pr-12 reserved a third of the width and broke names mid-word. */}
+        <span className={`block min-w-0 ${hasFlows ? (compact ? 'pr-9' : 'pr-12') : 'pr-5'}`}>{nameBlock}</span>
 
         <span className="flex items-end justify-between gap-1.5 min-w-0">
-          <span className={`text-sm font-bold tabular-nums flex-shrink-0 ${hasBalance ? 'text-ink' : 'text-ink-faint'}`}>
-            {hasBalance ? fmt$0(node.balance) : 'not tracked'}
+          {/* An amount never truncates; the "no balance recorded" placeholder
+              may, so it can't push the member badge off a narrow card. */}
+          <span className={`text-sm font-bold tabular-nums ${
+            hasBalance ? 'flex-shrink-0 text-ink' : 'min-w-0 truncate text-ink-faint'
+          }`}>
+            {hasBalance ? fmt$0(node.balance) : compact ? 'untracked' : 'not tracked'}
           </span>
           {badges}
         </span>
@@ -718,6 +732,24 @@ export default function FlowDiagram({
     return () => window.removeEventListener('resize', handler)
   }, [])
 
+  // How wide the map panel actually is, so the two columns can be sized to fit
+  // inside it rather than to a fixed guess.
+  const scrollRef = useRef(null)
+  const [panelW, setPanelW] = useState(() => (typeof window === 'undefined' ? 390 : window.innerWidth))
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const read = () => setPanelW(el.clientWidth || window.innerWidth)
+    read()
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', read)
+      return () => window.removeEventListener('resize', read)
+    }
+    const observer = new ResizeObserver(read)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   const [showQuiet, setShowQuiet] = useState(false)
   const [arranging, setArranging] = useState(false)
   const [draggedKey, setDraggedKey] = useState(null)
@@ -740,7 +772,19 @@ export default function FlowDiagram({
   const suppressClickRef = useRef(0)
   const [touchDrag, setTouchDrag] = useState(null)
 
-  const size = (arranging ? ARRANGE_SIZES : SIZES)[compact ? 'compact' : 'wide']
+  // On a phone the columns are sized to the panel instead of to a fixed width.
+  // At 152 + 72 + 152 = 376 the canvas ran 50px past a 360px screen, and what
+  // fell off the right edge was the member badge and the in-flight pill on
+  // every account card in the right column — you had to scroll sideways to
+  // learn whose account it was.
+  const size = useMemo(() => {
+    const base = (arranging ? ARRANGE_SIZES : SIZES)[compact ? 'compact' : 'wide']
+    if (!compact) return base
+    const COL_GAP = Math.max(MIN_COL_GAP, Math.min(base.COL_GAP, Math.round(panelW * 0.18)))
+    const fits = Math.floor((panelW - COL_GAP) / 2)
+    const NODE_W = Math.max(MIN_NODE_W, Math.min(base.NODE_W, fits))
+    return NODE_W === base.NODE_W && COL_GAP === base.COL_GAP ? base : { ...base, NODE_W, COL_GAP }
+  }, [arranging, compact, panelW])
 
   // Two different kinds of "not on the map": ones you hid by hand, and closed
   // empty ones the map skips on its own. Both reveal through the same toggle so
@@ -1299,7 +1343,7 @@ export default function FlowDiagram({
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div ref={scrollRef} className="overflow-x-auto">
         <div
           ref={canvasRef}
           onDragOver={handleDragOverContainer}

@@ -207,7 +207,7 @@ export default function ApplicationsView() {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <div>
                 <label className="text-xs text-ink-tertiary block mb-1">Bonus</label>
-                <input type="number" min="0" className={inp} value={draft.bonusValue} onChange={e => setD('bonusValue', e.target.value)} placeholder="60000" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={draft.bonusValue} onChange={e => setD('bonusValue', e.target.value)} placeholder="60000" />
               </div>
               <div>
                 <label className="text-xs text-ink-tertiary block mb-1">Type</label>
@@ -219,15 +219,15 @@ export default function ApplicationsView() {
               </div>
               <div>
                 <label className="text-xs text-ink-tertiary block mb-1">Spend Req ($)</label>
-                <input type="number" min="0" className={inp} value={draft.spendRequirement} onChange={e => setD('spendRequirement', e.target.value)} placeholder="4000" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={draft.spendRequirement} onChange={e => setD('spendRequirement', e.target.value)} placeholder="4000" />
               </div>
               <div>
                 <label className="text-xs text-ink-tertiary block mb-1">Days</label>
-                <input type="number" min="1" className={inp} value={draft.spendDeadlineDays} onChange={e => setD('spendDeadlineDays', e.target.value)} placeholder="90" />
+                <input type="number" inputMode="decimal" min="1" className={inp} value={draft.spendDeadlineDays} onChange={e => setD('spendDeadlineDays', e.target.value)} placeholder="90" />
               </div>
               <div>
                 <label className="text-xs text-ink-tertiary block mb-1">Annual Fee</label>
-                <input type="number" min="0" className={inp} value={draft.annualFee} onChange={e => setD('annualFee', e.target.value)} placeholder="0" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={draft.annualFee} onChange={e => setD('annualFee', e.target.value)} placeholder="0" />
               </div>
             </div>
 

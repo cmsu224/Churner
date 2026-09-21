@@ -368,15 +368,15 @@ export default function CreditCardsView() {
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Spend Req ($)</label>
-                    <input type="number" min="0" className={inp} value={newCard.spendRequirement} onChange={e => setN('spendRequirement', e.target.value)} placeholder="4000" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newCard.spendRequirement} onChange={e => setN('spendRequirement', e.target.value)} placeholder="4000" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Days</label>
-                    <input type="number" min="1" className={inp} value={newCard.spendDeadlineDays} onChange={e => setN('spendDeadlineDays', e.target.value)} placeholder="90" />
+                    <input type="number" inputMode="decimal" min="1" className={inp} value={newCard.spendDeadlineDays} onChange={e => setN('spendDeadlineDays', e.target.value)} placeholder="90" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Spent ($)</label>
-                    <input type="number" min="0" className={inp} value={newCard.currentSpend} onChange={e => setN('currentSpend', e.target.value)} placeholder="0" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newCard.currentSpend} onChange={e => setN('currentSpend', e.target.value)} placeholder="0" />
                   </div>
                 </div>
               </div>
@@ -389,7 +389,7 @@ export default function CreditCardsView() {
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Bonus</label>
-                    <input type="number" min="0" className={inp} value={newCard.bonusValue} onChange={e => setN('bonusValue', e.target.value)} placeholder="pts/$" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newCard.bonusValue} onChange={e => setN('bonusValue', e.target.value)} placeholder="pts/$" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Type</label>
@@ -401,7 +401,7 @@ export default function CreditCardsView() {
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Annual Fee ($)</label>
-                    <input type="number" min="0" className={inp} value={newCard.annualFee} onChange={e => setN('annualFee', e.target.value)} placeholder="0" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newCard.annualFee} onChange={e => setN('annualFee', e.target.value)} placeholder="0" />
                   </div>
                 </div>
                 {Number(newCard.annualFee) > 0 && (
@@ -439,12 +439,12 @@ export default function CreditCardsView() {
                     </div>
                     <div>
                       <label className="text-xs text-ink-tertiary block mb-1">Credit Limit ($)</label>
-                      <input type="number" min="0" className={inp} value={newCard.creditLimit} onChange={e => setN('creditLimit', e.target.value)} placeholder="optional" />
+                      <input type="number" inputMode="decimal" min="0" className={inp} value={newCard.creditLimit} onChange={e => setN('creditLimit', e.target.value)} placeholder="optional" />
                     </div>
                   </div>
                   <div>
                     <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
-                    <input type="number" min="0" className={inp} value={newCard.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newCard.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-2">
                     <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">

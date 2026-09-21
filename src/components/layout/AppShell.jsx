@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { SidebarNav, BottomNav } from './NavBar'
 import NotificationCenter from './NotificationCenter'
@@ -29,6 +29,7 @@ export default function AppShell() {
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const location = useLocation()
+  const mainRef = useRef(null)
 
   async function retrySync() {
     const data = await gist.loadFromGist()
@@ -45,6 +46,15 @@ export default function AppShell() {
     window.addEventListener('resize', handler)
     return () => window.removeEventListener('resize', handler)
   }, [])
+
+  // <main> is the scroll container, so moving between routes otherwise keeps
+  // the old scroll offset — open Dashboard from halfway down a long card list
+  // and you land halfway down the Dashboard. A deep link that scrolls to an
+  // item of its own (?highlight=) is left alone.
+  useEffect(() => {
+    if (location.search.includes('highlight=')) return
+    mainRef.current?.scrollTo({ top: 0 })
+  }, [location.pathname, location.search])
 
   // Global Ctrl/Cmd-K for the command palette
   useEffect(() => {
@@ -138,7 +148,12 @@ export default function AppShell() {
           </div>
         </header>
 
-        <main className={`flex-1 overflow-y-auto ${!isDesktop ? 'pb-24' : ''}`}>
+        {/* The bottom nav is fixed, so the page needs room to scroll past it —
+            plus the home-indicator inset, or the last row sits under it. */}
+        <main
+          ref={mainRef}
+          className={`flex-1 overflow-y-auto ${!isDesktop ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : ''}`}
+        >
           {!ready ? (
             <PageSkeleton />
           ) : (
@@ -161,6 +176,10 @@ export default function AppShell() {
                 <Route path="/members" element={<PlayersView />} />
                 <Route path="/settings" element={<SettingsView />} />
                 <Route path="/more" element={<MoreView />} />
+                {/* A path that matches nothing rendered an empty page with no
+                    way back. Old deep links and stale bookmarks land on the
+                    Dashboard instead. */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>
           )}

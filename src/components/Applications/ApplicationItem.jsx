@@ -282,18 +282,18 @@ export default function ApplicationItem({ app, members, state }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Spend Req ($)</label>
-              <input type="number" min="0" className={inp} value={draft.spendRequirement ?? ''} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
+              <input type="number" inputMode="decimal" min="0" className={inp} value={draft.spendRequirement ?? ''} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
             </div>
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Days</label>
-              <input type="number" min="1" className={inp} value={draft.spendDeadlineDays ?? ''} onChange={e => set('spendDeadlineDays', e.target.value)} placeholder="90" />
+              <input type="number" inputMode="decimal" min="1" className={inp} value={draft.spendDeadlineDays ?? ''} onChange={e => set('spendDeadlineDays', e.target.value)} placeholder="90" />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Bonus</label>
-              <input type="number" min="0" className={inp} value={draft.bonusValue ?? ''} onChange={e => set('bonusValue', e.target.value)} placeholder="pts/$" />
+              <input type="number" inputMode="decimal" min="0" className={inp} value={draft.bonusValue ?? ''} onChange={e => set('bonusValue', e.target.value)} placeholder="pts/$" />
             </div>
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Type</label>
@@ -305,7 +305,7 @@ export default function ApplicationItem({ app, members, state }) {
             </div>
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Annual Fee</label>
-              <input type="number" min="0" className={inp} value={draft.annualFee ?? ''} onChange={e => set('annualFee', e.target.value)} placeholder="0" />
+              <input type="number" inputMode="decimal" min="0" className={inp} value={draft.annualFee ?? ''} onChange={e => set('annualFee', e.target.value)} placeholder="0" />
             </div>
           </div>
 

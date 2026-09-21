@@ -576,7 +576,7 @@ export default function AccountItem({ account, members }) {
             </div>
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
-              <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
+              <input type="number" inputMode="decimal" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
             </div>
           </div>
           </>}
@@ -584,7 +584,7 @@ export default function AccountItem({ account, members }) {
           {editSection === 'details' && <>
           <div>
             <label className="text-xs text-ink-tertiary block mb-1">Started With ($)</label>
-            <input type="number" min="0" className={inp} value={draft.openingBalance ?? ''} onChange={e => set('openingBalance', e.target.value)} placeholder="0" />
+            <input type="number" inputMode="decimal" min="0" className={inp} value={draft.openingBalance ?? ''} onChange={e => set('openingBalance', e.target.value)} placeholder="0" />
             <p className="text-xs text-ink-faint mt-1">
               What the account already held before your first logged transfer — leave at 0 for one you opened empty. It records where
               the balance started, so an everyday account you added to the Money Map later can still be told apart from a churn you
@@ -613,21 +613,21 @@ export default function AccountItem({ account, members }) {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Bonus Amount ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.bonusAmount ?? ''} onChange={e => set('bonusAmount', e.target.value)} placeholder="300" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.bonusAmount ?? ''} onChange={e => set('bonusAmount', e.target.value)} placeholder="300" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Bonus Deadline (days)</label>
-                  <input type="number" min="1" className={inp} value={draft.bonusDeadlineDays ?? ''} onChange={e => set('bonusDeadlineDays', e.target.value)} placeholder="120" />
+                  <input type="number" inputMode="decimal" min="1" className={inp} value={draft.bonusDeadlineDays ?? ''} onChange={e => set('bonusDeadlineDays', e.target.value)} placeholder="120" />
                 </div>
               </div>
               <div>
                 <label className="text-xs text-ink-muted block mb-1">Early-Termination Fee Window (days)</label>
-                <input type="number" min="1" className={inp} value={draft.etfDays ?? ''} onChange={e => set('etfDays', e.target.value)} placeholder="e.g. 180 — closing before this may cost a fee" />
+                <input type="number" inputMode="decimal" min="1" className={inp} value={draft.etfDays ?? ''} onChange={e => set('etfDays', e.target.value)} placeholder="e.g. 180 — closing before this may cost a fee" />
               </div>
               {showMinBalance && (
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Minimum Balance ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.minimumBalance ?? ''} onChange={e => set('minimumBalance', e.target.value)} placeholder="0" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.minimumBalance ?? ''} onChange={e => set('minimumBalance', e.target.value)} placeholder="0" />
                 </div>
               )}
               <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
@@ -657,21 +657,21 @@ export default function AccountItem({ account, members }) {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Direct Deposit Amount ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.requiredDD ?? ''} onChange={e => set('requiredDD', e.target.value)} placeholder="500" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.requiredDD ?? ''} onChange={e => set('requiredDD', e.target.value)} placeholder="500" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1"># Required</label>
-                  <input type="number" min="1" className={inp} value={draft.requiredDDCount ?? ''} onChange={e => set('requiredDDCount', e.target.value)} placeholder="1" />
+                  <input type="number" inputMode="decimal" min="1" className={inp} value={draft.requiredDDCount ?? ''} onChange={e => set('requiredDDCount', e.target.value)} placeholder="1" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1"># Completed</label>
-                  <input type="number" min="0" className={inp} value={draft.ddsMade ?? ''} onChange={e => set('ddsMade', e.target.value)} placeholder="0" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.ddsMade ?? ''} onChange={e => set('ddsMade', e.target.value)} placeholder="0" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Direct Deposit Deadline (days from open)</label>
-                  <input type="number" min="1" className={inp} value={draft.ddDeadlineDays ?? ''} onChange={e => set('ddDeadlineDays', e.target.value)} placeholder="90" />
+                  <input type="number" inputMode="decimal" min="1" className={inp} value={draft.ddDeadlineDays ?? ''} onChange={e => set('ddDeadlineDays', e.target.value)} placeholder="90" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Direct Deposit Linked Date</label>
@@ -700,31 +700,31 @@ export default function AccountItem({ account, members }) {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1"># Purchases Required</label>
-                  <input type="number" min="0" className={inp} value={draft.requiredDebitCount ?? ''} onChange={e => set('requiredDebitCount', e.target.value)} placeholder="10" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.requiredDebitCount ?? ''} onChange={e => set('requiredDebitCount', e.target.value)} placeholder="10" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1"># Completed</label>
-                  <input type="number" min="0" className={inp} value={draft.debitsMade ?? ''} onChange={e => set('debitsMade', e.target.value)} placeholder="0" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.debitsMade ?? ''} onChange={e => set('debitsMade', e.target.value)} placeholder="0" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Minimum Per Purchase ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.requiredDebitAmount ?? ''} onChange={e => set('requiredDebitAmount', e.target.value)} placeholder="5" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.requiredDebitAmount ?? ''} onChange={e => set('requiredDebitAmount', e.target.value)} placeholder="5" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Total Debit Spend Required ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.requiredDebitSpend ?? ''} onChange={e => set('requiredDebitSpend', e.target.value)} placeholder="optional" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.requiredDebitSpend ?? ''} onChange={e => set('requiredDebitSpend', e.target.value)} placeholder="optional" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Debit Spend Logged ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.debitSpend ?? ''} onChange={e => set('debitSpend', e.target.value)} placeholder="0" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.debitSpend ?? ''} onChange={e => set('debitSpend', e.target.value)} placeholder="0" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Debit Deadline (days from open)</label>
-                  <input type="number" min="1" className={inp} value={draft.debitDeadlineDays ?? ''} onChange={e => set('debitDeadlineDays', e.target.value)} placeholder="90" />
+                  <input type="number" inputMode="decimal" min="1" className={inp} value={draft.debitDeadlineDays ?? ''} onChange={e => set('debitDeadlineDays', e.target.value)} placeholder="90" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Requirement Completed Date</label>
@@ -752,31 +752,31 @@ export default function AccountItem({ account, members }) {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-ink-muted block mb-1">Monthly Fee ($)</label>
-                <input type="number" min="0" className={inp} value={draft.monthlyFee ?? ''} onChange={e => set('monthlyFee', e.target.value)} placeholder="e.g. 12 — empty if none" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={draft.monthlyFee ?? ''} onChange={e => set('monthlyFee', e.target.value)} placeholder="e.g. 12 — empty if none" />
               </div>
               <div>
                 <label className="text-xs text-ink-muted block mb-1">Fee Cycle Ends (day of month)</label>
-                <input type="number" min="1" max="31" className={inp} value={draft.feeCycleDay ?? ''} onChange={e => set('feeCycleDay', e.target.value)} placeholder="month end" />
+                <input type="number" inputMode="decimal" min="1" max="31" className={inp} value={draft.feeCycleDay ?? ''} onChange={e => set('feeCycleDay', e.target.value)} placeholder="month end" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-ink-muted block mb-1">Waived by Keeping Balance ($)</label>
-                <input type="number" min="0" className={inp} value={draft.feeWaiverBalance ?? ''} onChange={e => set('feeWaiverBalance', e.target.value)} placeholder="e.g. 1500" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={draft.feeWaiverBalance ?? ''} onChange={e => set('feeWaiverBalance', e.target.value)} placeholder="e.g. 1500" />
               </div>
               <div>
                 <label className="text-xs text-ink-muted block mb-1">Direct Deposit Needed per Cycle ($)</label>
-                <input type="number" min="0" className={inp} value={draft.feeWaiverDD ?? ''} onChange={e => set('feeWaiverDD', e.target.value)} placeholder="e.g. 500 — 1 = any amount" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={draft.feeWaiverDD ?? ''} onChange={e => set('feeWaiverDD', e.target.value)} placeholder="e.g. 500 — 1 = any amount" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-ink-muted block mb-1">Debit Swipes Needed per Cycle</label>
-                <input type="number" min="0" className={inp} value={draft.feeWaiverDebitCount ?? ''} onChange={e => set('feeWaiverDebitCount', e.target.value)} placeholder="e.g. 10" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={draft.feeWaiverDebitCount ?? ''} onChange={e => set('feeWaiverDebitCount', e.target.value)} placeholder="e.g. 10" />
               </div>
               <div>
                 <label className="text-xs text-ink-muted block mb-1">Minimum per Swipe ($)</label>
-                <input type="number" min="0" className={inp} value={draft.feeWaiverDebitAmount ?? ''} onChange={e => set('feeWaiverDebitAmount', e.target.value)} placeholder="any amount" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={draft.feeWaiverDebitAmount ?? ''} onChange={e => set('feeWaiverDebitAmount', e.target.value)} placeholder="any amount" />
               </div>
             </div>
             {[draft.feeWaiverBalance, draft.feeWaiverDD, draft.feeWaiverDebitCount].filter(v => Number(v) > 0).length > 1 && (

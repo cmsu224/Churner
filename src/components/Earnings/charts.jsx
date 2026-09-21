@@ -22,9 +22,15 @@ function niceMax(value) {
   return niceNorm * base
 }
 
+// Thousands keep one decimal below $100K, because the ticks are quarters of a
+// "nice" max: a $1,350 month scales the axis to $2,000, whose ticks are 1500
+// and 2000 — both of which rounded to "$2K", so the axis read $2K, $2K, $1K.
 function fmtAxis(v) {
   if (v === 0) return '$0'
-  if (v >= 1000) return `$${Math.round(v / 1000)}K`
+  if (v >= 1000) {
+    const k = v / 1000
+    return `$${k >= 100 || Number.isInteger(k) ? Math.round(k) : k.toFixed(1)}K`
+  }
   return `$${Math.round(v)}`
 }
 
