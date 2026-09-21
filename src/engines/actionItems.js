@@ -6,9 +6,9 @@ import { getKeepAliveCards } from './creditAge'
 import { getBurnRate } from './burnRate'
 import { collectReminders } from './reminders'
 import { getMonthlyFeeStatus, feeRuleLabel, feeDebitLabel } from './monthlyFee'
-import { getLastFeePosting, isFeeRefundPending, isAccountBonusReceived } from './earnings'
+import { getLastFeePosting, isFeeRefundPending } from './earnings'
 import { addDays, daysBetweenDays, fmt$, fmt$0, parseDay, startOfToday } from '../utils/format'
-import { isRetired } from '../utils/statusMeta'
+import { isAccountBonusReceived, isRetired } from '../utils/statusMeta'
 
 function mName(members, memberId) {
   return (members ?? []).find(p => p.id === memberId)?.name ?? ''

@@ -42,3 +42,26 @@ export function statusLabel(value) {
 export function isRetired(card) {
   return card?.status === 'Closed' || card?.status === 'Downgraded'
 }
+
+// Account statuses that are already past the bonus stage.
+export const ACCOUNT_BONUS_DONE_STATUSES = ['Bonus Received', 'Cooling Period', 'Safe to Close', 'Closed']
+
+// THE definition of "the bank bonus is in hand", used by every page and every
+// reminder. It has to be one predicate: an account whose status says the bonus
+// landed but which carries no received date was still chasing the bonus as far
+// as the action queue and the timeline were concerned, so the app kept shouting
+// "DD deadline passed — call the bank now" about money already collected, and
+// Earnings booked $0 for it while the tax figure counted it in full.
+//
+// Three ways to say it, because three parts of the app write it: the received
+// DATE (the account editor and the "✓ Bonus Received" button), the received
+// FLAG (older records and imports), and the STATUS (quick status changes, and
+// backups written by other tools).
+//
+// It lives here, with no imports of its own, so every engine can reach it
+// without an import cycle.
+export function isAccountBonusReceived(account) {
+  return !!account?.bonusReceivedDate
+    || !!account?.bonusReceived
+    || ACCOUNT_BONUS_DONE_STATUSES.includes(account?.status ?? '')
+}

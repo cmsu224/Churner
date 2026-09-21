@@ -8,7 +8,11 @@
 
 import { getCardProgram, resolvePointValueCents } from '../utils/programs'
 import { addDays, daysBetweenDays, parseDay, startOfToday } from '../utils/format'
+import { isAccountBonusReceived } from '../utils/statusMeta'
 import { getFeeRefundDays, STATEMENT_LAG_DAYS } from './lifecycle'
+
+// Re-exported so the earnings-facing callers can keep reading it from here.
+export { isAccountBonusReceived }
 
 // Dollar value of a card's sign-up bonus, regardless of whether it's been
 // received yet. Cashback is a $ figure already; points/miles use the card's
@@ -49,27 +53,6 @@ export function isCardChasingBonus(card) {
 // here — isCardChasingBonus is what keeps it visible in the list.
 export function isCardBonusPending(card) {
   return isCardChasingBonus(card) && (card.bonusValue ?? 0) > 0
-}
-
-// Account statuses that are already past the bonus stage — a "Bonus Received"
-// account counts as received even when no received date was recorded.
-const ACCOUNT_BONUS_DONE_STATUSES = ['Bonus Received', 'Cooling Period', 'Safe to Close', 'Closed']
-
-// THE definition of "the bank bonus is in hand", used by every page and every
-// reminder. It has to be one predicate: an account whose status says the bonus
-// landed but which carries no received date was still chasing the bonus as far
-// as the action queue and the timeline were concerned, so the app kept shouting
-// "DD deadline passed — call the bank now" about money already collected, and
-// Earnings booked $0 for it while the tax figure counted it in full.
-//
-// Three ways to say it, because three parts of the app write it: the received
-// DATE (the account editor and the "✓ Bonus Received" button), the received
-// FLAG (older records and imports), and the STATUS (quick status changes, and
-// backups written by other tools).
-export function isAccountBonusReceived(acct) {
-  return !!acct?.bonusReceivedDate
-    || !!acct?.bonusReceived
-    || ACCOUNT_BONUS_DONE_STATUSES.includes(acct?.status ?? '')
 }
 
 export function isAccountBonusPending(acct) {

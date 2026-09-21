@@ -14,8 +14,7 @@ import { collectReminders } from './reminders'
 import { getMonthlyFeeStatus, upcomingFeeCycles, feeRuleLabel } from './monthlyFee'
 import { getTransferStatus, isLanded, splitNodeKey, buildNodes, nodeLabel } from './moneyFlow'
 import { addDays, fmt$, fmt$0, parseDay, startOfToday } from '../utils/format'
-import { isAccountBonusReceived } from './earnings'
-import { isRetired } from '../utils/statusMeta'
+import { isAccountBonusReceived, isRetired } from '../utils/statusMeta'
 
 const PAST_DAYS = 30      // agenda shows events overdue by up to this many days
 const FUTURE_MONTHS = 18  // and upcoming events out to this far
@@ -86,7 +85,10 @@ function makeEvent({ kind, date, title, detail, memberId, cardId, accountId, key
     // Money-map rows carry their own already-unique id (several reminders can
     // hang off one account, so the account can't identify the event).
     id: id ?? eventId(kind, { cardId, accountId, memberId, key }),
-    date: new Date(date).toISOString(),
+    // Normalized through parseDay: several callers pass a stored calendar day
+    // ('YYYY-MM-DD'), and `new Date(str)` would make it UTC midnight — which
+    // reads back as the day before for every user west of UTC.
+    date: (parseDay(date) ?? new Date(date)).toISOString(),
     title,
     detail,
     category: KIND_CATEGORY[kind],

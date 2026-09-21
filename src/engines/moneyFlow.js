@@ -23,6 +23,7 @@
 import { getClawbackStatus } from './clawbackShield'
 import { getDebitProgress } from './debitCard'
 import { parseDay, startOfToday, daysBetweenDays } from '../utils/format'
+import { isAccountBonusReceived } from '../utils/statusMeta'
 
 // A push is normally on the destination's books in 1–3 business days. Past
 // this many calendar days an in-flight transfer is treated as late and starts
@@ -132,7 +133,7 @@ function accountNodeState(account) {
   }
 
   // Bonus is in — the only question left is the 181-day clawback window.
-  if (status === 'Bonus Received' || status === 'Cooling Period' || account.bonusReceivedDate) {
+  if (isAccountBonusReceived(account)) {
     const shield = getClawbackStatus(account)
     if (shield.safe) return { tone: 'success', label: 'Bonus in · safe to close', shortLabel: 'Safe to close' }
     // No open date means no clock to count down; say what's known instead of
@@ -389,7 +390,7 @@ export function getStrandedCash(state) {
     if (a.status === 'Closed') {
       reason = 'Account is closed but still shows a balance'
       since = a.closedDate ?? null
-    } else if (a.bonusReceivedDate) {
+    } else if (isAccountBonusReceived(a)) {
       const shield = getClawbackStatus(a)
       if (shield.safe) {
         reason = minimum > 0

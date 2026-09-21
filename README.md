@@ -83,7 +83,7 @@ The home screen (`/`) is a prioritized command center, not a passive summary. **
 Two rules hold across every item here (and on the [Timeline](#4-timeline--calendar--ics-export)):
 
 - **Deadlines are whole calendar days, counted locally.** Dates are stored as calendar days (`YYYY-MM-DD`) and parsed to *local* midnight by `parseDay` in `src/utils/format.js` — never as UTC — so "90 days from Jan 1" is Apr 1 for everyone, and a deadline due today reads `0d`, not `-1d`. Every engine shares those helpers (`parseDay`, `startOfToday`, `addDays`, `daysBetweenDays`).
-- **A bank bonus counts as received in one place.** `isAccountBonusReceived` (`src/engines/earnings.js`) treats the **received date**, the **received flag** *or* a **status past the bonus stage** (Bonus Received / Holding / Safe to Close / Closed) as "the money landed", and the Action Engine, Timeline, Earnings and Tax page all call it. So an account whose status says the bonus posted stops producing direct-deposit, debit and bonus-window nags even when no date was recorded, and its bonus still counts in Earnings.
+- **A bank bonus counts as received in one place.** `isAccountBonusReceived` (`src/utils/statusMeta.js`, re-exported from `src/engines/earnings.js`) treats the **received date**, the **received flag** *or* a **status past the bonus stage** (Bonus Received / Holding / Safe to Close / Closed) as "the money landed", and the Action Engine, Timeline, Earnings, Money Map and Tax page all call it. So an account whose status says the bonus posted stops producing direct-deposit, debit and bonus-window nags even when no date was recorded, and its bonus still counts in Earnings.
 
 The engine generates these item types:
 
@@ -133,6 +133,8 @@ A **bell icon in the header** (every screen) opens the notification center:
 ### 4. Timeline / Calendar & .ics Export
 
 Page: `/timeline`. Every dated event across the household, in one place, sourced from the existing engines (`src/engines/events.js` reuses their math — no duplicated rule logic):
+
+Every event's date is normalized to the **local calendar day** it names, so a check-back you set for the 21st appears on the 21st and exports to the 21st — not the 20th, which is what a UTC-midnight reading gave everyone in the Americas.
 
 - **Event types:** spend deadlines, annual-fee cycle dates (plus an *"Annual fee expected by"* checkpoint when a due fee hasn't been confirmed as posted), fee-refund window closes, retention-call window opens (card turns 10 months old), card safe-to-close dates (the 12-month close shield clears), card bonus re-eligibility dates, direct-deposit deadlines, debit-purchase deadlines, bank-bonus offer deadlines, clawback-clear ("safe to close") dates, early-termination-fee window ends, **monthly-fee send-by dates** (the next 3 fee cycles on accounts where the waiver still needs a deposit or top-up — the mobile app schedules its phone notifications from these), bank bonus re-eligibility dates, and — from the [Money Map](#9-money-map-transfers-cash-position--check-backs) — **transfer check-back dates** and **expected landing dates** for pushes still in flight.
 - **Two views:** a **month calendar** (prev/today/next, event chips per day, tap a day for its agenda) and an **agenda list** grouped by month with an **Overdue** section on top. Mobile defaults to agenda.

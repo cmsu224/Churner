@@ -1,3 +1,4 @@
+import { parseDay } from './format'
 // Minimal RFC 5545 (iCalendar) writer for Timeline events. All events are
 // exported as all-day VEVENTs so a bare YYYYMMDD DTSTART is enough.
 
@@ -8,10 +9,12 @@ function pad(n) {
   return String(n).padStart(2, '0')
 }
 
-// All-day date, from the event's ISO date, in the local calendar day it represents.
+// All-day date, from the event's ISO date, in the local calendar day it
+// represents — so the .ics lands on the same day the Timeline shows, rather
+// than the day before for everyone west of UTC.
 function toIcsDate(iso) {
-  const d = new Date(iso)
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`
+  const d = parseDay(iso)
+  return d ? `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` : ''
 }
 
 // UTC timestamp in RFC 5545 basic format: YYYYMMDDTHHMMSSZ

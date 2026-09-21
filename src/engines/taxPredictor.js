@@ -1,7 +1,7 @@
 // Only bank bonuses are summed — credit-card sign-up bonuses are purchase
 // rebates in the IRS's eyes, so they never enter the tax picture at all.
 
-import { isAccountBonusReceived } from './earnings'
+import { isAccountBonusReceived } from '../utils/statusMeta'
 
 // A bank bonus counts as received the way the rest of the app decides it (see
 // isAccountBonusReceived): an explicit received date, the bonusReceived flag,
