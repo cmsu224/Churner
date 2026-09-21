@@ -84,3 +84,7 @@ Built with **React 19 + Vite + Tailwind CSS**, backed by a `useReducer` Context 
 - **Privacy Constraint**: GitHub PAT is stored in `localStorage` only; no personal churner data in the public application repo. Live personal state is stored separately — in the private `cmsu224/Churning-database` repository on the repository backend, or in a private Gist on the Gist backend.
 - **Single Source of Truth**: Keep `README.md` in sync whenever adding/modifying engines, pages, rules, or data models.
 - **Git workflow**: Work directly on `main`.
+
+### 2026-09-21 — Mobile redesign parity
+- Extracted existing add-record serialization into src/utils/recordForms.js; classic Cards and Bank Accounts add forms now use it, matching ChurnPilot guided creation. No storage/sync/engine changes.
+- Lint passed with four existing hook warnings; build passed. New mobile-only layouts remain in ChurnPilot.

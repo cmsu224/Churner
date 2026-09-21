@@ -1,3 +1,4 @@
+import { serializeNewRecord } from '../../utils/recordForms'
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
@@ -9,7 +10,7 @@ import DateField from '../shared/DateField'
 import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/FilterBar'
 import { getIssuerMeta } from '../../utils/issuers'
 import { CARD_STATUSES } from '../../utils/statusMeta'
-import { getSmartCardStatus, getCardAttentionScore } from '../../engines/lifecycle'
+import { getCardAttentionScore } from '../../engines/lifecycle'
 import { getCardAge } from '../../engines/creditAge'
 import { isCardChasingBonus } from '../../engines/earnings'
 import { Plus, X, Layers, Table, ChevronDown, ChevronUp } from 'lucide-react'
@@ -194,28 +195,7 @@ export default function CreditCardsView() {
 
   function saveAdd() {
     if (!newCard?.cardName?.trim()) return
-    const payload = {
-      ...newCard,
-      spendRequirement: newCard.spendRequirement !== '' && newCard.spendRequirement != null ? parseFloat(newCard.spendRequirement) : undefined,
-      spendDeadlineDays: newCard.spendDeadlineDays !== '' && newCard.spendDeadlineDays != null ? parseInt(newCard.spendDeadlineDays) : undefined,
-      currentSpend: parseFloat(newCard.currentSpend) || 0,
-      currentBalance: parseFloat(newCard.currentBalance) || 0,
-      creditLimit: parseFloat(newCard.creditLimit) || 0,
-      bonusValue: newCard.bonusValue !== '' && newCard.bonusValue != null ? parseFloat(newCard.bonusValue) : undefined,
-      annualFee: parseFloat(newCard.annualFee) || 0,
-      openDate: newCard.openDate || null,
-      lastUsedDate: newCard.lastUsedDate || null,
-      bonusReceivedDate: newCard.bonusReceivedDate || null,
-      feePostDate: newCard.feePostDate || null,
-    }
-    delete payload._statusSet
-    // Auto-compute status from age when the user left it at the default
-    if (!newCard._statusSet) {
-      const smart = getSmartCardStatus(payload)
-      payload.status = smart.status
-      if (smart.bonusReceived) payload.bonusReceived = true
-    }
-    dispatch({ type: 'ADD_CARD', payload })
+    dispatch({ type: 'ADD_CARD', payload: serializeNewRecord('card', newCard) })
     cancelAdd()
   }
 

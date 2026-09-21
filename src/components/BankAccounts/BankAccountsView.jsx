@@ -1,3 +1,4 @@
+import { serializeNewRecord } from '../../utils/recordForms'
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
@@ -162,54 +163,10 @@ export default function BankAccountsView() {
     setNewAcct(null)
   }
 
-  function numOpt(v) { if (v === '' || v == null) return undefined; const n = parseFloat(v); return isNaN(n) ? undefined : n }
-  function intOpt(v) { if (v === '' || v == null) return undefined; const n = parseInt(v); return isNaN(n) ? undefined : n }
 
   function saveAdd() {
     if (!newAcct?.bankName?.trim()) return
-    const openedDate = newAcct.openedDate || null
-    const safeToCloseDate = openedDate
-      ? (() => { const d = new Date(openedDate); d.setDate(d.getDate() + 181); return d.toISOString() })()
-      : null
-    dispatch({
-      type: 'ADD_ACCOUNT', payload: {
-        ...newAcct,
-        requiredDD: numOpt(newAcct.requiredDD),
-        bonusAmount: numOpt(newAcct.bonusAmount),
-        currentBalance: parseFloat(newAcct.currentBalance) || 0,
-        // An account added with money already in it started with that money —
-        // the Money Map's ledger measures from here, so this is what stops a
-        // correct balance being reported as over by its own opening figure.
-        openingBalance: parseFloat(newAcct.currentBalance) || 0,
-        minimumBalance: numOpt(newAcct.minimumBalance),
-        monthlyFee: numOpt(newAcct.monthlyFee),
-        feeWaiverBalance: numOpt(newAcct.feeWaiverBalance),
-        feeWaiverDD: numOpt(newAcct.feeWaiverDD),
-        feeWaiverDebitCount: intOpt(newAcct.feeWaiverDebitCount),
-        feeWaiverDebitAmount: numOpt(newAcct.feeWaiverDebitAmount),
-        feeWaiverMode: newAcct.feeWaiverMode === 'all' ? 'all' : 'any',
-        feeCycleDay: intOpt(newAcct.feeCycleDay),
-        ddDeadlineDays: intOpt(newAcct.ddDeadlineDays),
-        requiredDDCount: intOpt(newAcct.requiredDDCount),
-        ddsMade: intOpt(newAcct.ddsMade),
-        requiredDebitCount: intOpt(newAcct.requiredDebitCount),
-        debitsMade: intOpt(newAcct.debitsMade),
-        requiredDebitAmount: numOpt(newAcct.requiredDebitAmount),
-        requiredDebitSpend: numOpt(newAcct.requiredDebitSpend),
-        debitSpend: numOpt(newAcct.debitSpend),
-        debitDeadlineDays: intOpt(newAcct.debitDeadlineDays),
-        bonusDeadlineDays: intOpt(newAcct.bonusDeadlineDays),
-        etfDays: intOpt(newAcct.etfDays),
-        last4: newAcct.last4 ? String(newAcct.last4).slice(-4) : undefined,
-        openedDate,
-        ddLinkedDate: newAcct.ddLinkedDate || null,
-        bonusReceivedDate: newAcct.bonusReceivedDate || null,
-        // Only a closed account runs a reapply clock (see bankReeligibility.js)
-        closedDate: newAcct.status === 'Closed' ? (newAcct.closedDate || null) : null,
-        offerUrl: newAcct.offerUrl || null,
-        safeToCloseDate,
-      }
-    })
+    dispatch({ type: 'ADD_ACCOUNT', payload: serializeNewRecord('account', newAcct) })
     cancelAdd()
   }
 
