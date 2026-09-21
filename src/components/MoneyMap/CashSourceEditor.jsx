@@ -75,7 +75,7 @@ export default function CashSourceEditor({ sources, perNode }) {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <input
-                          type="number"
+                          type="number" inputMode="decimal"
                           className={inp}
                           value={editing.balance ?? ''}
                           onChange={e => setEditing(d => ({ ...d, balance: e.target.value }))}
@@ -159,7 +159,7 @@ export default function CashSourceEditor({ sources, perNode }) {
               </div>
               <div className="flex items-center gap-2">
                 <input
-                  type="number"
+                  type="number" inputMode="decimal"
                   className={inp}
                   value={draft.balance}
                   onChange={e => setDraft(d => ({ ...d, balance: e.target.value }))}

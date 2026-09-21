@@ -220,7 +220,7 @@ export default function NodeEditModal({ node, onClose }) {
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-ink-tertiary pointer-events-none">$</span>
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 step="any"
                 className={`${inp} pl-7`}
                 value={balance}
@@ -323,7 +323,7 @@ export default function NodeEditModal({ node, onClose }) {
 
             <Field label="Bonus Amount ($)">
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 step="any"
                 className={inp}
                 value={bonusAmount}
@@ -339,7 +339,7 @@ export default function NodeEditModal({ node, onClose }) {
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-ink-tertiary pointer-events-none">$</span>
                 <input
-                  type="number"
+                  type="number" inputMode="decimal"
                   step="any"
                   className={`${inp} pl-7`}
                   value={openingBalance}

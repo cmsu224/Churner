@@ -6,6 +6,15 @@ import { AlertCircle } from 'lucide-react'
 
 const BRACKETS = [10, 12, 22, 24, 32, 35, 37]
 
+// One CSV cell. Bank and member names really do contain commas ("Bank of
+// America, N.A.", "Smith, John"), and an unquoted one shifts every column
+// after it into the wrong place — a tax export that silently mis-files
+// amounts is worse than no export.
+function csvCell(value) {
+  const text = String(value ?? '')
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+}
+
 // Rendered at the bottom of the Earnings page (the old /tax route redirects
 // there), so it's a section, not a page.
 export default function TaxView() {
@@ -37,7 +46,7 @@ export default function TaxView() {
         a.amount.toFixed(2),
       ]),
     ]
-    const csv = rows.map(r => r.join(',')).join('\n')
+    const csv = rows.map(r => r.map(csvCell).join(',')).join('\r\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')

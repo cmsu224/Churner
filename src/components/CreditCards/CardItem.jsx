@@ -798,15 +798,15 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Spend Req ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.spendRequirement ?? ''} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.spendRequirement ?? ''} onChange={e => set('spendRequirement', e.target.value)} placeholder="4000" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Days</label>
-                  <input type="number" min="1" className={inp} value={draft.spendDeadlineDays ?? ''} onChange={e => set('spendDeadlineDays', e.target.value)} placeholder="90" />
+                  <input type="number" inputMode="decimal" min="1" className={inp} value={draft.spendDeadlineDays ?? ''} onChange={e => set('spendDeadlineDays', e.target.value)} placeholder="90" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Spent ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.currentSpend ?? ''} onChange={e => set('currentSpend', e.target.value)} placeholder="0" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.currentSpend ?? ''} onChange={e => set('currentSpend', e.target.value)} placeholder="0" />
                 </div>
               </div>
               {(card.spendLog ?? []).length > 0 ? (
@@ -845,7 +845,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Bonus</label>
-                  <input type="number" min="0" className={inp} value={draft.bonusValue ?? ''} onChange={e => set('bonusValue', e.target.value)} placeholder="pts/$" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.bonusValue ?? ''} onChange={e => set('bonusValue', e.target.value)} placeholder="pts/$" />
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Type</label>
@@ -857,7 +857,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 </div>
                 <div>
                   <label className="text-xs text-ink-muted block mb-1">Annual Fee ($)</label>
-                  <input type="number" min="0" className={inp} value={draft.annualFee ?? ''} onChange={e => set('annualFee', e.target.value)} placeholder="0" />
+                  <input type="number" inputMode="decimal" min="0" className={inp} value={draft.annualFee ?? ''} onChange={e => set('annualFee', e.target.value)} placeholder="0" />
                 </div>
               </div>
               <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
@@ -919,7 +919,7 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Annual Fee Refunded ($)</label>
               <div className="flex gap-2 items-start">
-                <input type="number" min="0" className={inp} value={draft.feeRefundAmount ?? ''} onChange={e => set('feeRefundAmount', e.target.value)} placeholder="blank = not checked yet" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={draft.feeRefundAmount ?? ''} onChange={e => set('feeRefundAmount', e.target.value)} placeholder="blank = not checked yet" />
                 <button
                   type="button"
                   onClick={() => set('feeRefundAmount', draft.annualFee)}
@@ -950,11 +950,11 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
-                    <input type="number" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={draft.currentBalance ?? ''} onChange={e => set('currentBalance', e.target.value)} placeholder="0" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-tertiary block mb-1">Credit Limit ($)</label>
-                    <input type="number" min="0" className={inp} value={draft.creditLimit ?? ''} onChange={e => set('creditLimit', e.target.value)} placeholder="optional" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={draft.creditLimit ?? ''} onChange={e => set('creditLimit', e.target.value)} placeholder="optional" />
                   </div>
                 </div>
                 <div>

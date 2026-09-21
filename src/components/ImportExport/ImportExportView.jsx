@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useChurn } from '../../store/ChurnContext'
 import { getSmartCardStatus } from '../../engines/lifecycle'
+import { addDays, parseDay } from '../../utils/format'
 import { Download, Upload, Copy, Check, AlertTriangle, ExternalLink } from 'lucide-react'
 
 function buildPrompt(players) {
@@ -127,24 +128,149 @@ Output ONLY the JSON — nothing else.
 [Paste your credit report, screenshot description, or card list here]`
 }
 
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+// A member name (or whatever an AI put in "member") as trimmed lower-case
+// text. '' for anything that isn't text or a number, so a stray object or a
+// nameless member can never throw on .toLowerCase().
+function normalizeName(value) {
+  if (typeof value === 'string') return value.trim().toLowerCase()
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim().toLowerCase()
+  return ''
+}
+
 function resolveMemberId(memberName, members, fallbackId) {
-  if (!memberName) return fallbackId
-  const lower = memberName.toLowerCase().trim()
-  const match = (members ?? []).find(p => {
-    const n = p.name.toLowerCase()
+  const lower = normalizeName(memberName)
+  if (!lower) return fallbackId
+  const match = (Array.isArray(members) ? members : []).find(p => {
+    if (!isPlainObject(p)) return false
+    const n = normalizeName(p.name ?? '')
+    if (!n) return false
     return n === lower || n.startsWith(lower) || lower.startsWith(n)
   })
   return match?.id ?? fallbackId
 }
 
+// AI item fields that hold numbers. An AI cheerfully answers with "$95",
+// "60,000" or "4k", and a string in a numeric field poisons everything
+// downstream without ever looking broken: `"$95" > 0` is false, so the annual
+// fee stops being tracked at all, and `"60,000" * 1.5` is NaN, so Earnings
+// reads $NaN. Parsed leniently once, here, instead of defended against in
+// every engine.
+const AI_NUMBER_FIELDS = [
+  'spendRequirement', 'spendDeadlineDays', 'currentSpend', 'bonusValue',
+  'annualFee', 'feeRefundAmount', 'creditLimit',
+  'requiredDD', 'requiredDDCount', 'ddsMade', 'ddDeadlineDays',
+  'requiredDebitCount', 'debitsMade', 'requiredDebitAmount',
+  'requiredDebitSpend', 'debitSpend', 'debitDeadlineDays',
+  'bonusAmount', 'bonusDeadlineDays', 'minimumBalance', 'currentBalance',
+  'monthlyFee', 'feeWaiverBalance', 'feeWaiverDD', 'feeWaiverDebitCount',
+  'feeWaiverDebitAmount', 'feeCycleDay', 'etfDays',
+]
+
+// AI item fields that hold yes/no. `"false"` is a non-empty string, so a card
+// the AI said had NOT received its bonus would import as received.
+const AI_BOOLEAN_FIELDS = [
+  'bonusReceived', 'isBusiness', 'isAuthorizedUser', 'isTaxable',
+  'feeWaivedFirstYear',
+]
+
+const AI_DATE_FIELDS = [
+  'openDate', 'openedDate', 'closedDate', 'lastUsedDate',
+  'bonusReceivedDate', 'ddLinkedDate', 'debitCompletedDate',
+]
+
+// '$1,250.50' → 1250.5, '4k' → 4000. Anything that isn't a plain amount
+// becomes null, so the field reads as "not recorded" rather than as text
+// pretending to be a number.
+function sanitizeNumber(value) {
+  if (value === undefined || value === null) return value
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string') return null
+  const m = value.trim().match(/^[$€£]?\s*(-?[\d,]*\.?\d+)\s*(k|m)?$/i)
+  if (!m) return null
+  let n = parseFloat(m[1].replace(/,/g, ''))
+  if (!Number.isFinite(n)) return null
+  const suffix = m[2]?.toLowerCase()
+  if (suffix === 'k') n *= 1000
+  if (suffix === 'm') n *= 1000000
+  return n
+}
+
+function sanitizeBoolean(value) {
+  if (value === undefined || value === null) return value
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value !== 'string') return null
+  const text = value.trim().toLowerCase()
+  if (['true', 'yes', 'y', '1'].includes(text)) return true
+  if (['false', 'no', 'n', '0', ''].includes(text)) return false
+  return null
+}
+
+function sanitizeDate(value) {
+  if (value === undefined || value === null) return value
+  if (typeof value !== 'string' || !value.trim()) return null
+  return Number.isNaN(new Date(value).getTime()) ? null : value
+}
+
+function sanitizeAiItem(item) {
+  const clean = { ...item }
+  for (const key of AI_DATE_FIELDS) {
+    if (key in clean) clean[key] = sanitizeDate(clean[key])
+  }
+  for (const key of AI_NUMBER_FIELDS) {
+    if (!(key in clean)) continue
+    const value = sanitizeNumber(clean[key])
+    if (value === null) delete clean[key]
+    else clean[key] = value
+  }
+  for (const key of AI_BOOLEAN_FIELDS) {
+    if (!(key in clean)) continue
+    const value = sanitizeBoolean(clean[key])
+    if (value === null) delete clean[key]
+    else clean[key] = value
+  }
+  return clean
+}
+
+function readAiList(data, key, label) {
+  const value = data[key]
+  if (value === undefined || value === null) return []
+  if (!Array.isArray(value)) {
+    throw new Error(`"${key}" must be a list of ${label}. Ask the AI to output it as [ ... ].`)
+  }
+  const badIndex = value.findIndex(item => !isPlainObject(item))
+  if (badIndex !== -1) {
+    throw new Error(`Item ${badIndex + 1} in "${key}" is not a valid ${label.replace(/s$/, '')}. Each entry must be { ... }.`)
+  }
+  return value.map(sanitizeAiItem)
+}
+
 function parseImport(text) {
-  const cleaned = text.trim().replace(/^```json?\s*/i, '').replace(/\s*```$/, '')
-  const data = JSON.parse(cleaned)
-  if (data.creditCards !== undefined || data.bankAccounts !== undefined) {
-    return { mode: 'ai', data }
+  const cleaned = String(text ?? '').trim().replace(/^```json?\s*/i, '').replace(/\s*```$/, '')
+  if (!cleaned) throw new Error('Nothing to import. Paste JSON or load a backup file.')
+  let data
+  try {
+    data = JSON.parse(cleaned)
+  } catch {
+    throw new Error('That is not valid JSON. Paste only the JSON the AI returned, or load a Churner backup file.')
+  }
+  if (!isPlainObject(data)) {
+    throw new Error('Unrecognized format. Expected { creditCards, bankAccounts } or a full Churner state export.')
   }
   if (data.version !== undefined && (data.players !== undefined || data.members !== undefined)) {
     return { mode: 'full', data }
+  }
+  if (data.creditCards !== undefined || data.bankAccounts !== undefined) {
+    const creditCards = readAiList(data, 'creditCards', 'credit cards')
+    const bankAccounts = readAiList(data, 'bankAccounts', 'bank accounts')
+    if (!creditCards.length && !bankAccounts.length) {
+      throw new Error('No credit cards or bank accounts found in this JSON.')
+    }
+    return { mode: 'ai', data: { ...data, creditCards, bankAccounts } }
   }
   throw new Error('Unrecognized format. Expected { creditCards, bankAccounts } or a full Churner state export.')
 }
@@ -187,9 +313,10 @@ function mergeAiImport(state, aiData, members, fallbackMemberId) {
   const newAccounts = (aiData.bankAccounts ?? []).map(a => {
     const memberId = resolveMemberId(a.member, members, fallbackMemberId)
     const openedDate = a.openedDate ?? null
-    const safeToCloseDate = openedDate
-      ? (() => { const d = new Date(openedDate); d.setDate(d.getDate() + 181); return d.toISOString() })()
-      : null
+    // Local calendar days, same as getClawbackStatus — `new Date(openedDate)`
+    // is UTC midnight and lands a day early west of UTC.
+    const opened = parseDay(openedDate)
+    const safeToCloseDate = opened ? addDays(opened, 181).toISOString() : null
     return {
       id: crypto.randomUUID(),
       memberId,

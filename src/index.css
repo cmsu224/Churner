@@ -124,3 +124,31 @@ select option {
     scroll-behavior: auto !important;
   }
 }
+
+/* A tap inside the app is a tap, not a text selection: the grey flash and the
+   long-press selection bubble both read as "something went wrong" on a control
+   that is only meant to be pressed. Real text is left selectable. */
+* { -webkit-tap-highlight-color: transparent; }
+button, nav, label, [role="button"], [role="tab"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+button, input, select { touch-action: manipulation; }
+/* Under 16px, iOS zooms the whole page in when a field takes focus. */
+@media (max-width: 640px) { input, select, textarea { font-size: 16px; } }
+/* The page scroller must not hand its overscroll to the browser, or reaching
+   the end of a list bounces the whole page. */
+main { overscroll-behavior-y: contain; }
+
+/* Everything you can press gets a finger-sized hit area, even where the icon
+   inside it is small (the 44px Apple / 48dp Material minimum). Inline text
+   links and anything that opts out with .tap-auto are left alone. */
+@media (pointer: coarse) {
+  button:not(.tap-auto),
+  [role="button"]:not(.tap-auto),
+  a[href]:not(.tap-auto):not(.underline) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  button.tap-wide, [role="button"].tap-wide { min-width: 0; }
+}

@@ -144,7 +144,7 @@ export default function PointsItem({ entry, members }) {
           ) : (
             <div className="flex gap-2">
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 min="0"
                 autoFocus
                 className={inp}
@@ -172,7 +172,7 @@ export default function PointsItem({ entry, members }) {
             </div>
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Balance (pts)</label>
-              <input type="number" min="0" className={inp} value={draft.balance ?? ''} onChange={e => setDraft(d => ({ ...d, balance: e.target.value }))} placeholder="0" />
+              <input type="number" inputMode="decimal" min="0" className={inp} value={draft.balance ?? ''} onChange={e => setDraft(d => ({ ...d, balance: e.target.value }))} placeholder="0" />
             </div>
           </div>
 
@@ -184,7 +184,7 @@ export default function PointsItem({ entry, members }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-ink-tertiary block mb-1">Program rate (¢/pt)</label>
-              <input type="number" min="0" step="0.05" className={inp} value={draft.rateCents ?? ''} onChange={e => setDraft(d => ({ ...d, rateCents: e.target.value }))} placeholder={String(cents)} />
+              <input type="number" inputMode="decimal" min="0" step="0.05" className={inp} value={draft.rateCents ?? ''} onChange={e => setDraft(d => ({ ...d, rateCents: e.target.value }))} placeholder={String(cents)} />
               <p className="text-[11px] text-ink-faint mt-1">Global — changes this program&rsquo;s rate everywhere (same as Settings).</p>
             </div>
             <div>

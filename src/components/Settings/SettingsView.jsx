@@ -152,7 +152,7 @@ export default function SettingsView() {
           <label className="text-sm text-ink font-medium" htmlFor="point-value">Point value</label>
           <input
             id="point-value"
-            type="number"
+            type="number" inputMode="decimal"
             min="0.1"
             max="10"
             step="0.1"
@@ -186,7 +186,7 @@ export default function SettingsView() {
                 <span className="text-xs text-ink-secondary truncate" title={p.name}>{p.name}</span>
                 <span className="flex items-center gap-1.5 flex-shrink-0">
                   <input
-                    type="number"
+                    type="number" inputMode="decimal"
                     min="0"
                     step="0.05"
                     aria-label={`${p.name} value in cents per point`}

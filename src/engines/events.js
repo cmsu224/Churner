@@ -13,8 +13,8 @@ import { getDebitProgress, debitRemainingLabel, DEADLINE_SOURCE_LABEL } from './
 import { collectReminders } from './reminders'
 import { getMonthlyFeeStatus, upcomingFeeCycles, feeRuleLabel } from './monthlyFee'
 import { getTransferStatus, isLanded, splitNodeKey, buildNodes, nodeLabel } from './moneyFlow'
-import { fmt$, fmt$0 } from '../utils/format'
-import { isRetired } from '../utils/statusMeta'
+import { addDays, fmt$, fmt$0, parseDay, startOfToday } from '../utils/format'
+import { isAccountBonusReceived, isRetired } from '../utils/statusMeta'
 
 const PAST_DAYS = 30      // agenda shows events overdue by up to this many days
 const FUTURE_MONTHS = 18  // and upcoming events out to this far
@@ -50,12 +50,15 @@ function memberName(members, memberId) {
   return (members ?? []).find(p => p.id === memberId)?.name ?? ''
 }
 
+// A record with no name still has to be nameable — see actionItems.js.
 function cardLabel(card) {
-  return card.cardName + (card.last4 ? ` ···${card.last4}` : '')
+  const name = String(card.cardName ?? '').trim() || 'Unnamed card'
+  return name + (card.last4 ? ` ···${card.last4}` : '')
 }
 
 function acctLabel(acct) {
-  return acct.bankName + (acct.last4 ? ` ···${acct.last4}` : '')
+  const name = String(acct.bankName ?? '').trim() || 'Unnamed account'
+  return name + (acct.last4 ? ` ···${acct.last4}` : '')
 }
 
 function monthsBetween(from, to) {
@@ -85,7 +88,10 @@ function makeEvent({ kind, date, title, detail, memberId, cardId, accountId, key
     // Money-map rows carry their own already-unique id (several reminders can
     // hang off one account, so the account can't identify the event).
     id: id ?? eventId(kind, { cardId, accountId, memberId, key }),
-    date: new Date(date).toISOString(),
+    // Normalized through parseDay: several callers pass a stored calendar day
+    // ('YYYY-MM-DD'), and `new Date(str)` would make it UTC midnight — which
+    // reads back as the day before for every user west of UTC.
+    date: (parseDay(date) ?? new Date(date)).toISOString(),
     title,
     detail,
     category: KIND_CATEGORY[kind],
@@ -177,13 +183,14 @@ export function collectEvents(state) {
     }
 
     // Retention window opens 10 months after opening, for cards 0–12 months old with a fee.
-    if ((card.annualFee ?? 0) > 0 && card.openDate) {
-      const open = new Date(card.openDate)
-      const months = monthsBetween(open, new Date())
+    if ((card.annualFee ?? 0) > 0 && parseDay(card.openDate)) {
+      const open = parseDay(card.openDate)
+      const today = startOfToday()
+      const months = monthsBetween(open, today)
       if (months >= 0 && months <= 12) {
         const windowOpen = new Date(open)
         windowOpen.setMonth(windowOpen.getMonth() + 10)
-        if (windowOpen > new Date()) {
+        if (windowOpen > today) {
           events.push(makeEvent({
             kind: 'retention_window',
             date: windowOpen.toISOString(),
@@ -220,11 +227,11 @@ export function collectEvents(state) {
     if (acct.status === 'Closed') continue
     const n = acctLabel(acct)
     const pn = memberName(members, acct.memberId)
-    const bonusReceived = !!acct.bonusReceivedDate
+    const bonusReceived = isAccountBonusReceived(acct)
 
-    if ((acct.ddDeadlineDays ?? 0) > 0 && acct.openedDate && !bonusReceived) {
-      const deadline = new Date(acct.openedDate)
-      deadline.setDate(deadline.getDate() + acct.ddDeadlineDays)
+    const openedOn = parseDay(acct.openedDate)
+    if ((acct.ddDeadlineDays ?? 0) > 0 && openedOn && !bonusReceived) {
+      const deadline = addDays(openedOn, acct.ddDeadlineDays)
       events.push(makeEvent({
         kind: 'dd_deadline',
         date: deadline.toISOString(),
@@ -254,9 +261,8 @@ export function collectEvents(state) {
       }))
     }
 
-    if ((acct.bonusDeadlineDays ?? 0) > 0 && acct.openedDate && !bonusReceived) {
-      const deadline = new Date(acct.openedDate)
-      deadline.setDate(deadline.getDate() + acct.bonusDeadlineDays)
+    if ((acct.bonusDeadlineDays ?? 0) > 0 && openedOn && !bonusReceived) {
+      const deadline = addDays(openedOn, acct.bonusDeadlineDays)
       events.push(makeEvent({
         kind: 'bonus_deadline',
         date: deadline.toISOString(),
@@ -303,10 +309,9 @@ export function collectEvents(state) {
       }
     }
 
-    if ((acct.etfDays ?? 0) > 0 && acct.openedDate) {
-      const etfDate = new Date(acct.openedDate)
-      etfDate.setDate(etfDate.getDate() + acct.etfDays)
-      if (etfDate > new Date()) {
+    if ((acct.etfDays ?? 0) > 0 && openedOn) {
+      const etfDate = addDays(openedOn, acct.etfDays)
+      if (etfDate > startOfToday()) {
         events.push(makeEvent({
           kind: 'etf_clear',
           date: etfDate.toISOString(),

@@ -11,6 +11,7 @@ import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/F
 import { getIssuerMeta } from '../../utils/issuers'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { getAccountAttentionScore } from '../../engines/lifecycle'
+import { isAccountBonusPending } from '../../engines/earnings'
 import { Plus, X, Layers, Table, ChevronDown, ChevronUp } from 'lucide-react'
 
 const SORT_OPTIONS = [
@@ -107,7 +108,7 @@ export default function BankAccountsView() {
       }
       if (filters.types.length && !filters.types.includes(a.accountType)) return false
       if (filters.hasBonus && !(a.bonusAmount > 0)) return false
-      if (filters.bonusPending && !(a.bonusAmount > 0 && !a.bonusReceivedDate)) return false
+      if (filters.bonusPending && !isAccountBonusPending(a)) return false
       return true
     })
     const transfers = state.transfers ?? []
@@ -363,11 +364,11 @@ export default function BankAccountsView() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Bonus Amount ($)</label>
-                    <input type="number" min="0" className={inp} value={newAcct.bonusAmount} onChange={e => setN('bonusAmount', e.target.value)} placeholder="300" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.bonusAmount} onChange={e => setN('bonusAmount', e.target.value)} placeholder="300" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Bonus Deadline (days)</label>
-                    <input type="number" min="1" className={inp} value={newAcct.bonusDeadlineDays} onChange={e => setN('bonusDeadlineDays', e.target.value)} placeholder="120" />
+                    <input type="number" inputMode="decimal" min="1" className={inp} value={newAcct.bonusDeadlineDays} onChange={e => setN('bonusDeadlineDays', e.target.value)} placeholder="120" />
                   </div>
                 </div>
                 <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
@@ -384,21 +385,21 @@ export default function BankAccountsView() {
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">DD Amount ($)</label>
-                    <input type="number" min="0" className={inp} value={newAcct.requiredDD} onChange={e => setN('requiredDD', e.target.value)} placeholder="500" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.requiredDD} onChange={e => setN('requiredDD', e.target.value)} placeholder="500" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1"># Required</label>
-                    <input type="number" min="1" className={inp} value={newAcct.requiredDDCount} onChange={e => setN('requiredDDCount', e.target.value)} placeholder="1" />
+                    <input type="number" inputMode="decimal" min="1" className={inp} value={newAcct.requiredDDCount} onChange={e => setN('requiredDDCount', e.target.value)} placeholder="1" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1"># Completed</label>
-                    <input type="number" min="0" className={inp} value={newAcct.ddsMade} onChange={e => setN('ddsMade', e.target.value)} placeholder="0" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.ddsMade} onChange={e => setN('ddsMade', e.target.value)} placeholder="0" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">DD Deadline (days)</label>
-                    <input type="number" min="1" className={inp} value={newAcct.ddDeadlineDays} onChange={e => setN('ddDeadlineDays', e.target.value)} placeholder="90" />
+                    <input type="number" inputMode="decimal" min="1" className={inp} value={newAcct.ddDeadlineDays} onChange={e => setN('ddDeadlineDays', e.target.value)} placeholder="90" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">DD Linked Date</label>
@@ -420,29 +421,29 @@ export default function BankAccountsView() {
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs text-ink-muted block mb-1"># Purchases</label>
-                    <input type="number" min="0" className={inp} value={newAcct.requiredDebitCount} onChange={e => setN('requiredDebitCount', e.target.value)} placeholder="10" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.requiredDebitCount} onChange={e => setN('requiredDebitCount', e.target.value)} placeholder="10" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1"># Completed</label>
-                    <input type="number" min="0" className={inp} value={newAcct.debitsMade} onChange={e => setN('debitsMade', e.target.value)} placeholder="0" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.debitsMade} onChange={e => setN('debitsMade', e.target.value)} placeholder="0" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Min Per Purchase ($)</label>
-                    <input type="number" min="0" className={inp} value={newAcct.requiredDebitAmount} onChange={e => setN('requiredDebitAmount', e.target.value)} placeholder="5" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.requiredDebitAmount} onChange={e => setN('requiredDebitAmount', e.target.value)} placeholder="5" />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Total Spend ($)</label>
-                    <input type="number" min="0" className={inp} value={newAcct.requiredDebitSpend} onChange={e => setN('requiredDebitSpend', e.target.value)} placeholder="optional" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.requiredDebitSpend} onChange={e => setN('requiredDebitSpend', e.target.value)} placeholder="optional" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Spend Logged ($)</label>
-                    <input type="number" min="0" className={inp} value={newAcct.debitSpend} onChange={e => setN('debitSpend', e.target.value)} placeholder="0" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.debitSpend} onChange={e => setN('debitSpend', e.target.value)} placeholder="0" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Deadline (days)</label>
-                    <input type="number" min="1" className={inp} value={newAcct.debitDeadlineDays} onChange={e => setN('debitDeadlineDays', e.target.value)} placeholder="90" />
+                    <input type="number" inputMode="decimal" min="1" className={inp} value={newAcct.debitDeadlineDays} onChange={e => setN('debitDeadlineDays', e.target.value)} placeholder="90" />
                   </div>
                 </div>
                 <p className="text-xs text-ink-faint">
@@ -459,11 +460,11 @@ export default function BankAccountsView() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Monthly Fee ($)</label>
-                    <input type="number" min="0" className={inp} value={newAcct.monthlyFee} onChange={e => setN('monthlyFee', e.target.value)} placeholder="e.g. 12 — empty if none" />
+                    <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.monthlyFee} onChange={e => setN('monthlyFee', e.target.value)} placeholder="e.g. 12 — empty if none" />
                   </div>
                   <div>
                     <label className="text-xs text-ink-muted block mb-1">Fee Cycle Ends (day of month)</label>
-                    <input type="number" min="1" max="31" className={inp} value={newAcct.feeCycleDay} onChange={e => setN('feeCycleDay', e.target.value)} placeholder="month end" />
+                    <input type="number" inputMode="decimal" min="1" max="31" className={inp} value={newAcct.feeCycleDay} onChange={e => setN('feeCycleDay', e.target.value)} placeholder="month end" />
                   </div>
                 </div>
                 {Number(newAcct.monthlyFee) > 0 && (
@@ -471,21 +472,21 @@ export default function BankAccountsView() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-xs text-ink-muted block mb-1">Waived by Keeping Balance ($)</label>
-                        <input type="number" min="0" className={inp} value={newAcct.feeWaiverBalance} onChange={e => setN('feeWaiverBalance', e.target.value)} placeholder="e.g. 1500" />
+                        <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.feeWaiverBalance} onChange={e => setN('feeWaiverBalance', e.target.value)} placeholder="e.g. 1500" />
                       </div>
                       <div>
                         <label className="text-xs text-ink-muted block mb-1">Direct Deposit Needed per Cycle ($)</label>
-                        <input type="number" min="0" className={inp} value={newAcct.feeWaiverDD} onChange={e => setN('feeWaiverDD', e.target.value)} placeholder="e.g. 500 — 1 = any amount" />
+                        <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.feeWaiverDD} onChange={e => setN('feeWaiverDD', e.target.value)} placeholder="e.g. 500 — 1 = any amount" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-xs text-ink-muted block mb-1">Debit Swipes Needed per Cycle</label>
-                        <input type="number" min="0" className={inp} value={newAcct.feeWaiverDebitCount} onChange={e => setN('feeWaiverDebitCount', e.target.value)} placeholder="e.g. 10" />
+                        <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.feeWaiverDebitCount} onChange={e => setN('feeWaiverDebitCount', e.target.value)} placeholder="e.g. 10" />
                       </div>
                       <div>
                         <label className="text-xs text-ink-muted block mb-1">Minimum per Swipe ($)</label>
-                        <input type="number" min="0" className={inp} value={newAcct.feeWaiverDebitAmount} onChange={e => setN('feeWaiverDebitAmount', e.target.value)} placeholder="any amount" />
+                        <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.feeWaiverDebitAmount} onChange={e => setN('feeWaiverDebitAmount', e.target.value)} placeholder="any amount" />
                       </div>
                     </div>
                     {[newAcct.feeWaiverBalance, newAcct.feeWaiverDD, newAcct.feeWaiverDebitCount].filter(v => Number(v) > 0).length > 1 && (
@@ -521,11 +522,11 @@ export default function BankAccountsView() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-xs text-ink-tertiary block mb-1">Current Balance ($)</label>
-                      <input type="number" min="0" className={inp} value={newAcct.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
+                      <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.currentBalance} onChange={e => setN('currentBalance', e.target.value)} placeholder="0" />
                     </div>
                     <div>
                       <label className="text-xs text-ink-tertiary block mb-1">Min Balance ($)</label>
-                      <input type="number" min="0" className={inp} value={newAcct.minimumBalance} onChange={e => setN('minimumBalance', e.target.value)} placeholder="0" />
+                      <input type="number" inputMode="decimal" min="0" className={inp} value={newAcct.minimumBalance} onChange={e => setN('minimumBalance', e.target.value)} placeholder="0" />
                     </div>
                   </div>
                   <div>

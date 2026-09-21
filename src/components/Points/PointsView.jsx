@@ -207,7 +207,7 @@ export default function PointsView() {
               </div>
               <div>
                 <label className="text-xs text-ink-tertiary block mb-1">Balance (pts)</label>
-                <input type="number" min="0" className={inp} value={newEntry.balance} onChange={e => setN('balance', e.target.value)} placeholder="0" />
+                <input type="number" inputMode="decimal" min="0" className={inp} value={newEntry.balance} onChange={e => setN('balance', e.target.value)} placeholder="0" />
               </div>
             </div>
 

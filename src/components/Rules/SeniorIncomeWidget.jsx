@@ -35,7 +35,7 @@ export default function SeniorIncomeWidget() {
               <div>
                 <label className="text-xs text-ink-muted block mb-1">Social Security ($/month)</label>
                 <input
-                  type="number"
+                  type="number" inputMode="decimal"
                   min="0"
                   className={inp}
                   value={income.ssMonthly}
@@ -45,7 +45,7 @@ export default function SeniorIncomeWidget() {
               <div>
                 <label className="text-xs text-ink-muted block mb-1">Accessible Household Support ($/month)</label>
                 <input
-                  type="number"
+                  type="number" inputMode="decimal"
                   min="0"
                   className={inp}
                   value={income.accessibleSupport}

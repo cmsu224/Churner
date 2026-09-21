@@ -1,19 +1,12 @@
 // Only bank bonuses are summed — credit-card sign-up bonuses are purchase
 // rebates in the IRS's eyes, so they never enter the tax picture at all.
 
-// Statuses that put an account past the bonus stage — the same list the
-// Earnings engine uses, so both pages agree on what "received" means.
-const RECEIVED_STATUSES = ['Bonus Received', 'Cooling Period', 'Safe to Close', 'Closed']
+import { isAccountBonusReceived } from '../utils/statusMeta'
 
-// A bank bonus counts as received the way the rest of the app decides it: an
-// explicit received date, the bonusReceived flag, or a status past the bonus
-// stage. The account form only ever writes the DATE and the STATUS, so gating
-// on the flag alone left this page reading $0 with bonuses plainly recorded.
-export function isBankBonusReceived(acct) {
-  return !!acct?.bonusReceivedDate
-    || !!acct?.bonusReceived
-    || RECEIVED_STATUSES.includes(acct?.status ?? '')
-}
+// A bank bonus counts as received the way the rest of the app decides it (see
+// isAccountBonusReceived): an explicit received date, the bonusReceived flag,
+// or a status past the bonus stage.
+export const isBankBonusReceived = isAccountBonusReceived
 
 // Bank bonuses are ordinary interest income unless the user explicitly unticks
 // the 1099-INT box, so an account with no flag stored still counts.
