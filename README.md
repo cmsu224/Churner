@@ -504,6 +504,8 @@ Page: `/import`.
   - The import deliberately does not set a last-used date — set it yourself via the ⚡ Used Today button when you actually use a card.
 - **Import** — paste or file-load JSON, preview what will be added (with per-member assignment breakdown and an unassigned-items warning), then choose **Append** (merge into existing data) or **Replace** (wipe and load fresh). Accepts both the AI simplified format (`{ creditCards, bankAccounts }`) and a full state backup.
 
+**The AI's answer is sanitized before it becomes records.** An AI writes money and counts the way a person does — `"$95"`, `"60,000"`, `"4k"` — and a string in a numeric field looks fine while quietly breaking the math (`"$95" > 0` is false, so the annual fee stops being tracked; `"60,000" × 1.5` is `NaN`, so Earnings reads `$NaN`). Numeric fields are parsed leniently and dropped if unreadable, yes/no fields accept `true/false/yes/no/1/0` (`"false"` is a non-empty string, so it used to import as *received*), dates that don't parse become null, and a malformed list is rejected with a message naming the offending item — rather than half-importing.
+
 ### 22. Data Sync (Private GitHub Repository or Gist)
 
 `src/hooks/useGist.js` + `src/store/ChurnContext.jsx`:
