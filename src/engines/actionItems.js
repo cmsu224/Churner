@@ -6,8 +6,8 @@ import { getKeepAliveCards } from './creditAge'
 import { getBurnRate } from './burnRate'
 import { collectReminders } from './reminders'
 import { getMonthlyFeeStatus, feeRuleLabel, feeDebitLabel } from './monthlyFee'
-import { getLastFeePosting, isFeeRefundPending } from './earnings'
-import { fmt$, fmt$0 } from '../utils/format'
+import { getLastFeePosting, isFeeRefundPending, isAccountBonusReceived } from './earnings'
+import { addDays, daysBetweenDays, fmt$, fmt$0, parseDay, startOfToday } from '../utils/format'
 import { isRetired } from '../utils/statusMeta'
 
 function mName(members, memberId) {
@@ -75,8 +75,8 @@ export function generateActionItems(state) {
     // deadline. Only outside the ≤7-day window (the critical items above own
     // the endgame) and once the card is 2+ weeks old, so day-one cards don't
     // alarm before spending has started.
-    if (si && !si.met && si.daysLeft > 7 && card.openDate) {
-      const daysOpen = Math.floor((new Date() - new Date(card.openDate)) / 86400000)
+    if (si && !si.met && si.daysLeft > 7 && parseDay(card.openDate)) {
+      const daysOpen = daysBetweenDays(parseDay(card.openDate), startOfToday())
       const br = getBurnRate(card)
       if (br && !br.onTrack && daysOpen >= 14) {
         const deadline = new Date(si.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -124,9 +124,10 @@ export function generateActionItems(state) {
     }
 
     // Retention call window (10–12 months old, has annual fee)
-    if (card.openDate && (card.annualFee ?? 0) > 0) {
-      const open = new Date(card.openDate)
-      const months = (new Date().getFullYear() - open.getFullYear()) * 12 + (new Date().getMonth() - open.getMonth())
+    if (parseDay(card.openDate) && (card.annualFee ?? 0) > 0) {
+      const open = parseDay(card.openDate)
+      const today = startOfToday()
+      const months = (today.getFullYear() - open.getFullYear()) * 12 + (today.getMonth() - open.getMonth())
       if (months >= 10 && months <= 12 && card.status !== 'Downgrade/Close Due' && !isRetired(card)) {
         const alreadyHasFeeAlert = items.some(i => i.cardId === card.id && i.category === 'annual_fee')
         if (!alreadyHasFeeAlert) {
@@ -181,7 +182,7 @@ export function generateActionItems(state) {
     const pn = mName(members, acct.memberId)
     const shield = getClawbackStatus(acct)
     const hasBonus = (acct.bonusAmount ?? 0) > 0
-    const bonusReceived = !!acct.bonusReceivedDate
+    const bonusReceived = isAccountBonusReceived(acct)
     // Direct-deposit requirement is satisfied once the completed count reaches
     // the required number (default 1) — the linked-date field is optional, so a
     // user who only logs "DDs completed" should stop seeing the link-DD nags.
@@ -195,10 +196,10 @@ export function generateActionItems(state) {
     }
 
     if (!acct.ddLinkedDate && !bonusReceived && !ddComplete) {
-      if (acct.openedDate && (acct.ddDeadlineDays ?? 0) > 0) {
-        const deadline = new Date(acct.openedDate)
-        deadline.setDate(deadline.getDate() + acct.ddDeadlineDays)
-        const daysLeft = Math.ceil((deadline - new Date()) / 86400000)
+      const openedOn = parseDay(acct.openedDate)
+      if (openedOn && (acct.ddDeadlineDays ?? 0) > 0) {
+        const deadline = addDays(openedOn, acct.ddDeadlineDays)
+        const daysLeft = daysBetweenDays(startOfToday(), deadline)
         const ddAmt = acct.requiredDD ? `$${acct.requiredDD.toLocaleString()}` : 'a qualifying'
         if (daysLeft < 0) {
           items.push({ id: `dd-overdue-${acct.id}`, type: 'critical', category: 'bonus', accountId: acct.id, memberId: acct.memberId,
@@ -221,8 +222,8 @@ export function generateActionItems(state) {
             detail: `Direct deposit deadline: ${deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. Required: ${ddAmt} per deposit${acct.ddSourceDescription ? ' from ' + acct.ddSourceDescription : ''}. ${pn}'s account.`,
             dueDate: deadline.toISOString(), action: 'Schedule direct deposit' })
         }
-      } else if (acct.openedDate && (acct.requiredDD ?? 0) > 0) {
-        const daysOpen = Math.ceil((new Date() - new Date(acct.openedDate)) / 86400000)
+      } else if (openedOn && (acct.requiredDD ?? 0) > 0) {
+        const daysOpen = daysBetweenDays(openedOn, startOfToday())
         if (daysOpen > 14) {
           items.push({ id: `dd-generic-${acct.id}`, type: daysOpen > 45 ? 'critical' : 'warning', category: 'bonus', accountId: acct.id, memberId: acct.memberId,
             title: `Link direct deposit: ${n}`,
@@ -294,8 +295,8 @@ export function generateActionItems(state) {
           title: `Debit purchases due by ${dueStr}: ${n}`,
           detail: `${left} to finish the debit-card requirement at ${acct.bankName}.${qualifier} Point a recurring small charge at the card, or use it for coffee runs, and tap "+ Debit" as each one posts.${windowNote} ${pn}'s account.`,
           dueDate: debit.deadline, action: 'Schedule the debit purchases' })
-      } else if (d === null && acct.openedDate) {
-        const daysOpen = Math.ceil((new Date() - new Date(acct.openedDate)) / 86400000)
+      } else if (d === null && parseDay(acct.openedDate)) {
+        const daysOpen = daysBetweenDays(parseDay(acct.openedDate), startOfToday())
         if (daysOpen > 14) {
           items.push({ id: `debit-generic-${acct.id}`, type: daysOpen > 45 ? 'warning' : 'info', category: 'bonus', accountId: acct.id, memberId: acct.memberId,
             title: `Debit purchases outstanding: ${n}`,
@@ -312,10 +313,9 @@ export function generateActionItems(state) {
         dueDate: null, action: 'Monitor balance' })
     }
 
-    if (acct.openedDate && (acct.bonusDeadlineDays ?? 0) > 0 && !bonusReceived) {
-      const deadline = new Date(acct.openedDate)
-      deadline.setDate(deadline.getDate() + acct.bonusDeadlineDays)
-      const daysLeft = Math.ceil((deadline - new Date()) / 86400000)
+    if (parseDay(acct.openedDate) && (acct.bonusDeadlineDays ?? 0) > 0 && !bonusReceived) {
+      const deadline = addDays(parseDay(acct.openedDate), acct.bonusDeadlineDays)
+      const daysLeft = daysBetweenDays(startOfToday(), deadline)
       if (daysLeft < 0) {
         items.push({ id: `bonus-deadline-missed-${acct.id}`, type: 'critical', category: 'bonus', accountId: acct.id, memberId: acct.memberId,
           title: `Bonus window expired: ${n}`,
@@ -329,11 +329,18 @@ export function generateActionItems(state) {
       }
     }
 
+    // Without an open date there is no 181-day clock to count down — asking for
+    // the date beats printing "Hold open nulld more".
     if (bonusReceived && !shield.safe) {
-      items.push({ id: `cooling-${acct.id}`, type: 'info', category: 'clawback', accountId: acct.id, memberId: acct.memberId,
-        title: `Hold open ${shield.daysRemaining}d more: ${n}`,
-        detail: `Bonus received! Keep this account open${(acct.minimumBalance ?? 0) > 0 ? ' and above ' + fmt$(acct.minimumBalance) : ''} for ${shield.daysRemaining} more days to clear the 181-day clawback window. Closing early risks losing the bonus. ${pn}'s account.`,
-        dueDate: shield.safeDate, action: 'Keep account open' })
+      items.push(shield.daysRemaining == null
+        ? { id: `cooling-${acct.id}`, type: 'info', category: 'clawback', accountId: acct.id, memberId: acct.memberId,
+            title: `Set an open date: ${n}`,
+            detail: `Bonus received! Banks can claw a bonus back if the account closes inside 181 days of opening, but this account has no open date, so the app can't tell you when it's safe to close. Add it on the account. ${pn}'s account.`,
+            dueDate: null, action: 'Add the open date' }
+        : { id: `cooling-${acct.id}`, type: 'info', category: 'clawback', accountId: acct.id, memberId: acct.memberId,
+            title: `Hold open ${shield.daysRemaining}d more: ${n}`,
+            detail: `Bonus received! Keep this account open${(acct.minimumBalance ?? 0) > 0 ? ' and above ' + fmt$(acct.minimumBalance) : ''} for ${shield.daysRemaining} more days to clear the 181-day clawback window. Closing early risks losing the bonus. ${pn}'s account.`,
+            dueDate: shield.safeDate, action: 'Keep account open' })
     }
 
     // Monthly fee — while an account is held open (clawback window, or just

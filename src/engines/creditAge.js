@@ -1,4 +1,5 @@
 import { isRetired } from '../utils/statusMeta'
+import { daysBetweenDays, parseDay, startOfToday } from '../utils/format'
 
 // Credit age & keep-alive engine.
 // Length of credit history is ~15% of a FICO score, and issuers typically close
@@ -15,10 +16,9 @@ export function monthsBetween(from, to) {
 }
 
 export function getCardAge(card) {
-  if (!card.openDate) return null
-  const open = new Date(card.openDate)
-  const now = new Date()
-  const totalMonths = monthsBetween(open, now)
+  const open = parseDay(card.openDate)
+  if (!open) return null
+  const totalMonths = monthsBetween(open, startOfToday())
   const years = Math.floor(totalMonths / 12)
   const months = totalMonths % 12
   return { totalMonths, years, months, openDate: card.openDate, label: ageLabel(years, months) }
@@ -30,9 +30,11 @@ function ageLabel(years, months) {
   return `${years}y ${months}mo`
 }
 
+// Whole calendar days, so a card used today reads 0 rather than 1 (and the
+// 120/180-day keep-alive thresholds don't trip a day early west of UTC).
 export function daysSinceUsed(card) {
-  if (!card.lastUsedDate) return null
-  return Math.floor((new Date() - new Date(card.lastUsedDate)) / 86400000)
+  const used = parseDay(card.lastUsedDate)
+  return used ? daysBetweenDays(used, startOfToday()) : null
 }
 
 // Average Age of Accounts across a player's OPEN, dated cards.
@@ -43,7 +45,7 @@ export function getAccountAgeStats(cards) {
   const aaoaMonths = Math.round(totalMonths / dated.length)
   const years = Math.floor(aaoaMonths / 12)
   const months = aaoaMonths % 12
-  const oldest = dated.slice().sort((a, b) => new Date(a.openDate) - new Date(b.openDate))[0]
+  const oldest = dated.slice().sort((a, b) => parseDay(a.openDate) - parseDay(b.openDate))[0]
   return { count: dated.length, aaoaMonths, aaoaLabel: ageLabel(years, months), oldest }
 }
 
@@ -59,7 +61,7 @@ function usageStatusFor(dsu) {
 export function getKeepAliveCards(playerCards) {
   const open = (playerCards ?? []).filter(c => !isRetired(c))
   // Dated cards sorted oldest-first, then undated cards at the end.
-  const dated = open.filter(c => c.openDate).sort((a, b) => new Date(a.openDate) - new Date(b.openDate))
+  const dated = open.filter(c => parseDay(c.openDate)).sort((a, b) => parseDay(a.openDate) - parseDay(b.openDate))
   const undated = open.filter(c => !c.openDate)
   const ordered = [...dated, ...undated]
   return ordered.map((card, i) => {

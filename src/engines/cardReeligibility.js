@@ -1,3 +1,5 @@
+import { daysBetweenDays, parseDay, startOfToday } from '../utils/format'
+
 // Per-card-product sign-up bonus re-eligibility windows.
 //
 // 'family' groups products whose bonus windows are SHARED. The only major
@@ -140,15 +142,14 @@ export function getCardReeligibility(memberId, allCards) {
   for (const card of memberCards) {
     const rule = matchCardToRule(card)
     if (!rule) continue
-    const anchorStr = card.bonusReceivedDate || card.openDate
-    if (!anchorStr) continue
-    const anchor = new Date(anchorStr)
+    const anchor = parseDay(card.bonusReceivedDate || card.openDate)
+    if (!anchor) continue
     if (!byFamily[rule.family] || anchor > byFamily[rule.family].anchor) {
       byFamily[rule.family] = { rule, anchor, anchorCard: card }
     }
   }
 
-  const now = new Date()
+  const today = startOfToday()
   return Object.values(byFamily).map(({ rule, anchor, anchorCard }) => {
     const { key, family, label, months } = rule
     const lifetime = months === 0
@@ -158,7 +159,7 @@ export function getCardReeligibility(memberId, allCards) {
     }
     const eligibleDate = new Date(anchor)
     eligibleDate.setMonth(eligibleDate.getMonth() + months)
-    const daysUntil = Math.ceil((eligibleDate - now) / 86400000)
+    const daysUntil = daysBetweenDays(today, eligibleDate)
     return {
       key, family, label, months, lifetime: false,
       eligible: daysUntil <= 0,

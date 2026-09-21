@@ -80,6 +80,11 @@ The home screen (`/`) is a prioritized command center, not a passive summary. **
 
 `src/engines/actionItems.js` scans your entire portfolio and generates a single, deduplicated, **priority-sorted** to-do list. Items are ranked **critical → warning → info**, and within each tier by soonest due date. Each item carries a category icon, a plain-English explanation of *why it matters and what to do*, and a suggested action label.
 
+Two rules hold across every item here (and on the [Timeline](#4-timeline--calendar--ics-export)):
+
+- **Deadlines are whole calendar days, counted locally.** Dates are stored as calendar days (`YYYY-MM-DD`) and parsed to *local* midnight by `parseDay` in `src/utils/format.js` — never as UTC — so "90 days from Jan 1" is Apr 1 for everyone, and a deadline due today reads `0d`, not `-1d`. Every engine shares those helpers (`parseDay`, `startOfToday`, `addDays`, `daysBetweenDays`).
+- **A bank bonus counts as received in one place.** `isAccountBonusReceived` (`src/engines/earnings.js`) treats the **received date**, the **received flag** *or* a **status past the bonus stage** (Bonus Received / Holding / Safe to Close / Closed) as "the money landed", and the Action Engine, Timeline, Earnings and Tax page all call it. So an account whose status says the bonus posted stops producing direct-deposit, debit and bonus-window nags even when no date was recorded, and its bonus still counts in Earnings.
+
 The engine generates these item types:
 
 **Credit-card items**
@@ -99,7 +104,7 @@ The engine generates these item types:
 - **Debit-card purchases** — the same five tiers as the direct-deposit deadline (overdue / ≤7d / ≤30d / ≤60d, plus a generic fallback when no window can be computed), each carrying how many purchases — or how many dollars — are still owed, the qualifying minimum per purchase, and the pace needed to finish in the days left ("that's ~2 purchases a day"). Clears itself once the count *and* the spend requirement are met, or the bonus posts. When the offer gave the debit purchases no window of their own, the item says which window it counted instead.
 - **Minimum-balance reminder** — reminds you to keep the required balance to avoid fees and qualify.
 - **Bonus deadline** — overall offer-window countdown; if it expires, prompts you to call the bank to claim a manually-earned bonus.
-- **Clawback / cooling period** — counts down the **181-day** hold before a bonus is safe from clawback, then flips to "safe to close."
+- **Clawback / cooling period** — counts down the **181-day** hold before a bonus is safe from clawback, then flips to "safe to close." An account with the bonus in but **no opened date** has no clock to count, so it asks for the open date instead.
 - **Reapply for a bonus** — fires once a **closed** account's bank cooldown has cleared, so the bank should pay a new-account bonus again (see the [reapply clock](#8-bank-account-tracking)). Paired with a **reapply window opens in Nd** heads-up inside 30 days, so the direct-deposit source can be lined up before the window opens. One reminder per member + bank (the latest, binding cooldown — three closed Chase accounts produce one item, not three), and never while that person still holds an open account at the same bank.
 
 **Monthly fee items (open bank accounts with a fee)**
@@ -441,7 +446,7 @@ Page: `/fees`. Every annual fee across the household on one screen, sorted by so
 Page: `/earnings`. `src/engines/earnings.js` finally answers *"how much are we actually making?"*:
 
 - **Realized value per card**: bonus counted once received — cash bonuses at face value, points/miles at the card's **global program rate** (inferred from the card name/issuer, then valued at the per-program Settings rate or the published default, falling back to the household fallback ¢/point rate for unknown programs; estimated values are flagged `est.`; there is no per-card rate override). **Fees paid** counts only fee postings that could **actually have been billed**, on the card's **fee-anchor cycle** — the confirmed Annual Fee Post Date when set, otherwise the open date, where the opening-day cycle is the year-1 fee. An unconfirmed cycle allows the same **35-day statement lag** the fee tracker waits on, so a brand-new card doesn't book its first fee as paid on day one while the card itself still says the fee hasn't posted. First-year-waived skips the first posting; the closed date stops the clock; and a posting the card was **closed within the issuer's refund window after is treated as refunded** (the same per-issuer cancel-for-refund rule the Annual Fee tracker uses — 30 days for most issuers, longer for Citi/Capital One/Barclays), so it isn't counted. **Net = realized − fees.**
-- **Realized value per bank account**: the bonus amount once received.
+- **Realized value per bank account**: the bonus amount once received — by the received date, the received flag **or** a status past the bonus stage (`isAccountBonusReceived`, the same rule the Action Engine and Tax page use), so a bonus recorded by status alone is never silently worth $0 here while the tax figure counts it.
 - **Headline stats**: household lifetime net, trailing 12 months, current year, total fees paid, plus per-calendar-year chips.
 - **Efficiency stats**: $ of bonus per $1 of required spend (over completed card bonuses), average days from open to bonus, bonuses completed.
 - **Earnings over time** — a hand-rolled SVG chart of the last 24 months, stacked by member (member identity colors, gridlines, month labels, per-segment tooltips, accessible label).

@@ -1,4 +1,5 @@
 import { isRetired } from '../utils/statusMeta'
+import { addDays, daysBetweenDays as daysBetween, parseDay, startOfToday } from '../utils/format'
 import { daysSinceUsed, WARN_DAYS, CRITICAL_DAYS } from './creditAge'
 import { getDebitProgress } from './debitCard'
 import { getClawbackStatus } from './clawbackShield'
@@ -34,26 +35,10 @@ export const STATEMENT_LAG_DAYS = 35
 // same statement — only a few days of drift, not a whole cycle.
 export const CONFIRMED_LAG_DAYS = 7
 
-// ── Calendar-day helpers ──────────────────────────────────────────────────
-// Stored dates are calendar days ('YYYY-MM-DD'). `new Date('2026-07-15')`
-// parses as UTC midnight, which renders (and subtracts) as the day before in
-// every negative-offset timezone — a day of error on a refund countdown. Parse
-// to LOCAL midnight instead so day math and formatting agree.
-function parseDay(value) {
-  if (!value) return null
-  const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  const d = new Date(value)
-  return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate())
-}
-function startOfToday() {
-  const n = new Date()
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate())
-}
-function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d }
+// Calendar-day math (parseDay / startOfToday / addDays / daysBetween) comes
+// from utils/format so every engine and every rendered date agree on what day
+// a stored 'YYYY-MM-DD' means. See the note there on UTC-midnight parsing.
 function addYears(date, n) { const d = new Date(date); d.setFullYear(d.getFullYear() + n); return d }
-// Whole days between two local midnights (Math.round absorbs DST's ±1 hour).
-function daysBetween(from, to) { return Math.round((to - from) / 86400000) }
 
 // Annual fee: where this card is in its current fee cycle, and what can still
 // be done about it.
@@ -172,14 +157,13 @@ export function getAnnualFeeInfo(card) {
 export function getCardCloseShield(card) {
   const earned = card?.bonusReceived || card?.status === 'Bonus Met'
   if (!earned || isRetired(card)) return null
-  if (!card.openDate) {
+  const openDate = parseDay(card.openDate)
+  if (!openDate) {
     return { safe: false, daysRemaining: null, safeDate: null, message: 'Set an open date to track when it’s safe to close' }
   }
-  const safeDate = new Date(card.openDate)
-  safeDate.setDate(safeDate.getDate() + 365)
-  const today = new Date()
-  const daysRemaining = Math.ceil((safeDate - today) / 86400000)
-  const safe = today >= safeDate
+  const safeDate = addDays(openDate, 365)
+  const daysRemaining = daysBetween(startOfToday(), safeDate)
+  const safe = daysRemaining <= 0
   const message = safe
     ? 'Safe to close — 1 year passed, bonus earned'
     : `Safe to close in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}`
@@ -204,19 +188,20 @@ export function getReeligibilityInfo(card) {
   } else if (issuer.includes('capital one')) {
     months = 24; note = '24 months (Capital One standard)'
   }
-  const fromDate = new Date(card.bonusReceivedDate ?? card.openDate)
+  const fromDate = parseDay(card.bonusReceivedDate ?? card.openDate)
+  if (!fromDate) return null
   const reeligibleDate = new Date(fromDate)
   reeligibleDate.setMonth(reeligibleDate.getMonth() + months)
-  const daysUntil = Math.ceil((reeligibleDate - new Date()) / 86400000)
+  const daysUntil = daysBetween(startOfToday(), reeligibleDate)
   return { reeligible: daysUntil <= 0, daysUntil: Math.max(0, daysUntil), reeligibleDate: reeligibleDate.toISOString(), note, months }
 }
 
 export function getSpendDeadlineInfo(card) {
   if (!card?.openDate || !card?.spendDeadlineDays || !card?.spendRequirement) return null
-  const deadline = new Date(card.openDate)
-  deadline.setDate(deadline.getDate() + (card.spendDeadlineDays ?? 90))
-  const today = new Date()
-  const daysLeft = Math.ceil((deadline - today) / 86400000)
+  const openDate = parseDay(card.openDate)
+  if (!openDate) return null
+  const deadline = addDays(openDate, card.spendDeadlineDays ?? 90)
+  const daysLeft = daysBetween(startOfToday(), deadline)
   const pct = card.spendRequirement > 0
     ? Math.min(100, Math.round(((card.currentSpend ?? 0) / card.spendRequirement) * 100))
     : 100
@@ -239,7 +224,7 @@ export function getSpendProgress(card) {
 // Used when importing cards from a credit report (where bonus status is unknown)
 // and when saving a manually-entered card whose status wasn't explicitly chosen.
 export function getSmartCardStatus(card) {
-  const openDate = card.openDate ? new Date(card.openDate) : null
+  const openDate = parseDay(card.openDate)
   const hasBonus = Number(card.spendRequirement) > 0 || Number(card.bonusValue) > 0
 
   if (!openDate) {

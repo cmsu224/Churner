@@ -7,6 +7,7 @@
 // carries `estimated: true` whenever the bonus isn't cashback.
 
 import { getCardProgram, resolvePointValueCents } from '../utils/programs'
+import { addDays, daysBetweenDays, parseDay, startOfToday } from '../utils/format'
 import { getFeeRefundDays, STATEMENT_LAG_DAYS } from './lifecycle'
 
 // Dollar value of a card's sign-up bonus, regardless of whether it's been
@@ -54,11 +55,25 @@ export function isCardBonusPending(card) {
 // account counts as received even when no received date was recorded.
 const ACCOUNT_BONUS_DONE_STATUSES = ['Bonus Received', 'Cooling Period', 'Safe to Close', 'Closed']
 
+// THE definition of "the bank bonus is in hand", used by every page and every
+// reminder. It has to be one predicate: an account whose status says the bonus
+// landed but which carries no received date was still chasing the bonus as far
+// as the action queue and the timeline were concerned, so the app kept shouting
+// "DD deadline passed — call the bank now" about money already collected, and
+// Earnings booked $0 for it while the tax figure counted it in full.
+//
+// Three ways to say it, because three parts of the app write it: the received
+// DATE (the account editor and the "✓ Bonus Received" button), the received
+// FLAG (older records and imports), and the STATUS (quick status changes, and
+// backups written by other tools).
+export function isAccountBonusReceived(acct) {
+  return !!acct?.bonusReceivedDate
+    || !!acct?.bonusReceived
+    || ACCOUNT_BONUS_DONE_STATUSES.includes(acct?.status ?? '')
+}
+
 export function isAccountBonusPending(acct) {
-  return !acct.bonusReceived
-    && !acct.bonusReceivedDate
-    && (acct.bonusAmount ?? 0) > 0
-    && !ACCOUNT_BONUS_DONE_STATUSES.includes(acct.status ?? '')
+  return !isAccountBonusReceived(acct) && (acct.bonusAmount ?? 0) > 0
 }
 
 // Fee-counting rule (estimate — issuers vary, this is a reasonable default):
@@ -80,21 +95,21 @@ export function isAccountBonusPending(acct) {
 //     Citi/Capital One/Barclays; same rule the Annual Fee tracker uses) is
 //     assumed fully refunded.
 function feePostingDates(card) {
-  if (!(card.annualFee > 0) || !card.openDate) return []
-  const open = new Date(card.openDate)
-  const end = card.closedDate ? new Date(card.closedDate) : new Date()
+  const open = card.annualFee > 0 ? parseDay(card.openDate) : null
+  if (!open) return []
+  const end = parseDay(card.closedDate) ?? startOfToday()
   if (end < open) return []
-  const anchor = card.feePostDate ? new Date(card.feePostDate) : open
+  const anchor = parseDay(card.feePostDate) ?? open
   // A confirmed post date is the real billing date; an open-date anchor is only
   // the cycle date, so allow the statement lag before counting the fee.
-  const lagMs = (card.feePostDate ? 0 : STATEMENT_LAG_DAYS) * 86400000
+  const lagDays = card.feePostDate ? 0 : STATEMENT_LAG_DAYS
   // First posting: the anchor's month/day in the opening year, or its next
   // occurrence if that falls before the open date itself.
   const first = new Date(anchor)
   first.setFullYear(open.getFullYear())
   if (first < open) first.setFullYear(first.getFullYear() + 1)
   const dates = []
-  for (const d = new Date(first); d - end <= -lagMs; d.setFullYear(d.getFullYear() + 1)) dates.push(new Date(d))
+  for (const d = new Date(first); addDays(d, lagDays) <= end; d.setFullYear(d.getFullYear() + 1)) dates.push(new Date(d))
   return card.feeWaivedFirstYear ? dates.slice(1) : dates
 }
 
@@ -115,13 +130,13 @@ export const FEE_REFUND_CHECK_DAYS = 120
 // True while a closed/downgraded card should ask "did the fee come back?": a
 // fee posted in the year before it closed, nothing is recorded yet, and it
 // closed recently (a card with no closed date counts as closed today).
-export function isFeeRefundPending(card, now = new Date()) {
+export function isFeeRefundPending(card, now = startOfToday()) {
   if (!(card?.status === 'Closed' || card?.status === 'Downgraded')) return false
   if (!((card.annualFee ?? 0) > 0) || hasConfirmedFeeRefund(card)) return false
   const last = getLastFeePosting(card)
   if (!last) return false
-  const closed = card.closedDate ? new Date(card.closedDate) : now
-  return closed - last <= 365 * 86400000 && (now - closed) / 86400000 <= FEE_REFUND_CHECK_DAYS
+  const closed = parseDay(card.closedDate) ?? now
+  return daysBetweenDays(last, closed) <= 365 && daysBetweenDays(closed, now) <= FEE_REFUND_CHECK_DAYS
 }
 
 function computeFeesPaid(card) {
@@ -130,9 +145,9 @@ function computeFeesPaid(card) {
   if (hasConfirmedFeeRefund(card)) {
     return Math.max(0, dates.length * card.annualFee - Math.max(0, Number(card.feeRefundAmount)))
   }
-  const end = card.closedDate ? new Date(card.closedDate) : null
-  const refundMs = getFeeRefundDays(card) * 86400000
-  const kept = end ? dates.filter(d => end - d > refundMs) : dates
+  const end = parseDay(card.closedDate)
+  const refundDays = getFeeRefundDays(card)
+  const kept = end ? dates.filter(d => daysBetweenDays(d, end) > refundDays) : dates
   return kept.length * card.annualFee
 }
 
@@ -144,32 +159,20 @@ export function getCardEarnings(card, settings) {
   const net = realized - feesPaid
   const requiredSpend = card.spendRequirement ?? 0
   let daysToBonus = null
-  if (card.openDate && card.bonusReceivedDate) {
-    daysToBonus = Math.round((new Date(card.bonusReceivedDate) - new Date(card.openDate)) / 86400000)
-  }
+  const openedOn = parseDay(card.openDate)
+  const receivedOn = parseDay(card.bonusReceivedDate)
+  if (openedOn && receivedOn) daysToBonus = daysBetweenDays(openedOn, receivedOn)
   return { realized, realizedDate, feesPaid, net, estimated, requiredSpend, daysToBonus }
 }
 
 export function getAccountEarnings(acct) {
-  const received = !!acct.bonusReceived || !!acct.bonusReceivedDate
-  const realized = received ? (acct.bonusAmount ?? 0) : 0
+  const realized = isAccountBonusReceived(acct) ? (acct.bonusAmount ?? 0) : 0
   const realizedDate = acct.bonusReceivedDate ?? null
   return { realized, realizedDate }
 }
 
 function ymKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-}
-
-// Parse a stored 'YYYY-MM-DD' date as LOCAL midnight. `new Date('2026-07-01')`
-// parses as UTC, so in negative-UTC-offset timezones getMonth()/getFullYear()
-// would report the previous day — pushing a 1st-of-month bonus into the wrong
-// month bucket or a Jan-1 bonus into the prior year. Parsing the parts locally
-// keeps period bucketing correct everywhere.
-function parseLocalDate(str) {
-  if (!str) return null
-  const [y, m, d] = String(str).slice(0, 10).split('-').map(Number)
-  return new Date(y, (m || 1) - 1, d || 1)
 }
 
 export function getEarningsSummary(state) {
@@ -195,7 +198,7 @@ export function getEarningsSummary(state) {
 
   function inTrailing12(row) {
     if (!row.realizedDate) return false
-    const d = parseLocalDate(row.realizedDate)
+    const d = parseDay(row.realizedDate)
     return d >= trailing12Cutoff && d <= now
   }
 
@@ -214,7 +217,7 @@ export function getEarningsSummary(state) {
     const byYear = {}
     for (const r of myAll) {
       if (!r.realizedDate) continue // undated items count toward lifetime only
-      const y = parseLocalDate(r.realizedDate).getFullYear()
+      const y = parseDay(r.realizedDate).getFullYear()
       byYear[y] = (byYear[y] ?? 0) + r.realized
     }
 
@@ -228,7 +231,7 @@ export function getEarningsSummary(state) {
   const householdByYear = {}
   for (const r of allRows) {
     if (!r.realizedDate) continue
-    const y = parseLocalDate(r.realizedDate).getFullYear()
+    const y = parseDay(r.realizedDate).getFullYear()
     householdByYear[y] = (householdByYear[y] ?? 0) + r.realized
   }
   const household = {
@@ -265,7 +268,7 @@ export function getEarningsSummary(state) {
   }
   for (const r of allRows) {
     if (!r.realizedDate || r.realized === 0) continue
-    const idx = monthIndex.get(ymKey(parseLocalDate(r.realizedDate)))
+    const idx = monthIndex.get(ymKey(parseDay(r.realizedDate)))
     if (idx == null) continue // outside the 24-month window
     const bucket = monthly[idx]
     bucket.total += r.realized

@@ -1,3 +1,5 @@
+import { addDays, daysBetweenDays, parseDay, startOfToday } from '../utils/format'
+
 // Debit-card requirement — the third thing a bank bonus can ask for, next to
 // the direct deposit and the balance floor: "make 10 debit card purchases
 // within 90 days of opening". Offers word it three ways, and this engine
@@ -64,11 +66,11 @@ export function getDebitProgress(account) {
 
   let deadline = null
   let daysLeft = null
-  if (deadlineDays && account.openedDate) {
-    const d = new Date(account.openedDate)
-    d.setDate(d.getDate() + deadlineDays)
+  const opened = parseDay(account.openedDate)
+  if (deadlineDays && opened) {
+    const d = addDays(opened, deadlineDays)
     deadline = d.toISOString()
-    daysLeft = Math.ceil((d - new Date()) / 86400000)
+    daysLeft = daysBetweenDays(startOfToday(), d)
   }
 
   const met = countMet && spendMet

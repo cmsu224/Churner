@@ -10,14 +10,16 @@ import { getClawbackStatus } from '../../engines/clawbackShield'
 import { getAccountReeligibility } from '../../engines/bankReeligibility'
 import { getAccountNextStatus } from '../../engines/lifecycle'
 import { getDebitProgress } from '../../engines/debitCard'
+import { isAccountBonusReceived } from '../../engines/earnings'
 import { getMonthlyFeeStatus, feeRuleLabel, toggleFeeDDLog, toggleFeeDebitLog } from '../../engines/monthlyFee'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { fmt$, fmt$0, fmtDate, todayISODate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Shield, ExternalLink, RotateCcw } from 'lucide-react'
 
 const TYPES = ['Checking', 'Savings', 'Money Market', 'CD']
-// Statuses that mean the bonus already landed (matches the Earnings and Tax
-// engines, so all three agree on what "received" means).
+// Statuses that mean the bonus already landed. isAccountBonusReceived is the
+// shared predicate every engine uses; the editor needs the list itself so it
+// can write the matching flag when the status alone was changed.
 const RECEIVED_STATUSES = ['Bonus Received', 'Cooling Period', 'Safe to Close', 'Closed']
 const inp = 'w-full bg-raised border border-edge-strong rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
 const inpRequired = 'w-full bg-raised border border-accent/60 rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-tertiary focus:outline-none focus:border-accent transition-colors'
@@ -127,7 +129,7 @@ function ddDeadlineInfo(account) {
   if (!account.openedDate || account.ddLinkedDate) return null
   // Once the bonus posted or every required DD is logged, the deadline no
   // longer matters — same rule the action queue uses.
-  if (account.bonusReceivedDate || account.bonusReceived) return null
+  if (isAccountBonusReceived(account)) return null
   if ((account.ddsMade ?? 0) >= (account.requiredDDCount ?? 1)) return null
   if (!(account.ddDeadlineDays > 0) && !(account.requiredDD > 0)) return null
   const days = account.ddDeadlineDays ?? 90
@@ -175,6 +177,7 @@ export default function AccountItem({ account, members }) {
   const nextStatus = getAccountNextStatus(account)
   const ddInfo = ddDeadlineInfo(account)
   const debit = getDebitProgress(account)
+  const bonusReceived = isAccountBonusReceived(account)
   const fee = getMonthlyFeeStatus(account, { transfers: state.transfers })
   const quickActions = getAccountQuickActions(account, nextStatus)
   // This cycle's waiver deposit, one tap — a Money Map DD push already counts,
@@ -406,13 +409,13 @@ export default function AccountItem({ account, members }) {
               <span className={debit.met ? 'text-success-ink' : 'text-warning-ink'}>{debitSummary(debit)}</span>
             </div>
           )}
-          {debit && !debit.met && !account.bonusReceivedDate && debit.daysLeft !== null && (
+          {debit && !debit.met && !bonusReceived && debit.daysLeft !== null && (
             <div className={`flex justify-between font-medium ${debit.overdue ? 'text-danger-ink' : debit.daysLeft <= 14 ? 'text-warning-ink' : 'text-ink-muted'}`}>
               <span>Debit deadline</span>
               <span>{debit.overdue ? `OVERDUE ${Math.abs(debit.daysLeft)}d ago` : `${debit.daysLeft}d left`}</span>
             </div>
           )}
-          {(account.minimumBalance ?? 0) > 0 && !account.bonusReceivedDate && (
+          {(account.minimumBalance ?? 0) > 0 && !bonusReceived && (
             <div className="flex justify-between">
               <span>Min balance</span>
               <span>{fmt$(account.minimumBalance)}</span>

@@ -11,6 +11,7 @@ import FilterBar, { Pill, MultiPill, Chip, FilterRow, Toggle } from '../shared/F
 import { getIssuerMeta } from '../../utils/issuers'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
 import { getAccountAttentionScore } from '../../engines/lifecycle'
+import { isAccountBonusPending } from '../../engines/earnings'
 import { Plus, X, Layers, Table, ChevronDown, ChevronUp } from 'lucide-react'
 
 const SORT_OPTIONS = [
@@ -107,7 +108,7 @@ export default function BankAccountsView() {
       }
       if (filters.types.length && !filters.types.includes(a.accountType)) return false
       if (filters.hasBonus && !(a.bonusAmount > 0)) return false
-      if (filters.bonusPending && !(a.bonusAmount > 0 && !a.bonusReceivedDate)) return false
+      if (filters.bonusPending && !isAccountBonusPending(a)) return false
       return true
     })
     const transfers = state.transfers ?? []
