@@ -63,7 +63,7 @@ export function SidebarNav({ collapsed }) {
   ))
 
   return (
-    <nav className="flex flex-col h-full p-2 overflow-y-auto" aria-label="Main navigation">
+    <nav className="flex flex-col flex-1 min-h-0 p-2 overflow-y-auto" aria-label="Main navigation">
       <div className="flex flex-col gap-1">
         {renderLinks(MAIN_NAV)}
         <SectionLabel collapsed={collapsed}>Insights</SectionLabel>
@@ -80,7 +80,7 @@ export function BottomNav() {
   const inMoreSection = MORE_ROUTES.some(r => location.pathname === r || location.pathname.startsWith(`${r}/`))
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-edge-strong flex z-40 pb-[env(safe-area-inset-bottom)]" aria-label="Main navigation">
+    <nav className="inset-bottom fixed bottom-0 left-0 right-0 bg-surface border-t border-edge-strong flex z-40" aria-label="Main navigation">
       {BOTTOM_NAV.map(({ to, icon: Icon, label }) => (
         <NavLink
           key={to}

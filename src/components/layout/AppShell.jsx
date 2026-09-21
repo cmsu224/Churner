@@ -83,10 +83,10 @@ export default function AppShell() {
     : 'Not synced yet'
 
   return (
-    <div className="min-h-screen bg-base text-ink flex">
+    <div className="app-shell bg-base text-ink flex">
       {isDesktop && (
         <aside
-          className={`flex-shrink-0 bg-surface border-r border-edge flex flex-col transition-all duration-200 ${
+          className={`flex-shrink-0 min-h-0 bg-surface border-r border-edge flex flex-col transition-all duration-200 ${
             collapsed ? 'w-16' : 'w-56'
           }`}
         >
@@ -104,8 +104,10 @@ export default function AppShell() {
         </aside>
       )}
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-surface border-b border-edge px-4 py-2.5 flex items-center justify-between flex-shrink-0 gap-2">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        {/* inset-top keeps the title clear of a phone's clock and battery,
+            and lets the header's own background fill the status bar. */}
+        <header className="inset-top bg-surface border-b border-edge px-4 py-2.5 flex items-center justify-between flex-shrink-0 gap-2">
           {!isDesktop && <span className="font-bold text-ink text-base flex-shrink-0">Churner</span>}
           {isDesktop && (
             <button
@@ -148,11 +150,13 @@ export default function AppShell() {
           </div>
         </header>
 
-        {/* The bottom nav is fixed, so the page needs room to scroll past it —
-            plus the home-indicator inset, or the last row sits under it. */}
+        {/* The one scroller in the app. min-h-0 lets it shrink inside the
+            pinned shell — without it a flex child refuses to go below its
+            content height and nothing scrolls at all. pad-below-nav leaves
+            room for the fixed bottom nav and the home indicator under it. */}
         <main
           ref={mainRef}
-          className={`flex-1 overflow-y-auto ${!isDesktop ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : ''}`}
+          className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain ${!isDesktop ? 'pad-below-nav' : ''}`}
         >
           {!ready ? (
             <PageSkeleton />
