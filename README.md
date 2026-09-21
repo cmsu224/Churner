@@ -76,6 +76,8 @@ The home screen (`/`) is a prioritized command center, not a passive summary. **
 - **Action Queue** — a single ranked list of *everything you need to do*, pulled from every card and account (see [Action Engine](#2-action-engine-the-brain)). Items can be **dismissed or snoozed (1/3/7 days)** — both synced across devices. If nothing is pending, you get an "all caught up" state instead.
 - **Stats bar** — four tiles (2×2 on mobile, one row from `sm` up): **Cash Pipeline**, **Rewards Pipeline**, count of active cards, and count of bank accounts. The two pipeline tiles split the money in flight by how certain it is — **cash** is hard dollars (cashback card bonuses + bank account bonuses), **rewards** is points/miles converted at their program rate and flagged `est.`, so it moves when the Settings rates change. **Cash + rewards equals the itemized Bonus Pipeline total exactly** (same `isCardBonusPending` predicate, same `valueCardBonus` valuation). Each tile drills in: both pipeline tiles scroll to the Bonus Pipeline section, the counts open the Cards / Accounts pages.
 
+**First run** — with nothing tracked yet the Dashboard is a short menu rather than a dead end: **Add a credit card**, **Add a bank account** (both deep-link straight into the add form via `?add=1`) and **Import what you already track**.
+
 ### 2. Action Engine (the brain)
 
 `src/engines/actionItems.js` scans your entire portfolio and generates a single, deduplicated, **priority-sorted** to-do list. Items are ranked **critical → warning → info**, and within each tier by soonest due date. Each item carries a category icon, a plain-English explanation of *why it matters and what to do*, and a suggested action label.

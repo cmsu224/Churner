@@ -11,7 +11,7 @@ import CreditAgeSection from './CreditAgeSection'
 import EligibilitySection from './EligibilitySection'
 import { isCardBonusPending, isAccountBonusPending, valueCardBonus } from '../../engines/earnings'
 import { fmt$ } from '../../utils/format'
-import { CheckCircle, ChevronUp, ChevronDown, SlidersHorizontal } from 'lucide-react'
+import { Building2, CheckCircle, ChevronUp, ChevronDown, CreditCard, SlidersHorizontal, Upload } from 'lucide-react'
 
 const LS_ORDER = 'churner_dash_order'
 // Default order per the requested layout: summary first, then eligibility,
@@ -97,12 +97,49 @@ export default function DashboardView() {
 
   function resetOrder() { persist(DEFAULT_ORDER) }
 
+  // First run. Telling someone to "add cards under Cards" and then leaving
+  // them to find Cards is a dead end on a phone — each route out of here is a
+  // button, with the one most people want first.
   if (isEmpty) {
+    const start = 'w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors'
     return (
-      <div className="p-4 max-w-5xl mx-auto text-center py-20 text-ink-tertiary">
-        <div className="text-5xl mb-4">🏦</div>
-        <div className="text-base font-medium text-ink-muted mb-1">Nothing tracked yet</div>
-        <div className="text-sm">Add cards under Cards, add bank accounts under Accounts, or use Import to load data in bulk.</div>
+      <div className="p-4 max-w-md mx-auto py-14 animate-fade-in">
+        <div className="text-center">
+          <div className="text-5xl mb-4">🏦</div>
+          <h1 className="text-base font-semibold text-ink mb-1">Nothing tracked yet</h1>
+          <p className="text-sm text-ink-tertiary mb-6">
+            Add your first card or bank bonus and Churner starts telling you what to do next.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => navigate('/cards?add=1')}
+            className={`${start} border-accent bg-accent text-white hover:bg-accent-hover`}
+          >
+            <CreditCard size={18} aria-hidden="true" />
+            <span className="font-semibold">Add a credit card</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/accounts?add=1')}
+            className={`${start} border-edge-strong bg-surface text-ink hover:bg-raised`}
+          >
+            <Building2 size={18} aria-hidden="true" />
+            <span className="font-medium">Add a bank account</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/import')}
+            className={`${start} border-edge-strong bg-surface text-ink hover:bg-raised`}
+          >
+            <Upload size={18} aria-hidden="true" />
+            <div>
+              <div className="font-medium">Import what you already track</div>
+              <div className="text-xs text-ink-tertiary">A backup file, or a spreadsheet an AI turns into JSON</div>
+            </div>
+          </button>
+        </div>
       </div>
     )
   }
