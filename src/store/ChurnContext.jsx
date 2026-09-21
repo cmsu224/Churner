@@ -39,6 +39,9 @@ function withDefaults(raw) {
     ...INITIAL_STATE,
     ...base,
     version: 3,
+    // The Applications page is gone, but a saved record may still carry
+    // this array. It is hydrated and written back untouched so removing
+    // the page does not quietly delete anyone's history.
     applications: base.applications ?? [],
     pointsBalances: base.pointsBalances ?? [],
     // A Gist written before the Money Map existed has no sources at all; seed
@@ -266,26 +269,6 @@ function reducer(state, action) {
       return { ...state, reminders: (state.reminders ?? []).map(r => r.id === action.id ? { ...r, doneDate: null } : r) }
     case 'DELETE_REMINDER':
       return { ...state, reminders: (state.reminders ?? []).filter(r => r.id !== action.id) }
-
-    case 'ADD_APPLICATION':
-      return { ...state, applications: [...(state.applications ?? []), { ...action.payload, id: crypto.randomUUID() }] }
-    case 'UPDATE_APPLICATION':
-      return { ...state, applications: (state.applications ?? []).map(a => a.id === action.payload.id ? action.payload : a) }
-    case 'DELETE_APPLICATION':
-      return { ...state, applications: (state.applications ?? []).filter(a => a.id !== action.id) }
-    // Approval → tracked card, linked back to the application, in one dispatch.
-    case 'CONVERT_APPLICATION': {
-      const cardId = crypto.randomUUID()
-      return {
-        ...state,
-        creditCards: [...state.creditCards, { ...action.card, id: cardId }],
-        applications: (state.applications ?? []).map(a =>
-          a.id === action.applicationId
-            ? { ...a, status: 'approved', decisionDate: a.decisionDate || action.card.openDate, convertedCardId: cardId }
-            : a
-        ),
-      }
-    }
 
     case 'ADD_POINTS_BALANCE':
       return { ...state, pointsBalances: [...(state.pointsBalances ?? []), { ...action.payload, id: crypto.randomUUID() }] }

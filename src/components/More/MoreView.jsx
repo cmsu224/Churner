@@ -1,9 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../shared/PageHeader'
 import {
-  ClipboardList, TrendingUp, BookOpen, FlaskConical,
-  Users, Link2, ArrowDownUp, Settings, ChevronRight, Coins, Receipt,
-  CalendarDays, Waypoints,
+  TrendingUp, BookOpen, Users, Link2, ArrowDownUp, Settings, ChevronRight,
+  Coins, Receipt, CalendarDays, Waypoints,
 } from 'lucide-react'
 
 // Mobile hub for everything that doesn't fit in the 5-slot bottom nav.
@@ -15,10 +14,8 @@ const GROUPS = [
       { to: '/timeline', icon: CalendarDays, label: 'Timeline', desc: 'Every deadline on a calendar, exportable to .ics' },
       { to: '/points', icon: Coins, label: 'Points', desc: 'Loyalty balances across every program, per person' },
       { to: '/fees', icon: Receipt, label: 'Annual Fees', desc: 'Every card fee due date and refund window in one place' },
-      { to: '/applications', icon: ClipboardList, label: 'Applications', desc: 'Plan applications and track approvals & denials' },
       { to: '/earnings', icon: TrendingUp, label: 'Earnings', desc: 'What the household is actually making, after fees and tax' },
       { to: '/rules', icon: BookOpen, label: 'Eligibility', desc: 'Issuer rules and bonus re-eligibility' },
-      { to: '/simulator', icon: FlaskConical, label: 'Simulator', desc: 'What-if projections for future applications' },
     ],
   },
   {

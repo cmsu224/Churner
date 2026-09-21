@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Search, LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator, Users, Link2,
-  ArrowDownUp, Settings, CalendarDays, ClipboardList, TrendingUp, FlaskConical,
-  Plus, DollarSign, CornerDownLeft, Coins, Receipt, Waypoints,
+  Search, LayoutDashboard, CreditCard, Landmark, BookOpen, Calculator,
+  Users, Link2, ArrowDownUp, Settings, CalendarDays, TrendingUp, Plus,
+  DollarSign, CornerDownLeft, Coins, Receipt, Waypoints,
 } from 'lucide-react'
 import { useChurn } from '../../store/ChurnContext'
 import { getIssuerMeta } from '../../utils/issuers'
@@ -15,11 +15,9 @@ const PAGES = [
   { label: 'Money Map', route: '/money', icon: Waypoints, keywords: 'transfers ach push pipeline cash balance flow brokerage sweep reminders' },
   { label: 'Points', route: '/points', icon: Coins, keywords: 'loyalty miles rewards balances programs' },
   { label: 'Annual Fees', route: '/fees', icon: Receipt, keywords: 'annual fee due dates refund window retention cancel' },
-  { label: 'Applications', route: '/applications', icon: ClipboardList, keywords: 'apply funnel denials' },
   { label: 'Timeline', route: '/timeline', icon: CalendarDays, keywords: 'calendar deadlines events ics' },
   { label: 'Earnings', route: '/earnings', icon: TrendingUp, keywords: 'roi analytics profit bonuses' },
   { label: 'Eligibility', route: '/rules', icon: BookOpen, keywords: 'rules 5/24 issuer windows' },
-  { label: 'Simulator', route: '/simulator', icon: FlaskConical, keywords: 'what if projection 5/24' },
   { label: 'Tax', route: '/earnings', icon: Calculator, keywords: 'taxes 1099' },
   { label: 'Members', route: '/members', icon: Users, keywords: 'household people' },
   { label: 'Resources', route: '/resources', icon: Link2, keywords: 'links guides offers' },
@@ -70,7 +68,6 @@ export default function CommandPalette({ open, onClose }) {
 
     const actions = [
       { label: 'Add card', icon: Plus, route: '/cards?add=1', keywords: 'new credit card create' },
-      { label: 'Add application', icon: Plus, route: '/applications?add=1', keywords: 'new apply plan create' },
       { label: 'Add bank account', icon: Plus, route: '/accounts?add=1', keywords: 'new bank create' },
       { label: 'Log a transfer', icon: Waypoints, route: '/money', keywords: 'push ach move money send transfer new' },
       { label: 'Add points balance', icon: Plus, route: '/points?add=1', keywords: 'new loyalty miles rewards create' },
@@ -110,14 +107,6 @@ export default function CommandPalette({ open, onClose }) {
       keywords: 'points miles loyalty rewards balance',
     }))
 
-    const applications = (state.applications ?? []).map(a => ({
-      label: a.product || a.issuer || 'Application',
-      sub: [a.issuer, memberName(members, a.memberId), a.status].filter(Boolean).join(' · '),
-      icon: ClipboardList,
-      route: `/applications?highlight=${a.id}`,
-      keywords: 'application',
-    }))
-
     const memberEntries = members.map(m => ({
       label: m.name,
       sub: m.role === 'senior' ? 'senior' : 'churner',
@@ -147,7 +136,6 @@ export default function CommandPalette({ open, onClose }) {
       build('Cards', cards, q ? 6 : 0),
       build('Accounts', accounts, q ? 6 : 0),
       build('Points', points, q ? 6 : 0),
-      build('Applications', applications, q ? 6 : 0),
       build('Members', memberEntries, 0),
     ].filter(s => s.entries.length > 0)
   }, [query, state])
