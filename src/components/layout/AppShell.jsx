@@ -12,10 +12,8 @@ import BankAccountsView from '../BankAccounts/BankAccountsView'
 import MoneyMapView from '../MoneyMap/MoneyMapView'
 import PointsView from '../Points/PointsView'
 import AnnualFeesView from '../AnnualFees/AnnualFeesView'
-import ApplicationsView from '../Applications/ApplicationsView'
 import TimelineView from '../Timeline/TimelineView'
 import EarningsView from '../Earnings/EarningsView'
-import SimulatorView from '../Simulator/SimulatorView'
 import RulesView from '../Rules/RulesView'
 import PlayersView from '../Players/PlayersView'
 import ResourcesView from '../Resources/ResourcesView'
@@ -169,10 +167,8 @@ export default function AppShell() {
                 <Route path="/money" element={<MoneyMapView />} />
                 <Route path="/points" element={<PointsView />} />
                 <Route path="/fees" element={<AnnualFeesView />} />
-                <Route path="/applications" element={<ApplicationsView />} />
                 <Route path="/timeline" element={<TimelineView />} />
                 <Route path="/earnings" element={<EarningsView />} />
-                <Route path="/simulator" element={<SimulatorView />} />
                 <Route path="/rules" element={<RulesView />} />
                 <Route path="/tax" element={<Navigate to="/earnings" replace />} />
                 <Route path="/resources" element={<ResourcesView />} />

@@ -20,6 +20,7 @@ export const INITIAL_STATE = {
   creditCards: [],
   bankAccounts: [],
   // Application funnel: planned → applied → pending → approved / denied
+  // Legacy: no page writes this any more, but older records still carry it.
   applications: [],
   // Loyalty balances: one entry per member per program (Chase UR, MR, airline
   // miles, hotel points…). balance is points; est. value comes from the global
