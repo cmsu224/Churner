@@ -7,7 +7,7 @@ import Button from '../shared/Button'
 import EmptyState from '../shared/EmptyState'
 import PlayerBadge from '../shared/PlayerBadge'
 import { Pill, Chip } from '../shared/FilterBar'
-import { daysUntil } from '../../utils/format'
+import { daysUntil, parseDay } from '../../utils/format'
 import { Download, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 
 const WEEKDAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
@@ -55,22 +55,26 @@ function daysAwayLabel(iso) {
 // One event row — shared by the month view's selected-day agenda and the Agenda view.
 function EventRow({ event }) {
   const cat = categoryFor(event.category)
-  const d = new Date(event.date)
+  const d = parseDay(event.date) ?? new Date(event.date)
   const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const weekdayLabel = d.toLocaleDateString('en-US', { weekday: 'short' })
   const daysLeft = daysUntil(event.date)
   const overdue = daysLeft < 0
 
   return (
-    <div className="flex items-center gap-3 bg-surface border border-edge rounded-lg px-3 py-2">
+    <div className="flex items-start sm:items-center gap-3 bg-surface border border-edge rounded-lg px-3 py-2">
       <span className={`w-1 self-stretch rounded-full flex-shrink-0 ${cat?.dot ?? 'bg-ink-faint'}`} aria-hidden="true" />
       <div className="w-11 flex-shrink-0 text-center">
         <div className="text-sm font-bold text-ink tabular-nums leading-tight">{dateLabel}</div>
         <div className="text-[10px] text-ink-faint">{weekdayLabel}</div>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-ink truncate">{event.title}</div>
-        {event.detail && <div className="text-xs text-ink-muted truncate">{event.detail}</div>}
+        {/* On a phone the title has ~150px between the date column and the
+            countdown, which cut "Debit purchases due: SoFi ···7788" down to
+            "Debit purchases due: S…" — two accounts at the same bank read
+            identically. Wrap instead of truncating on a narrow screen. */}
+        <div className="text-sm font-medium text-ink line-clamp-2 sm:truncate">{event.title}</div>
+        {event.detail && <div className="text-xs text-ink-muted line-clamp-2 sm:truncate">{event.detail}</div>}
       </div>
       <div className="flex-shrink-0 hidden sm:block">
         <PlayerBadge memberId={event.memberId} />
