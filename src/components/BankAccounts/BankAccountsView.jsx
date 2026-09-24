@@ -4,6 +4,8 @@ import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
 import { useHighlight, flashItem } from '../../hooks/useHighlight'
 import AccountItem from './AccountItem'
+import WalletLanes from '../shared/WalletLanes'
+import { getAccountFocus, groupByLane } from '../../engines/walletFocus'
 import AccountTable from './AccountTable'
 import ReapplyTracker from './ReapplyTracker'
 import IssuerLogo from '../shared/IssuerLogo'
@@ -539,6 +541,10 @@ export default function BankAccountsView() {
           members={members}
           onRowClick={openAccount}
         />
+      ) : sortBy === 'recommended' && !useGroups ? (
+        // Recommended order = the list split into focus lanes.
+        <WalletLanes kind="account" buckets={groupByLane(filteredAccounts, a => getAccountFocus(a, { transfers: state.transfers ?? [] }))}
+          renderItem={e => <AccountItem key={e.record.id} account={e.record} focus={e.focus} members={members} />} />
       ) : useGroups ? (
         <div className="space-y-6">
           {groups.map(group => (

@@ -13,6 +13,8 @@ import { getDebitProgress } from '../../engines/debitCard'
 import { isAccountBonusReceived } from '../../engines/earnings'
 import { getMonthlyFeeStatus, feeRuleLabel, toggleFeeDDLog, toggleFeeDebitLog } from '../../engines/monthlyFee'
 import { ACCOUNT_STATUSES } from '../../utils/statusMeta'
+import { getAccountFocus } from '../../engines/walletFocus'
+import FocusStrip from '../shared/FocusStrip'
 import { fmt$, fmt$0, fmtDate, todayISODate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Shield, ExternalLink, RotateCcw } from 'lucide-react'
 
@@ -160,8 +162,9 @@ function intOpt(v) {
   return isNaN(n) ? undefined : n
 }
 
-export default function AccountItem({ account, members }) {
+export default function AccountItem({ account, members, focus: focusProp }) {
   const { state, dispatch } = useChurn()
+  const focus = focusProp ?? getAccountFocus(account, { transfers: state.transfers ?? [] })
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
   const [confirming, setConfirming] = useState(false)
@@ -341,13 +344,14 @@ export default function AccountItem({ account, members }) {
     : false
 
   return (
-    <div id={`item-${account.id}`} className="bg-surface border border-edge rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
+    <div id={`item-${account.id}`} data-lane={focus.lane} className="wallet-item bg-surface border border-edge rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
       {/* Collapsed header. A div, not a button — it holds the offer link and
           the quick-action buttons, which can't legally nest inside one. */}
       <div
         className="w-full p-4 cursor-pointer select-none"
         onClick={() => expanded ? cancelEdit() : startEdit()}
       >
+        <FocusStrip focus={focus} kind="account" />
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2.5 min-w-0 flex-1">
             <IssuerLogo name={account.bankName} size={30} />

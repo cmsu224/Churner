@@ -12,6 +12,8 @@ import { getCardAge } from '../../engines/creditAge'
 import { getBurnRate } from '../../engines/burnRate'
 import { valueCardBonus, isCardBonusPending, isFeeRefundPending } from '../../engines/earnings'
 import { CARD_STATUSES } from '../../utils/statusMeta'
+import { getCardFocus } from '../../engines/walletFocus'
+import FocusStrip from '../shared/FocusStrip'
 import { fmt$, fmt$0, fmtPts, fmtDate, fmtDateCompact, todayISODate } from '../../utils/format'
 import { ChevronDown, ChevronUp, Zap, RotateCcw, Plus, X, Lightbulb, Receipt } from 'lucide-react'
 
@@ -197,7 +199,8 @@ function getQuickActions(card) {
   }
 }
 
-export default function CardItem({ card, members, autoOpenLogSpend = false }) {
+export default function CardItem({ card, members, autoOpenLogSpend = false, focus: focusProp }) {
+  const focus = focusProp ?? getCardFocus(card)
   const { state, dispatch } = useChurn()
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState(null)
@@ -397,12 +400,13 @@ export default function CardItem({ card, members, autoOpenLogSpend = false }) {
     || !!draft?.bonusReceived
 
   return (
-    <div id={`item-${card.id}`} className="bg-surface border border-edge rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
+    <div id={`item-${card.id}`} data-lane={focus.lane} className="wallet-item bg-surface border border-edge rounded-xl overflow-hidden hover:border-edge-strong transition-colors">
       {/* Collapsed header */}
       <div
         className="w-full p-4 cursor-pointer select-none"
         onClick={() => expanded ? cancelEdit() : startEdit()}
       >
+        <FocusStrip focus={focus} kind="card" />
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2.5 min-w-0 flex-1">
             <IssuerLogo name={card.issuer || card.cardName} size={30} />

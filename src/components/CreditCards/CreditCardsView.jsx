@@ -4,6 +4,8 @@ import { useLocation } from 'react-router-dom'
 import { useChurn } from '../../store/ChurnContext'
 import { useHighlight, flashItem } from '../../hooks/useHighlight'
 import CardItem from './CardItem'
+import WalletLanes from '../shared/WalletLanes'
+import { getCardFocus, groupByLane } from '../../engines/walletFocus'
 import CardTable from './CardTable'
 import IssuerLogo from '../shared/IssuerLogo'
 import DateField from '../shared/DateField'
@@ -476,6 +478,12 @@ export default function CreditCardsView() {
           <CardTable cards={tableCards} members={members} onRowClick={openCard} />
           {keepAliveHint && <div className="mt-4 text-center">{keepAliveHint}</div>}
         </>
+      ) : sortBy === 'recommended' && !useGroups ? (
+        // Recommended order = the list split into focus lanes. Keep-alive cards
+        // aren't hidden here: they sit in the collapsed parked group, and one
+        // going dormant has to be able to surface as a decision.
+        <WalletLanes kind="card" buckets={groupByLane(applyFiltersAndSort(allCards, { hideKeepAlive: false }), c => getCardFocus(c))}
+          renderItem={e => <CardItem key={e.record.id} card={e.record} focus={e.focus} members={members} autoOpenLogSpend={logSpendCardId === e.record.id} />} />
       ) : (
         <>
           {filteredCards.length > 0 && (useGroups ? (

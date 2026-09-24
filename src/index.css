@@ -173,3 +173,23 @@ button, input, select { touch-action: manipulation; }
   }
   button.tap-wide, [role="button"].tap-wide { min-width: 0; }
 }
+
+/* Wallet focus lanes (engines/walletFocus.js) */
+:root { --c-wait: 14 124 138; }
+html.dark { --c-wait: 92 200 214; }
+[data-lane=urgent]   { --lane: var(--c-danger);  --lane-ink: var(--c-danger-ink); }
+[data-lane=working]  { --lane: var(--c-accent);  --lane-ink: var(--c-accent-ink); }
+[data-lane=waiting]  { --lane: var(--c-wait);    --lane-ink: var(--c-wait); }
+[data-lane=decision] { --lane: var(--c-warning); --lane-ink: var(--c-warning-ink); }
+[data-lane=earned]   { --lane: var(--c-success); --lane-ink: var(--c-success-ink); }
+[data-lane=parked]   { --lane: var(--c-ink-tertiary); --lane-ink: var(--c-ink-muted); }
+.wallet-item[data-lane] { border-left: 4px solid rgb(var(--lane)); }
+.wallet-item[data-lane=urgent] { border-color: rgb(var(--lane)); }
+.wallet-item[data-lane=parked] { opacity: .85; }
+.lane-dot { display:inline-block; flex:none; width:8px; height:8px; border-radius:50%; background:rgb(var(--lane)); }
+.lane-chip { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; padding:2px 9px; border-radius:99px; background:rgb(var(--lane) / .14); color:rgb(var(--lane-ink)); white-space:nowrap; }
+.focus-strip { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin-bottom:10px; }
+.focus-next { font-size:12px; color:rgb(var(--c-ink-secondary)); }
+.wallet-lane-head { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; font-weight:700; letter-spacing:1.1px; text-transform:uppercase; color:rgb(var(--lane-ink)); }
+.wallet-lane-head > span { display:inline-flex; align-items:center; gap:8px; }
+.wallet-lane-head em { font-style:normal; display:inline-flex; align-items:center; gap:4px; color:rgb(var(--c-ink-faint)); }
